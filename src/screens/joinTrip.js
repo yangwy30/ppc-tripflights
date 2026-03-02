@@ -8,7 +8,7 @@ import { navigate } from '../app.js';
 import { showToast } from '../components/toast.js';
 
 export function renderJoinTrip(container) {
-    container.innerHTML = `
+  container.innerHTML = `
     <div class="screen">
       <div class="topbar">
         <button class="topbar-back" id="btn-back">
@@ -47,26 +47,32 @@ export function renderJoinTrip(container) {
     </div>
   `;
 
-    container.querySelector('#btn-back').addEventListener('click', () => navigate(''));
+  container.querySelector('#btn-back').addEventListener('click', () => navigate(''));
 
-    container.querySelector('#join-form').addEventListener('submit', (e) => {
-        e.preventDefault();
+  container.querySelector('#join-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
 
-        const pin = container.querySelector('#pin-code').value.trim();
-        const nickname = container.querySelector('#join-name').value.trim();
-        const errorEl = container.querySelector('#join-error');
+    const pin = container.querySelector('#pin-code').value.trim();
+    const nickname = container.querySelector('#join-name').value.trim();
+    const errorEl = container.querySelector('#join-error');
 
-        if (!pin || !nickname) return;
+    if (!pin || !nickname) return;
 
-        const trip = joinTrip({ pin, nickname });
-        if (trip) {
-            errorEl.style.display = 'none';
-            emit(EVENTS.TRIP_JOINED, trip);
-            showToast(`Joined "${trip.name}"!`, 'success');
-            navigate(`trip/${trip.id}`);
-        } else {
-            errorEl.style.display = 'block';
-            showToast('Trip not found', 'error');
-        }
-    });
+    const submitBtn = container.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Joining...';
+
+    const trip = await joinTrip({ pin, nickname });
+    if (trip) {
+      errorEl.style.display = 'none';
+      emit(EVENTS.TRIP_JOINED, trip);
+      showToast(`Joined "${trip.name}"!`, 'success');
+      navigate(`trip/${trip.id}`);
+    } else {
+      errorEl.style.display = 'block';
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Join Trip 📌';
+      showToast('Trip not found', 'error');
+    }
+  });
 }

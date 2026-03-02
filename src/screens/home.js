@@ -5,10 +5,23 @@
 import { getAllTrips } from '../data/dataAdapter.js';
 import { navigate } from '../app.js';
 
-export function renderHome(container) {
-    const trips = getAllTrips();
+export async function renderHome(container) {
+  // Show loading state first
+  container.innerHTML = `
+    <div class="screen">
+      <div class="screen-header" style="padding-top: var(--space-xl);">
+        <div style="margin-bottom: var(--space-xl);">
+          <div style="font-size: 2.8rem; margin-bottom: var(--space-md);">✈️</div>
+          <h1>TripFlights</h1>
+          <p>Loading your trips...</p>
+        </div>
+      </div>
+    </div>
+  `;
 
-    container.innerHTML = `
+  const trips = await getAllTrips();
+
+  container.innerHTML = `
     <div class="screen">
       <div class="screen-header" style="padding-top: var(--space-xl);">
         <div style="margin-bottom: var(--space-xl);">
@@ -55,27 +68,27 @@ export function renderHome(container) {
     </div>
   `;
 
-    // Event listeners
-    container.querySelector('#btn-create').addEventListener('click', () => navigate('create'));
-    container.querySelector('#btn-join').addEventListener('click', () => navigate('join'));
+  // Event listeners
+  container.querySelector('#btn-create').addEventListener('click', () => navigate('create'));
+  container.querySelector('#btn-join').addEventListener('click', () => navigate('join'));
 
-    container.querySelectorAll('.trip-card').forEach(card => {
-        card.addEventListener('click', () => {
-            navigate(`trip/${card.dataset.tripId}`);
-        });
+  container.querySelectorAll('.trip-card').forEach(card => {
+    card.addEventListener('click', () => {
+      navigate(`trip/${card.dataset.tripId}`);
     });
+  });
 }
 
 function formatDateRange(start, end) {
-    if (!start) return '';
-    const opts = { month: 'short', day: 'numeric' };
-    const s = new Date(start + 'T00:00:00').toLocaleDateString('en-US', opts);
-    const e = end ? new Date(end + 'T00:00:00').toLocaleDateString('en-US', opts) : '';
-    return e ? `${s} — ${e}` : s;
+  if (!start) return '';
+  const opts = { month: 'short', day: 'numeric' };
+  const s = new Date(start + 'T00:00:00').toLocaleDateString('en-US', opts);
+  const e = end ? new Date(end + 'T00:00:00').toLocaleDateString('en-US', opts) : '';
+  return e ? `${s} — ${e}` : s;
 }
 
 function escapeHtml(str) {
-    const div = document.createElement('div');
-    div.textContent = str;
-    return div.innerHTML;
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
 }

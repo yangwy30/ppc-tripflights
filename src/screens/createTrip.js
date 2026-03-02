@@ -8,15 +8,15 @@ import { navigate } from '../app.js';
 import { showToast } from '../components/toast.js';
 
 export function renderCreateTrip(container) {
-    // Default dates: today + 7 days
-    const today = new Date();
-    const nextWeek = new Date(today);
-    nextWeek.setDate(nextWeek.getDate() + 7);
+  // Default dates: today + 7 days
+  const today = new Date();
+  const nextWeek = new Date(today);
+  nextWeek.setDate(nextWeek.getDate() + 7);
 
-    const todayStr = today.toISOString().split('T')[0];
-    const nextWeekStr = nextWeek.toISOString().split('T')[0];
+  const todayStr = today.toISOString().split('T')[0];
+  const nextWeekStr = nextWeek.toISOString().split('T')[0];
 
-    container.innerHTML = `
+  container.innerHTML = `
     <div class="screen">
       <div class="topbar">
         <button class="topbar-back" id="btn-back">
@@ -58,21 +58,31 @@ export function renderCreateTrip(container) {
     </div>
   `;
 
-    container.querySelector('#btn-back').addEventListener('click', () => navigate(''));
+  container.querySelector('#btn-back').addEventListener('click', () => navigate(''));
 
-    container.querySelector('#create-form').addEventListener('submit', (e) => {
-        e.preventDefault();
+  container.querySelector('#create-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
 
-        const name = container.querySelector('#trip-name').value.trim();
-        const startDate = container.querySelector('#trip-start').value;
-        const endDate = container.querySelector('#trip-end').value;
-        const creatorName = container.querySelector('#your-name').value.trim();
+    const name = container.querySelector('#trip-name').value.trim();
+    const startDate = container.querySelector('#trip-start').value;
+    const endDate = container.querySelector('#trip-end').value;
+    const creatorName = container.querySelector('#your-name').value.trim();
 
-        if (!name || !creatorName) return;
+    if (!name || !creatorName) return;
 
-        const trip = createTrip({ name, startDate, endDate, creatorName });
-        emit(EVENTS.TRIP_CREATED, trip);
-        showToast(`Trip "${trip.name}" created! PIN: ${trip.pin}`, 'success');
-        navigate(`trip/${trip.id}`);
-    });
+    const submitBtn = container.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Creating...';
+
+    const trip = await createTrip({ name, startDate, endDate, creatorName });
+    if (trip) {
+      emit(EVENTS.TRIP_CREATED, trip);
+      showToast(`Trip "${trip.name}" created! PIN: ${trip.pin}`, 'success');
+      navigate(`trip/${trip.id}`);
+    } else {
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Create Trip ✈️';
+      showToast('Failed to create trip', 'error');
+    }
+  });
 }

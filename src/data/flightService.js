@@ -9,7 +9,7 @@
    ============================================ */
 
 // --- AeroDataBox Configuration ---
-const RAPIDAPI_KEY = 'bcedd6428cmsh4bd5a72341127d0p1e2052jsn37ea5918165a';
+const RAPIDAPI_KEY = import.meta.env.VITE_RAPIDAPI_KEY || '';
 const RAPIDAPI_HOST = 'aerodatabox.p.rapidapi.com';
 const BASE_URL = `https://${RAPIDAPI_HOST}`;
 

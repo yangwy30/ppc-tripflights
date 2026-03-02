@@ -13,8 +13,8 @@ import { navigate } from '../app.js';
 import { showToast } from '../components/toast.js';
 import { lookupFlight, getDemoFlightNumbers } from '../data/flightService.js';
 
-export function renderAddFlight(container, tripId) {
-  const trip = getTrip(tripId);
+export async function renderAddFlight(container, tripId) {
+  const trip = await getTrip(tripId);
   if (!trip) {
     navigate('');
     return;
@@ -30,8 +30,8 @@ export function renderAddFlight(container, tripId) {
   const defaultDate = trip.startDate || new Date().toISOString().split('T')[0];
   const demoFlights = getDemoFlightNumbers().slice(0, 6);
 
-  function render() {
-    const currentTrip = getTrip(tripId);
+  async function render() {
+    const currentTrip = await getTrip(tripId);
     if (!currentTrip) return;
 
     container.innerHTML = `
@@ -247,10 +247,10 @@ export function renderAddFlight(container, tripId) {
     const addPersonBtn = container.querySelector('#btn-add-person');
     const newPersonInput = container.querySelector('#new-person-name');
     if (addPersonBtn && newPersonInput) {
-      const doAddPerson = () => {
+      const doAddPerson = async () => {
         const name = newPersonInput.value.trim();
         if (!name) { showToast('Enter a name', 'warning'); return; }
-        const result = addParticipant(tripId, name);
+        const result = await addParticipant(tripId, name);
         if (result) {
           selectedPerson = name;
           showToast(`${name} added to trip!`, 'success');
@@ -264,7 +264,7 @@ export function renderAddFlight(container, tripId) {
     }
 
     // Submit form
-    container.querySelector('#flight-form').addEventListener('submit', (e) => {
+    container.querySelector('#flight-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       const flight = {
         flightNumber: container.querySelector('#f-number').value.trim().toUpperCase(),
@@ -292,7 +292,11 @@ export function renderAddFlight(container, tripId) {
         return;
       }
 
-      addFlight(tripId, flight);
+      const submitBtn = container.querySelector('button[type="submit"]');
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Adding...';
+
+      await addFlight(tripId, flight);
       emit(EVENTS.FLIGHT_ADDED, flight);
 
       const forLabel = selectedPerson === nickname ? '' : ` for ${selectedPerson}`;

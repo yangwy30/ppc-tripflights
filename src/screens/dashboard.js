@@ -17,8 +17,8 @@ const PERSON_COLORS = [
   'var(--person-4)', 'var(--person-5)', 'var(--person-6)'
 ];
 
-export function renderDashboard(container, tripId) {
-  const trip = getTrip(tripId);
+export async function renderDashboard(container, tripId) {
+  const trip = await getTrip(tripId);
   if (!trip) {
     navigate('');
     return;
@@ -39,8 +39,8 @@ export function renderDashboard(container, tripId) {
     }
   });
 
-  function render() {
-    const currentTrip = getTrip(tripId);
+  async function render() {
+    const currentTrip = await getTrip(tripId);
     if (!currentTrip) return;
 
     const filteredFlights = filterPerson === 'all'
@@ -160,8 +160,8 @@ export function renderDashboard(container, tripId) {
       });
     });
 
-    container.querySelector('#btn-share').addEventListener('click', () => {
-      const summary = exportTripSummary(tripId);
+    container.querySelector('#btn-share').addEventListener('click', async () => {
+      const summary = await exportTripSummary(tripId);
       if (navigator.share) {
         navigator.share({ title: currentTrip.name, text: summary }).catch(() => { });
       } else {
@@ -171,11 +171,11 @@ export function renderDashboard(container, tripId) {
       }
     });
 
-    container.querySelector('#btn-delete-trip').addEventListener('click', () => {
+    container.querySelector('#btn-delete-trip').addEventListener('click', async () => {
       if (confirm(`Delete "${currentTrip.name}"? This cannot be undone.`)) {
         stopPolling(tripId);
         unsubscribe();
-        deleteTrip(tripId);
+        await deleteTrip(tripId);
         showToast('Trip deleted', 'info');
         navigate('');
       }
@@ -228,18 +228,18 @@ export function renderDashboard(container, tripId) {
 
     // Flight card actions — delete with undo
     container.querySelectorAll('.flight-delete').forEach(btn => {
-      btn.addEventListener('click', (e) => {
+      btn.addEventListener('click', async (e) => {
         e.stopPropagation();
         const flightId = btn.dataset.flightId;
         // Save the flight before deleting so we can restore it
         const removedFlight = currentTrip.flights.find(f => f.id === flightId);
-        deleteFlight(tripId, flightId);
+        await deleteFlight(tripId, flightId);
         render();
         showToast('Flight removed', 'info', 5000, {
           label: 'Undo',
-          onClick: () => {
+          onClick: async () => {
             if (removedFlight) {
-              restoreFlight(tripId, removedFlight);
+              await restoreFlight(tripId, removedFlight);
               showToast('Flight restored!', 'success');
               render();
             }
@@ -256,7 +256,7 @@ export function renderDashboard(container, tripId) {
         const flightNum = btn.dataset.flightNumber;
         btn.textContent = '⏳';
         const newStatus = await refreshFlightStatus(flightNum);
-        updateFlightStatus(tripId, flightId, newStatus);
+        await updateFlightStatus(tripId, flightId, newStatus);
         showToast(`${flightNum}: ${formatStatus(newStatus)}`, 'flight');
         render();
       });

@@ -7,22 +7,22 @@ import { emit, EVENTS } from '../data/store.js';
 import { navigate } from '../app.js';
 import { showToast } from '../components/toast.js';
 
-export function renderNotes(container, tripId) {
-    const trip = getTrip(tripId);
-    if (!trip) {
-        navigate('');
-        return;
-    }
+export async function renderNotes(container, tripId) {
+  const trip = await getTrip(tripId);
+  if (!trip) {
+    navigate('');
+    return;
+  }
 
-    const nickname = getUserNickname(tripId);
+  const nickname = getUserNickname(tripId);
 
-    function render() {
-        const currentTrip = getTrip(tripId);
-        if (!currentTrip) return;
+  async function render() {
+    const currentTrip = await getTrip(tripId);
+    if (!currentTrip) return;
 
-        const notes = [...currentTrip.notes].reverse(); // newest first
+    const notes = [...currentTrip.notes].reverse(); // newest first
 
-        container.innerHTML = `
+    container.innerHTML = `
       <div class="screen">
         <div class="topbar">
           <button class="topbar-back" id="btn-back">← Dashboard</button>
@@ -67,54 +67,54 @@ export function renderNotes(container, tripId) {
       </div>
     `;
 
-        // --- Event Listeners ---
-        container.querySelector('#btn-back').addEventListener('click', () => navigate(`trip/${tripId}`));
+    // --- Event Listeners ---
+    container.querySelector('#btn-back').addEventListener('click', () => navigate(`trip/${tripId}`));
 
-        container.querySelector('#btn-add-note').addEventListener('click', () => {
-            const input = container.querySelector('#note-input');
-            const content = input.value.trim();
-            if (!content) return;
+    container.querySelector('#btn-add-note').addEventListener('click', async () => {
+      const input = container.querySelector('#note-input');
+      const content = input.value.trim();
+      if (!content) return;
 
-            addNote(tripId, { content, author: nickname });
-            showToast('Note added', 'success');
-            render();
+      await addNote(tripId, { content, author: nickname });
+      showToast('Note added', 'success');
+      render();
+    });
+
+    container.querySelector('#btn-export').addEventListener('click', async () => {
+      const summary = await exportTripSummary(tripId);
+      if (navigator.share) {
+        navigator.share({ title: currentTrip.name, text: summary }).catch(() => { });
+      } else if (navigator.clipboard) {
+        navigator.clipboard.writeText(summary).then(() => {
+          showToast('Itinerary copied to clipboard!', 'success');
         });
+      }
+    });
 
-        container.querySelector('#btn-export').addEventListener('click', () => {
-            const summary = exportTripSummary(tripId);
-            if (navigator.share) {
-                navigator.share({ title: currentTrip.name, text: summary }).catch(() => { });
-            } else if (navigator.clipboard) {
-                navigator.clipboard.writeText(summary).then(() => {
-                    showToast('Itinerary copied to clipboard!', 'success');
-                });
-            }
-        });
+    container.querySelectorAll('.note-delete').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        await deleteNote(tripId, btn.dataset.noteId);
+        showToast('Note deleted', 'info');
+        render();
+      });
+    });
+  }
 
-        container.querySelectorAll('.note-delete').forEach(btn => {
-            btn.addEventListener('click', () => {
-                deleteNote(tripId, btn.dataset.noteId);
-                showToast('Note deleted', 'info');
-                render();
-            });
-        });
-    }
-
-    render();
+  render();
 }
 
 function formatTime(isoStr) {
-    try {
-        const d = new Date(isoStr);
-        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-    } catch {
-        return '';
-    }
+  try {
+    const d = new Date(isoStr);
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  } catch {
+    return '';
+  }
 }
 
 function escapeHtml(str) {
-    if (!str) return '';
-    const div = document.createElement('div');
-    div.textContent = str;
-    return div.innerHTML;
+  if (!str) return '';
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
 }

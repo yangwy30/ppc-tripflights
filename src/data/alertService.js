@@ -56,7 +56,7 @@ function sendNotification(title, body, icon = '✈️') {
  * Sends notifications for delays and cancellations.
  */
 async function checkTripFlights(tripId) {
-    const trip = getTrip(tripId);
+    const trip = await getTrip(tripId);
     if (!trip || trip.flights.length === 0) return;
 
     console.log(`🔄 Auto-refreshing ${trip.flights.length} flight(s) for "${trip.name}"`);
@@ -71,7 +71,7 @@ async function checkTripFlights(tripId) {
 
             if (newStatus && newStatus !== oldStatus) {
                 // Update in storage
-                updateFlightStatus(tripId, flight.id, newStatus);
+                await updateFlightStatus(tripId, flight.id, newStatus);
 
                 console.log(`✈️ ${flight.flightNumber}: ${oldStatus} → ${newStatus}`);
 
