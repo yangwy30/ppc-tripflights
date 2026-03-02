@@ -123,7 +123,7 @@ export async function renderAddFlight(container, tripId) {
         </div>
 
         <!-- Flight Form -->
-        <form id="flight-form" class="flex-col" style="gap: var(--space-sm);">
+        <form id="flight-form" class="flex-col" style="gap: var(--space-sm); padding-bottom: 100px;">
           <div class="input-group">
             <label for="f-number">Flight Number</label>
             <input class="input" type="text" id="f-number" placeholder="e.g. UA901" required autocomplete="off"
@@ -199,9 +199,11 @@ export async function renderAddFlight(container, tripId) {
               value="${lookupResult?.duration || ''}" />
           </div>
 
-          <button class="btn btn-primary mt-lg" type="submit">
-            Add Flight for ${escapeHtml(selectedPerson)} ✈️
-          </button>
+          <div style="position: fixed; bottom: calc(var(--space-xl) + var(--safe-area-bottom)); left: 50%; transform: translateX(-50%); width: calc(100% - var(--space-xl) * 2); max-width: calc(var(--max-width) - var(--space-xl) * 2); z-index: 10;">
+            <button class="btn btn-primary" type="submit" style="width: 100%; box-shadow: var(--shadow-lg);">
+              Add Flight for ${escapeHtml(selectedPerson)} ✈️
+            </button>
+          </div>
         </form>
       </div>
     `;
