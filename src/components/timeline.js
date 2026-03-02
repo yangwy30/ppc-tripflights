@@ -1,5 +1,5 @@
 /* ============================================
-   TripFlights — Timeline Component (Overhauled)
+   PPC Trip Tracker — Timeline Component (Overhauled)
    
    Features:
    - Scrollable horizontal timeline spanning all trip days

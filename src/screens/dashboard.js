@@ -1,5 +1,5 @@
 /* ============================================
-   TripFlights — Dashboard Screen
+   PPC Trip Tracker — Dashboard Screen
    ============================================ */
 
 import { getTrip, getUserNickname, deleteFlight, restoreFlight, deleteTrip, exportTripSummary } from '../data/dataAdapter.js';

@@ -1,5 +1,5 @@
 /* ============================================
-   TripFlights — Join Trip Screen
+   PPC Trip Tracker — Join Trip Screen
    ============================================ */
 
 import { joinTrip } from '../data/dataAdapter.js';

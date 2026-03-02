@@ -1,5 +1,5 @@
 /* ============================================
-   TripFlights — Supabase Client
+   PPC Trip Tracker — Supabase Client
    
    Reads credentials from Vite environment vars.
    ============================================ */

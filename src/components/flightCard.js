@@ -1,5 +1,5 @@
 /* ============================================
-   TripFlights — Flight Card Component
+   PPC Trip Tracker — Flight Card Component
    ============================================ */
 
 const PERSON_COLORS = [

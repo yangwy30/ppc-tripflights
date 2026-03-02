@@ -1,5 +1,5 @@
 /* ============================================
-   TripFlights — Reactive Store (pub/sub)
+   PPC Trip Tracker — Reactive Store (pub/sub)
    ============================================ */
 
 const listeners = new Map();

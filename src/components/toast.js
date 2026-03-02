@@ -1,5 +1,5 @@
 /* ============================================
-   TripFlights — Toast Notification System
+   PPC Trip Tracker — Toast Notification System
    ============================================ */
 
 const STATUS_ICONS = {

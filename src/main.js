@@ -1,5 +1,5 @@
 /* ============================================
-   TripFlights — Main Entry Point
+   PPC Trip Tracker — Main Entry Point
    ============================================ */
 
 import './styles/index.css';

@@ -1,5 +1,5 @@
 /* ============================================
-   TripFlights — Notes Screen
+   PPC Trip Tracker — Notes Screen
    ============================================ */
 
 import { getTrip, getUserNickname, addNote, deleteNote, exportTripSummary } from '../data/dataAdapter.js';

@@ -7,8 +7,8 @@ export default defineConfig({
             registerType: 'autoUpdate',
             includeAssets: ['favicon.svg', 'icons/*.png'],
             manifest: {
-                name: 'TripFlights — Group Flight Tracker',
-                short_name: 'TripFlights',
+                name: 'PPC Trip Tracker — Group Flight Tracker',
+                short_name: 'PPC Trip Tracker',
                 description: 'Track group flights together',
                 theme_color: '#0A84FF',
                 background_color: '#F2F2F7',

@@ -1,5 +1,5 @@
 /* ============================================
-   TripFlights — Data Adapter (Supabase)
+   PPC Trip Tracker — Data Adapter (Supabase)
    
    Multi-user backend replacing localStorage.
    Same exported interface as the original — all
@@ -11,7 +11,7 @@
 
 import { supabase } from './supabaseClient.js';
 
-const NICKNAME_KEY = 'tripflights_nicknames';
+const NICKNAME_KEY = 'ppc-trip-tracker_nicknames';
 
 // --- Local nickname helpers (per-device) ---
 

@@ -1,5 +1,5 @@
 /* ============================================
-   TripFlights — Alert Service
+   PPC Trip Tracker — Alert Service
    
    Auto-refreshes flight status every 15 minutes
    and sends browser notifications for delays.

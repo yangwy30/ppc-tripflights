@@ -1,5 +1,5 @@
 /* ============================================
-   TripFlights — Create Trip Screen
+   PPC Trip Tracker — Create Trip Screen
    ============================================ */
 
 import { createTrip } from '../data/dataAdapter.js';

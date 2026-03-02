@@ -1,5 +1,5 @@
 /* ============================================
-   TripFlights — App Router (hash-based SPA)
+   PPC Trip Tracker — App Router (hash-based SPA)
    ============================================ */
 
 import { subscribe, EVENTS } from './data/store.js';

@@ -1,5 +1,5 @@
 /* ============================================
-   TripFlights — Add Flight Screen
+   PPC Trip Tracker — Add Flight Screen
    
    Features:
    - Flight auto-lookup via AeroDataBox API

@@ -1,5 +1,5 @@
 /* ============================================
-   TripFlights — Flight Lookup Service
+   PPC Trip Tracker — Flight Lookup Service
    
    Uses AeroDataBox API via RapidAPI for real
    flight lookups, with mock data fallback.
