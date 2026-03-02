@@ -45,158 +45,162 @@ export async function renderAddFlight(container, tripId) {
           <p>Look up a flight or enter details manually</p>
         </div>
 
-        <!-- Flight Lookup -->
-        <div class="card mb-base">
-          <h4 style="margin-bottom: var(--space-md);">🔍 Flight Lookup</h4>
-          <div class="input-with-btn">
-            <input class="input" type="text" id="flight-lookup" placeholder="e.g. AA100, DL665" autocomplete="off" 
-              style="text-transform: uppercase;" />
-            <button class="btn btn-primary btn-sm" id="btn-lookup" ${isLooking ? 'disabled' : ''}>
-              ${isLooking ? '⏳' : 'Look Up'}
-            </button>
-          </div>
-          <div style="margin-top: var(--space-sm); display: flex; flex-wrap: wrap; gap: 4px;">
-            ${demoFlights.map(fn => `
-              <button class="chip demo-flight" style="font-size: var(--font-size-xs); padding: 3px 8px;" data-fn="${fn}">${fn}</button>
-            `).join('')}
-          </div>
-          ${lookupResult === false ? `
-            <p style="color: var(--color-warning); font-size: var(--font-size-sm); margin-top: var(--space-sm);">
-              Flight not found. You can enter details manually below.
+        <form id="flight-form" class="flex-col" style="gap: var(--space-base); padding-bottom: 100px;">
+          
+          <!-- Booking For (participant selector + add new) -->
+          <div class="card">
+            <h4 style="margin-bottom: var(--space-sm);">👤 Booking For</h4>
+            <p style="font-size: var(--font-size-xs); color: var(--color-text-tertiary); margin-bottom: var(--space-md);">
+              Select who this flight is for, or add a new traveler
             </p>
-          ` : ''}
-        </div>
-
-        <!-- Route Picker (shown when multiple routes found) -->
-        ${routeOptions && routeOptions.length > 1 ? `
-          <div class="card mb-base" style="border: 2px solid var(--color-accent); animation: scaleIn var(--transition-base) ease-out;">
-            <h4 style="margin-bottom: var(--space-sm);">🔀 Multiple Routes Found</h4>
-            <p style="font-size: var(--font-size-sm); color: var(--color-text-secondary); margin-bottom: var(--space-md);">
-              This flight number has ${routeOptions.length} different routes. Select the correct one:
-            </p>
-            <div class="flex-col" style="gap: var(--space-sm);">
-              ${routeOptions.map((route, i) => `
-                <button class="route-option card-compact" data-route-index="${i}" style="
-                  cursor: pointer; text-align: left; width: 100%;
-                  border: 2px solid ${lookupResult === route ? 'var(--color-accent)' : 'var(--color-border-light)'};
-                  background: ${lookupResult === route ? 'var(--color-accent-light)' : 'var(--color-surface)'};
-                  transition: all var(--transition-fast);
-                ">
-                  <div style="display: flex; align-items: center; justify-content: space-between;">
-                    <div>
-                      <div style="font-weight: var(--font-weight-bold); font-size: var(--font-size-md);">
-                        ${escapeHtml(route.departure.code)} → ${escapeHtml(route.arrival.code)}
-                      </div>
-                      <div style="font-size: var(--font-size-sm); color: var(--color-text-secondary);">
-                        ${escapeHtml(route.departure.city)} → ${escapeHtml(route.arrival.city)}
-                      </div>
-                      <div style="font-size: var(--font-size-xs); color: var(--color-text-tertiary); margin-top: 2px;">
-                        ${escapeHtml(route.departure.time)} → ${escapeHtml(route.arrival.time)} · ${escapeHtml(route.duration)}
-                      </div>
-                    </div>
-                    <div style="font-size: 1.2rem;">${lookupResult === route ? '✅' : '○'}</div>
-                  </div>
+            <div class="chip-group" style="flex-wrap: wrap; margin-bottom: var(--space-sm);">
+              ${currentTrip.participants.map(p => `
+                <button type="button" class="chip person-chip ${selectedPerson === p.name ? 'active' : ''}" data-person="${escapeHtml(p.name)}">
+                  ${escapeHtml(p.name)}${p.name === nickname ? ' (you)' : ''}
                 </button>
               `).join('')}
             </div>
+            <div class="input-with-btn">
+              <input class="input" type="text" id="new-person-name" placeholder="Add new person (e.g. Candy)" autocomplete="off"
+                style="font-size: var(--font-size-sm);" />
+              <button class="btn btn-secondary btn-sm" id="btn-add-person" type="button">＋ Add</button>
+            </div>
           </div>
-        ` : ''}
 
-        <!-- Booking For (participant selector + add new) -->
-        <div class="card mb-base">
-          <h4 style="margin-bottom: var(--space-sm);">👤 Booking For</h4>
-          <p style="font-size: var(--font-size-xs); color: var(--color-text-tertiary); margin-bottom: var(--space-md);">
-            Select who this flight is for, or add a new traveler
-          </p>
-          <div class="chip-group" style="flex-wrap: wrap; margin-bottom: var(--space-sm);">
-            ${currentTrip.participants.map(p => `
-              <button class="chip person-chip ${selectedPerson === p.name ? 'active' : ''}" data-person="${escapeHtml(p.name)}">
-                ${escapeHtml(p.name)}${p.name === nickname ? ' (you)' : ''}
+          <!-- Flight Lookup -->
+          <div class="card">
+            <h4 style="margin-bottom: var(--space-md);">🔍 Flight Lookup</h4>
+            <div class="input-with-btn mb-sm">
+              <input class="input" type="text" id="flight-lookup" placeholder="e.g. AA100, DL665" autocomplete="off" 
+                style="text-transform: uppercase;" />
+              <button type="button" class="btn btn-primary btn-sm" id="btn-lookup" ${isLooking ? 'disabled' : ''}>
+                ${isLooking ? '⏳' : 'Look Up'}
               </button>
-            `).join('')}
-          </div>
-          <div class="input-with-btn">
-            <input class="input" type="text" id="new-person-name" placeholder="Add new person (e.g. Candy)" autocomplete="off"
-              style="font-size: var(--font-size-sm);" />
-            <button class="btn btn-secondary btn-sm" id="btn-add-person" type="button">＋ Add</button>
-          </div>
-        </div>
+            </div>
+            <div style="margin-top: var(--space-sm); display: flex; flex-wrap: wrap; gap: 4px;">
+              ${demoFlights.map(fn => `
+                <button type="button" class="chip demo-flight" style="font-size: var(--font-size-xs); padding: 3px 8px;" data-fn="${fn}">${fn}</button>
+              `).join('')}
+            </div>
+            
+            <div class="input-group" style="margin-top: var(--space-md);">
+              <label for="f-date">Flight Date</label>
+              <input class="input" type="date" id="f-date" value="${defaultDate}" required />
+            </div>
 
-        <!-- Flight Form -->
-        <form id="flight-form" class="flex-col" style="gap: var(--space-sm); padding-bottom: 100px;">
-          <div class="input-group">
-            <label for="f-number">Flight Number</label>
-            <input class="input" type="text" id="f-number" placeholder="e.g. UA901" required autocomplete="off"
-              value="${lookupResult?.flightNumber || ''}" style="text-transform: uppercase;" />
-          </div>
-
-          <div class="input-group">
-            <label for="f-airline">Airline</label>
-            <input class="input" type="text" id="f-airline" placeholder="e.g. United Airlines" autocomplete="off"
-              value="${lookupResult?.airline || ''}" />
+            ${lookupResult === false ? `
+              <p style="color: var(--color-warning); font-size: var(--font-size-sm); margin-top: var(--space-sm);">
+                Flight not found. You can enter details manually below.
+              </p>
+            ` : ''}
           </div>
 
-          <div class="input-group">
-            <label for="f-date">Date</label>
-            <input class="input" type="date" id="f-date" value="${defaultDate}" required />
-          </div>
+          <!-- Route Picker (shown when multiple routes found) -->
+          ${routeOptions && routeOptions.length > 1 ? `
+            <div class="card" style="border: 2px solid var(--color-accent); animation: scaleIn var(--transition-base) ease-out;">
+              <h4 style="margin-bottom: var(--space-sm);">🔀 Multiple Routes Found</h4>
+              <p style="font-size: var(--font-size-sm); color: var(--color-text-secondary); margin-bottom: var(--space-md);">
+                This flight number has ${routeOptions.length} different routes. Select the correct one:
+              </p>
+              <div class="flex-col" style="gap: var(--space-sm);">
+                ${routeOptions.map((route, i) => `
+                  <button type="button" class="route-option card-compact" data-route-index="${i}" style="
+                    cursor: pointer; text-align: left; width: 100%;
+                    border: 2px solid ${lookupResult === route ? 'var(--color-accent)' : 'var(--color-border-light)'};
+                    background: ${lookupResult === route ? 'var(--color-accent-light)' : 'var(--color-surface)'};
+                    transition: all var(--transition-fast);
+                  ">
+                    <div style="display: flex; align-items: center; justify-content: space-between;">
+                      <div>
+                        <div style="font-weight: var(--font-weight-bold); font-size: var(--font-size-md);">
+                          ${escapeHtml(route.departure.code)} → ${escapeHtml(route.arrival.code)}
+                        </div>
+                        <div style="font-size: var(--font-size-sm); color: var(--color-text-secondary);">
+                          ${escapeHtml(route.departure.city)} → ${escapeHtml(route.arrival.city)}
+                        </div>
+                        <div style="font-size: var(--font-size-xs); color: var(--color-text-tertiary); margin-top: 2px;">
+                          ${escapeHtml(route.departure.time)} → ${escapeHtml(route.arrival.time)} · ${escapeHtml(route.duration)}
+                        </div>
+                      </div>
+                      <div style="font-size: 1.2rem;">${lookupResult === route ? '✅' : '○'}</div>
+                    </div>
+                  </button>
+                `).join('')}
+              </div>
+            </div>
+          ` : ''}
 
-          <div class="flex" style="gap: var(--space-sm);">
-            <div class="input-group" style="flex:1;">
-              <label for="f-dep-code">From (Code)</label>
-              <input class="input" type="text" id="f-dep-code" placeholder="JFK" maxlength="4" autocomplete="off"
-                value="${lookupResult?.departure?.code || ''}" style="text-transform: uppercase;" required />
+          <!-- Flight Details -->
+          <div class="card flex-col" style="gap: var(--space-sm);">
+            <div class="input-group">
+              <label for="f-number">Flight Number</label>
+              <input class="input" type="text" id="f-number" placeholder="e.g. UA901" required autocomplete="off"
+                value="${lookupResult?.flightNumber || ''}" style="text-transform: uppercase;" />
             </div>
-            <div class="input-group" style="flex:1;">
-              <label for="f-arr-code">To (Code)</label>
-              <input class="input" type="text" id="f-arr-code" placeholder="LHR" maxlength="4" autocomplete="off"
-                value="${lookupResult?.arrival?.code || ''}" style="text-transform: uppercase;" required />
-            </div>
-          </div>
 
-          <div class="flex" style="gap: var(--space-sm);">
-            <div class="input-group" style="flex:1;">
-              <label for="f-dep-city">Departure City</label>
-              <input class="input" type="text" id="f-dep-city" placeholder="New York" autocomplete="off"
-                value="${lookupResult?.departure?.city || ''}" />
+            <div class="input-group">
+              <label for="f-airline">Airline</label>
+              <input class="input" type="text" id="f-airline" placeholder="e.g. United Airlines" autocomplete="off"
+                value="${lookupResult?.airline || ''}" />
             </div>
-            <div class="input-group" style="flex:1;">
-              <label for="f-arr-city">Arrival City</label>
-              <input class="input" type="text" id="f-arr-city" placeholder="London" autocomplete="off"
-                value="${lookupResult?.arrival?.city || ''}" />
-            </div>
-          </div>
 
-          <div class="flex" style="gap: var(--space-sm);">
-            <div class="input-group" style="flex:1;">
-              <label for="f-dep-time">Departure Time</label>
-              <input class="input" type="time" id="f-dep-time"
-                value="${lookupResult ? convertTo24h(lookupResult.departure?.time) : ''}" />
+            <div class="flex" style="gap: var(--space-sm);">
+              <div class="input-group" style="flex:1;">
+                <label for="f-dep-code">From (Code)</label>
+                <input class="input" type="text" id="f-dep-code" placeholder="JFK" maxlength="4" autocomplete="off"
+                  value="${lookupResult?.departure?.code || ''}" style="text-transform: uppercase;" required />
+              </div>
+              <div class="input-group" style="flex:1;">
+                <label for="f-arr-code">To (Code)</label>
+                <input class="input" type="text" id="f-arr-code" placeholder="LHR" maxlength="4" autocomplete="off"
+                  value="${lookupResult?.arrival?.code || ''}" style="text-transform: uppercase;" required />
+              </div>
             </div>
-            <div class="input-group" style="flex:1;">
-              <label for="f-arr-time">Arrival Time</label>
-              <input class="input" type="time" id="f-arr-time"
-                value="${lookupResult ? convertTo24h(lookupResult.arrival?.time) : ''}" />
-            </div>
-          </div>
 
-          <div class="flex" style="gap: var(--space-sm);">
-            <div class="input-group" style="flex:1;">
-              <label for="f-dep-terminal">Dep. Terminal</label>
-              <input class="input" type="text" id="f-dep-terminal" placeholder="T1" autocomplete="off"
-                value="${lookupResult?.departure?.terminal || ''}" />
+            <div class="flex" style="gap: var(--space-sm);">
+              <div class="input-group" style="flex:1;">
+                <label for="f-dep-city">Departure City</label>
+                <input class="input" type="text" id="f-dep-city" placeholder="New York" autocomplete="off"
+                  value="${lookupResult?.departure?.city || ''}" />
+              </div>
+              <div class="input-group" style="flex:1;">
+                <label for="f-arr-city">Arrival City</label>
+                <input class="input" type="text" id="f-arr-city" placeholder="London" autocomplete="off"
+                  value="${lookupResult?.arrival?.city || ''}" />
+              </div>
             </div>
-            <div class="input-group" style="flex:1;">
-              <label for="f-arr-terminal">Arr. Terminal</label>
-              <input class="input" type="text" id="f-arr-terminal" placeholder="T5" autocomplete="off"
-                value="${lookupResult?.arrival?.terminal || ''}" />
-            </div>
-          </div>
 
-          <div class="input-group">
-            <label for="f-duration">Duration</label>
-            <input class="input" type="text" id="f-duration" placeholder="e.g. 7h 15m" autocomplete="off"
-              value="${lookupResult?.duration || ''}" />
+            <div class="flex" style="gap: var(--space-sm);">
+              <div class="input-group" style="flex:1;">
+                <label for="f-dep-time">Departure Time</label>
+                <input class="input" type="time" id="f-dep-time"
+                  value="${lookupResult ? convertTo24h(lookupResult.departure?.time) : ''}" />
+              </div>
+              <div class="input-group" style="flex:1;">
+                <label for="f-arr-time">Arrival Time</label>
+                <input class="input" type="time" id="f-arr-time"
+                  value="${lookupResult ? convertTo24h(lookupResult.arrival?.time) : ''}" />
+              </div>
+            </div>
+
+            <div class="flex" style="gap: var(--space-sm);">
+              <div class="input-group" style="flex:1;">
+                <label for="f-dep-terminal">Dep. Terminal</label>
+                <input class="input" type="text" id="f-dep-terminal" placeholder="T1" autocomplete="off"
+                  value="${lookupResult?.departure?.terminal || ''}" />
+              </div>
+              <div class="input-group" style="flex:1;">
+                <label for="f-arr-terminal">Arr. Terminal</label>
+                <input class="input" type="text" id="f-arr-terminal" placeholder="T5" autocomplete="off"
+                  value="${lookupResult?.arrival?.terminal || ''}" />
+              </div>
+            </div>
+
+            <div class="input-group">
+              <label for="f-duration">Duration</label>
+              <input class="input" type="text" id="f-duration" placeholder="e.g. 7h 15m" autocomplete="off"
+                value="${lookupResult?.duration || ''}" />
+            </div>
           </div>
 
           <div style="position: fixed; bottom: calc(var(--space-xl) + var(--safe-area-bottom)); left: 50%; transform: translateX(-50%); width: calc(100% - var(--space-xl) * 2); max-width: calc(var(--max-width) - var(--space-xl) * 2); z-index: 10;">
