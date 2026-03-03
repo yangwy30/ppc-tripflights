@@ -8,11 +8,26 @@
 
 ## 📸 App Demo
 
+### 1. Create a Trip
 <p align="center">
-  <img src="./docs/demo.webp" alt="App Demo" width="350" style="border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.2);"/>
+  <img src="./docs/demo_create_trip.webp" alt="Creating a trip" width="500" style="border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.2);"/>
 </p>
 
-*(A walkthrough of creating a trip, picking a flight via AeroDataBox, and sharing it to the dashboard)*
+*Name your trip, set travel dates, and get a unique PIN to share with your group.*
+
+### 2. Add Flights for Everyone
+<p align="center">
+  <img src="./docs/demo_add_flights.webp" alt="Adding flights for multiple travelers" width="500" style="border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.2);"/>
+</p>
+
+*Look up flights by number (e.g. AA100) — the app auto-fills airline, airports, times, and duration. Add new travelers and assign flights to each person.*
+
+### 3. Dashboard & Timeline
+<p align="center">
+  <img src="./docs/demo_dashboard_timeline.webp" alt="Dashboard and timeline view" width="500" style="border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.2);"/>
+</p>
+
+*View all flights at a glance, filter by traveler, and switch to the interactive timeline to see overlapping flights across the group.*
 
 ---
 
