@@ -10,7 +10,7 @@ import { refreshFlightStatus } from '../data/flightService.js';
 import { updateFlightStatus } from '../data/dataAdapter.js';
 import { renderTimeline } from '../components/timeline.js';
 import { renderFlightCard } from '../components/flightCard.js';
-import { startPolling, stopPolling, requestNotificationPermission, isPolling } from '../data/alertService.js';
+import { startPolling, stopPolling, requestNotificationPermission, isPolling, getAutoRefreshPref, setAutoRefreshPref } from '../data/alertService.js';
 
 const PERSON_COLORS = [
   'var(--person-1)', 'var(--person-2)', 'var(--person-3)',
@@ -28,8 +28,10 @@ export async function renderDashboard(container, tripId) {
   let activeTab = 'flights';
   let filterPerson = 'all';
 
-  // Start auto-refresh polling for this trip
-  startPolling(tripId);
+  // Start auto-refresh polling for this trip if enabled
+  if (getAutoRefreshPref(tripId)) {
+    startPolling(tripId);
+  }
 
   // Listen for status changes from the alert service to auto-update the UI
   const unsubscribe = subscribe(EVENTS.FLIGHT_STATUS_CHANGED, (data) => {
@@ -187,9 +189,11 @@ export async function renderDashboard(container, tripId) {
       toggleBtn.addEventListener('click', () => {
         if (isPolling(tripId)) {
           stopPolling(tripId);
+          setAutoRefreshPref(tripId, false);
           showToast('Auto-refresh turned off', 'info');
         } else {
           startPolling(tripId);
+          setAutoRefreshPref(tripId, true);
           showToast('Auto-refresh turned on', 'success');
         }
         render();

@@ -13,6 +13,32 @@ import { emit, EVENTS } from './store.js';
 const REFRESH_INTERVAL_MS = 15 * 60 * 1000;
 let activePollers = new Map(); // tripId -> intervalId
 
+const PREF_KEY = 'ppc-trip-tracker_autorefresh';
+
+function loadPrefs() {
+    try {
+        const raw = localStorage.getItem(PREF_KEY);
+        return raw ? JSON.parse(raw) : {};
+    } catch {
+        return {};
+    }
+}
+
+export function getAutoRefreshPref(tripId) {
+    const prefs = loadPrefs();
+    return !!prefs[tripId];
+}
+
+export function setAutoRefreshPref(tripId, enabled) {
+    const prefs = loadPrefs();
+    if (enabled) {
+        prefs[tripId] = true;
+    } else {
+        delete prefs[tripId];
+    }
+    localStorage.setItem(PREF_KEY, JSON.stringify(prefs));
+}
+
 /**
  * Request browser notification permission.
  * Returns true if granted.
