@@ -13,6 +13,27 @@ import { supabase } from './supabaseClient.js';
 
 const NICKNAME_KEY = 'ppc-trip-tracker_nicknames';
 
+function getTokens() {
+    try {
+        const raw = localStorage.getItem('ppc-trip-tracker_tokens');
+        return raw ? JSON.parse(raw) : {};
+    } catch {
+        return {};
+    }
+}
+
+function saveToken(tripId, token) {
+    const tokens = getTokens();
+    tokens[tripId] = token;
+    localStorage.setItem('ppc-trip-tracker_tokens', JSON.stringify(tokens));
+
+    // Set the token for the current session
+    supabase.auth.setSession({
+        access_token: token,
+        refresh_token: ''
+    });
+}
+
 // --- Local nickname helpers (per-device) ---
 
 function loadNicknames() {
@@ -112,6 +133,24 @@ export async function createTrip({ name, startDate, endDate, creatorName }) {
 
     if (tripError) { console.error('createTrip error:', tripError); return null; }
 
+    // After creating, we must get a valid JWT to proceed reading/writing to the rest of the tables
+    // by explicitly "verifying" the pin we just created.
+    try {
+        const { data: authData, error: authError } = await supabase.functions.invoke('verify-pin', {
+            body: { pin }
+        });
+
+        if (authError || !authData?.token) {
+            console.error('Failed to get token after trip creation', authError);
+            return null;
+        }
+
+        saveToken(id, authData.token);
+    } catch (err) {
+        console.error('Edge function error', err);
+        return null; // Stop if we can't authenticate
+    }
+
     await supabase.from('participants').insert({
         trip_id: id,
         name: creatorName,
@@ -124,63 +163,107 @@ export async function createTrip({ name, startDate, endDate, creatorName }) {
 }
 
 export async function joinTrip({ pin, nickname }) {
-    const { data: trips, error } = await supabase
-        .from('trips')
-        .select('*')
-        .eq('pin', pin);
-
-    if (error || !trips || trips.length === 0) return null;
-
-    const trip = trips[0];
-
-    // Check if participant already exists (case-insensitive)
-    const { data: existing } = await supabase
-        .from('participants')
-        .select('*')
-        .eq('trip_id', trip.id)
-        .ilike('name', nickname);
-
-    if (!existing || existing.length === 0) {
-        // Get current count for color assignment
-        const { data: allParticipants } = await supabase
-            .from('participants')
-            .select('id')
-            .eq('trip_id', trip.id);
-
-        await supabase.from('participants').insert({
-            trip_id: trip.id,
-            name: nickname,
-            color: (allParticipants?.length || 0) % 6
+    // 1. Verify PIN via Edge Function (bypasses RLS to check pin and return custom JWT)
+    try {
+        const { data: authData, error: authError } = await supabase.functions.invoke('verify-pin', {
+            body: { pin }
         });
+
+        if (authError || !authData?.token || !authData?.trip_id) {
+            console.error('Invalid PIN or no token returned', authError);
+            return null; // Invalid PIN
+        }
+
+        // 2. Save token and set session so subsequent queries work
+        saveToken(authData.trip_id, authData.token);
+
+        // 3. Now we are authenticated for this specific trip_id, we can safely query the trip
+        const { data: trip, error: tripError } = await supabase
+            .from('trips')
+            .select('*')
+            .eq('id', authData.trip_id)
+            .single();
+
+        if (tripError || !trip) return null;
+
+        // Check if participant already exists (case-insensitive)
+        const { data: existing } = await supabase
+            .from('participants')
+            .select('*')
+            .eq('trip_id', trip.id)
+            .ilike('name', nickname);
+
+        if (!existing || existing.length === 0) {
+            // Get current count for color assignment
+            const { data: allParticipants } = await supabase
+                .from('participants')
+                .select('id')
+                .eq('trip_id', trip.id);
+
+            await supabase.from('participants').insert({
+                trip_id: trip.id,
+                name: nickname,
+                color: (allParticipants?.length || 0) % 6
+            });
+        }
+
+        saveNickname(trip.id, nickname);
+
+        return fetchFullTrip(trip.id);
+    } catch (err) {
+        console.error('joinTrip edge function error:', err);
+        return null;
     }
-
-    saveNickname(trip.id, nickname);
-
-    return fetchFullTrip(trip.id);
 }
 
 export async function getTrip(tripId) {
+    // Attempt to load the token for this trip into the session before fetching
+    const tokens = getTokens();
+    if (tokens[tripId]) {
+        await supabase.auth.setSession({
+            access_token: tokens[tripId],
+            refresh_token: ''
+        });
+    }
     return fetchFullTrip(tripId);
 }
 
 export async function getAllTrips() {
-    // Get tripIds from local nicknames (trips this device knows about)
     const nicknames = loadNicknames();
-    const tripIds = Object.keys(nicknames);
+    const tokens = getTokens(); // Need tokens to read the trips
+    const tripIds = Object.keys(nicknames).filter(id => tokens[id]);
 
     if (tripIds.length === 0) return [];
 
-    const { data: trips, error } = await supabase
-        .from('trips')
-        .select('*')
-        .in('id', tripIds)
-        .order('created_at', { ascending: false });
+    // Since RLS requires a specific JWT per trip, we cannot bulk-query trips 
+    // with a single `in('id', tripIds)` unless we had a multi-trip JWT or bypassed RLS.
+    // For this list view, we will fetch them individually using their respective tokens.
 
-    if (error || !trips) return [];
+    const trips = [];
+    for (const id of tripIds) {
+        await supabase.auth.setSession({
+            access_token: tokens[id],
+            refresh_token: ''
+        });
+
+        const { data: trip } = await supabase.from('trips').select('*').eq('id', id).single();
+        if (trip) trips.push(trip);
+    }
+
+    if (trips.length === 0) return [];
 
     // Fetch participants and flights counts for each trip
-    const fullTrips = await Promise.all(
-        trips.map(async (trip) => {
+    // We must set the session specifically for each trip we query because
+    // the RLS policies now require the specific JWT for that trip.
+    const fullTrips = [];
+
+    for (const trip of trips) {
+        if (tokens[trip.id]) {
+            await supabase.auth.setSession({
+                access_token: tokens[trip.id],
+                refresh_token: ''
+            });
+
             const [
                 { data: participants },
                 { data: flights }
@@ -189,9 +272,9 @@ export async function getAllTrips() {
                 supabase.from('flights').select('*').eq('trip_id', trip.id)
             ]);
 
-            return assembleTrip(trip, participants, flights, []);
-        })
-    );
+            fullTrips.push(assembleTrip(trip, participants, flights, []));
+        }
+    }
 
     return fullTrips;
 }
@@ -202,13 +285,24 @@ export function getUserNickname(tripId) {
 }
 
 export async function deleteTrip(tripId) {
-    // CASCADE handles participants, flights, notes
-    await supabase.from('trips').delete().eq('id', tripId);
+    const tokens = getTokens();
+
+    if (tokens[tripId]) {
+        await supabase.auth.setSession({
+            access_token: tokens[tripId],
+            refresh_token: ''
+        });
+        // CASCADE handles participants, flights, notes
+        await supabase.from('trips').delete().eq('id', tripId);
+    }
 
     // Remove local nickname
     const data = loadNicknames();
     delete data[tripId];
+    delete tokens[tripId];
+
     localStorage.setItem(NICKNAME_KEY, JSON.stringify(data));
+    localStorage.setItem('ppc-trip-tracker_tokens', JSON.stringify(tokens));
 }
 
 export async function addParticipant(tripId, name) {
