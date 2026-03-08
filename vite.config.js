@@ -4,11 +4,17 @@ import { VitePWA } from 'vite-plugin-pwa';
 export default defineConfig({
     plugins: [
         VitePWA({
+            strategies: 'injectManifest',
+            srcDir: 'public',
+            filename: 'sw.js',
             registerType: 'autoUpdate',
+            injectManifest: {
+                injectionPoint: undefined
+            },
             includeAssets: ['favicon.svg', 'icons/*.png'],
             manifest: {
-                name: 'PPC Trip Tracker — Group Flight Tracker',
-                short_name: 'PPC Trip Tracker',
+                name: 'PPC: Delay No More — Group Flight Tracker',
+                short_name: 'PPC: Delay No More',
                 description: 'Track group flights together',
                 theme_color: '#0A84FF',
                 background_color: '#F2F2F7',

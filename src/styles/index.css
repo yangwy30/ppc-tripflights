@@ -1,5 +1,5 @@
 /* ============================================
-   PPC Trip Tracker — Design System
+   PPC: Delay No More — Design System
    Apple-inspired, clean & minimal
    ============================================ */
 
@@ -151,4 +151,48 @@ a {
 ::selection {
   background: var(--color-accent-light);
   color: var(--color-accent);
+}
+
+/* --- Tabs --- */
+.tab-container {
+  display: flex;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+  padding: 4px;
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+}
+
+.tab-btn {
+  flex: 1;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  font-weight: var(--font-weight-bold);
+  font-size: var(--font-size-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.tab-btn:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-text);
+}
+
+.tab-btn.active {
+  background: var(--color-accent);
+  color: white;
+  box-shadow: 0 2px 4px rgba(0, 113, 227, 0.3);
+}
+
+/* Utility to hide inactive tabs */
+.hidden-tab {
+  display: none !important;
 }

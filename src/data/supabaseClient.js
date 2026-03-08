@@ -1,5 +1,5 @@
 /* ============================================
-   PPC Trip Tracker — Supabase Client
+   PPC: Delay No More — Supabase Client
    
    Reads credentials from Vite environment vars.
    ============================================ */

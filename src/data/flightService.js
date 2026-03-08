@@ -1,5 +1,5 @@
 /* ============================================
-   PPC Trip Tracker — Flight Lookup Service
+   PPC: Delay No More — Flight Lookup Service
    
    Uses AeroDataBox API via RapidAPI for real
    flight lookups, with mock data fallback.
@@ -59,11 +59,19 @@ function calcDuration(depTime, arrTime) {
 }
 
 // --- Time extraction ---
+// Extracts HH:MM directly from the ISO string to preserve the AIRPORT's local time.
+// AeroDataBox returns local times like "2026-03-08 19:45+05:00" or "2026-03-08T19:45:00".
+// Using new Date() would convert to the browser's timezone, which is wrong for display.
 function extractTime(isoString) {
     if (!isoString) return '';
     try {
+        // Try to extract HH:MM directly from the string (works for "...T19:45..." or "... 19:45...")
+        const timeMatch = isoString.match(/[T ]\s*(\d{2}:\d{2})/);
+        if (timeMatch) return timeMatch[1];
+        // Fallback: try Date parsing as last resort
         const d = new Date(isoString);
-        return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+        if (isNaN(d)) return '';
+        return `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`;
     } catch {
         return '';
     }

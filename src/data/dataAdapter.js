@@ -1,5 +1,5 @@
 /* ============================================
-   PPC Trip Tracker — Data Adapter (Supabase)
+   PPC: Delay No More — Data Adapter (Supabase)
    
    Multi-user backend replacing localStorage.
    Same exported interface as the original — all
@@ -68,11 +68,15 @@ function assembleTrip(tripRow, participants, flights, notes) {
         name: tripRow.name,
         startDate: tripRow.start_date,
         endDate: tripRow.end_date,
+        destinationAirport: tripRow.destination_airport,
+        returnAirport: tripRow.return_airport,
         createdAt: tripRow.created_at,
         participants: (participants || []).map(p => ({
             name: p.name,
             joinedAt: p.joined_at,
-            color: p.color
+            color: p.color,
+            homeAirport: p.home_airport,
+            destinationAirport: p.destination_airport
         })),
         flights: (flights || []).map(f => ({
             id: f.id,
@@ -123,13 +127,17 @@ async function fetchFullTrip(tripId) {
 
 // --- Trip Operations ---
 
-export async function createTrip({ name, startDate, endDate, creatorName }) {
+export async function createTrip({ name, startDate, endDate, creatorName, destinationAirport, returnAirport, homeAirport }) {
     const pin = generatePin();
     const id = generateId();
 
     const { error: tripError } = await supabase
         .from('trips')
-        .insert({ id, pin, name, start_date: startDate, end_date: endDate });
+        .insert({
+            id, pin, name, start_date: startDate, end_date: endDate,
+            destination_airport: destinationAirport || null,
+            return_airport: returnAirport || null
+        });
 
     if (tripError) { console.error('createTrip error:', tripError); return null; }
 
@@ -154,7 +162,9 @@ export async function createTrip({ name, startDate, endDate, creatorName }) {
     await supabase.from('participants').insert({
         trip_id: id,
         name: creatorName,
-        color: 0
+        color: 0,
+        home_airport: homeAirport || null,
+        destination_airport: null
     });
 
     saveNickname(id, creatorName);
@@ -162,7 +172,7 @@ export async function createTrip({ name, startDate, endDate, creatorName }) {
     return fetchFullTrip(id);
 }
 
-export async function joinTrip({ pin, nickname }) {
+export async function joinTrip({ pin, nickname, homeAirport }) {
     // 1. Verify PIN via Edge Function (bypasses RLS to check pin and return custom JWT)
     try {
         const { data: authData, error: authError } = await supabase.functions.invoke('verify-pin', {
@@ -203,7 +213,9 @@ export async function joinTrip({ pin, nickname }) {
             await supabase.from('participants').insert({
                 trip_id: trip.id,
                 name: nickname,
-                color: (allParticipants?.length || 0) % 6
+                color: (allParticipants?.length || 0) % 6,
+                home_airport: homeAirport || null,
+                destination_airport: null
             });
         }
 
@@ -336,6 +348,37 @@ export async function addParticipant(tripId, name) {
     if (error) { console.error('addParticipant error:', error); return null; }
 
     return { name: inserted.name, joinedAt: inserted.joined_at, color: inserted.color };
+}
+
+export async function updateParticipantDestination(tripId, participantName, destinationAirport) {
+    const { error } = await supabase
+        .from('participants')
+        .update({ destination_airport: destinationAirport || null })
+        .eq('trip_id', tripId)
+        .eq('name', participantName);
+
+    if (error) {
+        console.error('updateParticipantDestination error:', error);
+        return false;
+    }
+    return true;
+}
+
+// --- Push Notifications ---
+export async function savePushSubscription(tripId, participantName, subscriptionJson) {
+    const { error } = await supabase
+        .from('push_subscriptions')
+        .upsert({
+            trip_id: tripId,
+            participant_name: participantName,
+            subscription_json: subscriptionJson
+        }, { onConflict: 'trip_id,participant_name' });
+
+    if (error) {
+        console.error('savePushSubscription error:', error);
+        return false;
+    }
+    return true;
 }
 
 // --- Flight Operations ---

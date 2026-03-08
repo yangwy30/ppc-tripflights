@@ -1,5 +1,5 @@
 -- ============================================
--- PPC Trip Tracker — Supabase Schema
+-- PPC: Delay No More — Supabase Schema
 --
 -- Run this in Supabase SQL Editor:
 -- Dashboard → SQL Editor → New Query → Paste → Run
@@ -7,12 +7,14 @@
 
 -- 1. Trips table
 CREATE TABLE IF NOT EXISTS trips (
-    id TEXT PRIMARY KEY,
-    pin TEXT NOT NULL,
-    name TEXT NOT NULL,
-    start_date TEXT NOT NULL,
-    end_date TEXT NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT NOW()
+  id varchar primary key,
+  name text not null,
+  start_date text not null,
+  end_date text not null,
+  pin varchar(6) not null unique,
+  destination_airport text,
+  return_airport text,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
 CREATE INDEX IF NOT EXISTS idx_trips_pin ON trips (pin);
@@ -23,6 +25,8 @@ CREATE TABLE IF NOT EXISTS participants (
     trip_id TEXT NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
     color INTEGER DEFAULT 0,
+    home_airport TEXT,
+    destination_airport TEXT,
     joined_at TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE(trip_id, name)
 );

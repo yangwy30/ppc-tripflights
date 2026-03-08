@@ -1,11 +1,12 @@
 /* ============================================
-   PPC Trip Tracker — Create Trip Screen
+   PPC: Delay No More — Create Trip Screen
    ============================================ */
 
 import { createTrip } from '../data/dataAdapter.js';
 import { emit, EVENTS } from '../data/store.js';
 import { navigate } from '../app.js';
 import { showToast } from '../components/toast.js';
+import { setupAirportAutocomplete } from '../components/airportSearch.js';
 
 export function renderCreateTrip(container) {
   // Default dates: today + 7 days
@@ -47,8 +48,25 @@ export function renderCreateTrip(container) {
         </div>
 
         <div class="input-group">
+          <label for="destination-airport">Destination (City or Airport, Optional)</label>
+          <div id="destination-airport-container"></div>
+        </div>
+
+        <div class="input-group">
+          <label for="return-airport">Return From (City or Airport, Optional)</label>
+          <div id="return-airport-container"></div>
+          <p style="font-size: var(--font-size-xs); color: var(--color-text-secondary); margin-top: 4px;">Leave blank if returning from the destination.</p>
+        </div>
+
+        <div class="input-group">
           <label for="your-name">Your Nickname</label>
           <input class="input" type="text" id="your-name" placeholder="e.g. Alex" required autocomplete="off" />
+        </div>
+
+        <div class="input-group">
+          <label for="home-airport">Your Origin (City or Airport, Optional)</label>
+          <div id="home-airport-container"></div>
+          <p style="font-size: var(--font-size-xs); color: var(--color-text-secondary); margin-top: 4px;">Where are you flying from?</p>
         </div>
 
         <button class="btn btn-primary mt-lg" type="submit">
@@ -60,6 +78,15 @@ export function renderCreateTrip(container) {
 
   container.querySelector('#btn-back').addEventListener('click', () => navigate(''));
 
+  const destAirportContainer = container.querySelector('#destination-airport-container');
+  const destAirportInput = setupAirportAutocomplete(destAirportContainer, 'e.g. LON or LHR');
+
+  const returnAirportContainer = container.querySelector('#return-airport-container');
+  const returnAirportInput = setupAirportAutocomplete(returnAirportContainer, 'e.g. CDG or Paris');
+
+  const homeAirportContainer = container.querySelector('#home-airport-container');
+  const homeAirportInput = setupAirportAutocomplete(homeAirportContainer, 'e.g. JFK or New York', false);
+
   container.querySelector('#create-form').addEventListener('submit', async (e) => {
     e.preventDefault();
 
@@ -67,6 +94,9 @@ export function renderCreateTrip(container) {
     const startDate = container.querySelector('#trip-start').value;
     const endDate = container.querySelector('#trip-end').value;
     const creatorName = container.querySelector('#your-name').value.trim();
+    const destinationAirport = destAirportInput.getValues().join(',');
+    const returnAirport = returnAirportInput.getValues().join(',');
+    const homeAirport = homeAirportInput.getValues().join(',');
 
     if (!name || !creatorName) return;
 
@@ -74,7 +104,7 @@ export function renderCreateTrip(container) {
     submitBtn.disabled = true;
     submitBtn.textContent = 'Creating...';
 
-    const trip = await createTrip({ name, startDate, endDate, creatorName });
+    const trip = await createTrip({ name, startDate, endDate, creatorName, destinationAirport, returnAirport, homeAirport });
     if (trip) {
       emit(EVENTS.TRIP_CREATED, trip);
       showToast(`Trip "${trip.name}" created! PIN: ${trip.pin}`, 'success');

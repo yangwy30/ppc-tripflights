@@ -1,5 +1,5 @@
 /* ============================================
-   PPC Trip Tracker — Timeline Component (Overhauled)
+   PPC: Delay No More — Timeline Component (Overhauled)
    
    Features:
    - Scrollable horizontal timeline spanning all trip days

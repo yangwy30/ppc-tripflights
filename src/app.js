@@ -1,5 +1,5 @@
 /* ============================================
-   PPC Trip Tracker — App Router (hash-based SPA)
+   PPC: Delay No More — App Router (hash-based SPA)
    ============================================ */
 
 import { subscribe, EVENTS } from './data/store.js';
@@ -9,6 +9,7 @@ import { renderJoinTrip } from './screens/joinTrip.js';
 import { renderDashboard } from './screens/dashboard.js';
 import { renderAddFlight } from './screens/addFlight.js';
 import { renderNotes } from './screens/notes.js';
+import { loadAirports } from './data/airports.js';
 
 const app = document.getElementById('app');
 
@@ -49,6 +50,9 @@ export function initRouter() {
 
     // Listen for programmatic navigation
     subscribe(EVENTS.NAVIGATE, (path) => navigate(path));
+
+    // Preload airport dataset
+    loadAirports();
 
     render();
 }

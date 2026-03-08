@@ -1,5 +1,5 @@
 /* ============================================
-   PPC Trip Tracker — Component Styles
+   PPC: Delay No More — Component Styles
    ============================================ */
 
 /* --- Screen --- */
@@ -548,7 +548,9 @@
 .tl-date-row {
     display: flex;
     border-bottom: 2px solid var(--color-border);
-    margin-bottom: var(--space-xs);
+    margin-bottom: var(--space-lg);
+    position: relative;
+    z-index: 2;
 }
 
 .tl-date-cell {
@@ -584,7 +586,7 @@
 
 .tl-grid-hour {
     position: absolute;
-    top: 6px;
+    top: 42px;
     font-size: 9px;
     color: var(--color-text-tertiary);
     transform: translateX(3px);
@@ -638,7 +640,7 @@
     cursor: pointer;
     transition: transform var(--transition-fast), box-shadow var(--transition-fast), filter var(--transition-fast);
     z-index: 1;
-    min-width: 30px;
+    min-width: 65px;
     overflow: hidden;
     white-space: nowrap;
     opacity: 0.92;

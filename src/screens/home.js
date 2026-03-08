@@ -1,5 +1,5 @@
 /* ============================================
-   PPC Trip Tracker — Home Screen
+   PPC: Delay No More — Home Screen
    ============================================ */
 
 import { getAllTrips } from '../data/dataAdapter.js';
@@ -12,7 +12,7 @@ export async function renderHome(container) {
       <div class="screen-header" style="padding-top: var(--space-xl);">
         <div style="margin-bottom: var(--space-xl);">
           <div style="font-size: 2.8rem; margin-bottom: var(--space-md);">✈️</div>
-          <h1>PPC Trip Tracker</h1>
+          <h1>PPC: Delay No More</h1>
           <p>Loading your trips...</p>
         </div>
       </div>
@@ -26,7 +26,7 @@ export async function renderHome(container) {
       <div class="screen-header" style="padding-top: var(--space-xl);">
         <div style="margin-bottom: var(--space-xl);">
           <div style="font-size: 2.8rem; margin-bottom: var(--space-md);">✈️</div>
-          <h1>PPC Trip Tracker</h1>
+          <h1>PPC: Delay No More</h1>
           <p>Track group flights together</p>
         </div>
         <div class="flex-col" style="gap: var(--space-sm);">

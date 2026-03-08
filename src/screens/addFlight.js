@@ -1,5 +1,5 @@
 /* ============================================
-   PPC Trip Tracker — Add Flight Screen
+   PPC: Delay No More — Add Flight Screen
    
    Features:
    - Flight auto-lookup via AeroDataBox API
@@ -28,6 +28,7 @@ export async function renderAddFlight(container, tripId) {
 
   // Default date = trip start date
   const defaultDate = trip.startDate || new Date().toISOString().split('T')[0];
+  let currentDate = defaultDate;
   const demoFlights = getDemoFlightNumbers().slice(0, 6);
 
   async function render() {
@@ -85,7 +86,7 @@ export async function renderAddFlight(container, tripId) {
             
             <div class="input-group" style="margin-top: var(--space-md);">
               <label for="f-date">Flight Date</label>
-              <input class="input" type="date" id="f-date" value="${defaultDate}" required />
+              <input class="input" type="date" id="f-date" value="${currentDate}" required />
             </div>
 
             ${lookupResult === false ? `
@@ -323,6 +324,8 @@ export async function renderAddFlight(container, tripId) {
     isLooking = true;
     routeOptions = null;
     lookupResult = null;
+    // Preserve the user's entered date before re-render
+    if (dateInput) currentDate = dateInput.value;
     render();
 
     const results = await lookupFlight(flightNumber, lookupDate);

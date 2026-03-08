@@ -1,5 +1,5 @@
 /* ============================================
-   PPC Trip Tracker — Main Entry Point
+   PPC: Delay No More — Main Entry Point
    ============================================ */
 
 import './styles/index.css';

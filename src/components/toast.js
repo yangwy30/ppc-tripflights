@@ -1,5 +1,5 @@
 /* ============================================
-   PPC Trip Tracker — Toast Notification System
+   PPC: Delay No More — Toast Notification System
    ============================================ */
 
 const STATUS_ICONS = {

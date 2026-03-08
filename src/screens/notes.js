@@ -1,5 +1,5 @@
 /* ============================================
-   PPC Trip Tracker — Notes Screen
+   PPC: Delay No More — Notes Screen
    ============================================ */
 
 import { getTrip, getUserNickname, addNote, deleteNote, exportTripSummary } from '../data/dataAdapter.js';

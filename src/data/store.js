@@ -1,5 +1,5 @@
 /* ============================================
-   PPC Trip Tracker — Reactive Store (pub/sub)
+   PPC: Delay No More — Reactive Store (pub/sub)
    ============================================ */
 
 const listeners = new Map();

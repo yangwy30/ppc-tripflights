@@ -1,9 +1,9 @@
-# PPC Trip Tracker - Project Context
+# PPC: Delay No More - Project Context
 
-This document serves as the core source of truth for the **PPC Trip Tracker** (formerly TripFlights) architecture, technology stack, and business logic. It helps maintain context across development sessions.
+This document serves as the core source of truth for the **PPC: Delay No More** (formerly TripFlights) architecture, technology stack, and business logic. It helps maintain context across development sessions.
 
 ## 1. Project Overview
-PPC Trip Tracker is a collaborative, real-time Progressive Web App (PWA) designed for syncing group travel plans, tracking flights, and receiving delay alerts. It allows multiple users to join a shared trip via a PIN and see a unified interactive timeline of everyone's flights.
+PPC: Delay No More is a collaborative, real-time Progressive Web App (PWA) designed for syncing group travel plans, tracking flights, and receiving delay alerts. It allows multiple users to join a shared trip via a PIN and see a unified interactive timeline of everyone's flights.
 
 ## 2. Technology Stack
 - **Frontend Core**: Vanilla JavaScript (ES modules) and HTML5. No heavy UI frameworks (React/Vue/etc.) are used. 
