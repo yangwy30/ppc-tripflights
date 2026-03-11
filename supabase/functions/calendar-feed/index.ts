@@ -119,6 +119,28 @@ function foldLine(line: string) {
     return folded;
 }
 
+// Fallback duration calculator if missing from database
+function guessDuration(depTime?: string, arrTime?: string) {
+    if (!depTime || !arrTime) return 'Unknown';
+    try {
+        let cleanDep = depTime.toLowerCase().replace(/am|pm/g, '').trim();
+        let cleanArr = arrTime.toLowerCase().replace(/am|pm/g, '').trim();
+        
+        let [dHours, dMins] = cleanDep.split(':').map(Number);
+        let [aHours, aMins] = cleanArr.split(':').map(Number);
+        if (isNaN(dHours) || isNaN(aHours)) return 'Unknown';
+        
+        let diffMins = (aHours * 60 + aMins) - (dHours * 60 + dMins);
+        if (diffMins <= 0) diffMins += 24 * 60; // Assume cross overnight
+        
+        const h = Math.floor(diffMins / 60);
+        const m = diffMins % 60;
+        return `${h}h ${String(m).padStart(2, '0')}m`;
+    } catch {
+        return 'Unknown';
+    }
+}
+
 serve(async (req) => {
     if (req.method === 'OPTIONS') {
         return new Response('ok', { headers: corsHeaders });
@@ -202,10 +224,12 @@ serve(async (req) => {
                 const fromTerm = f.departure?.terminal ? ` - Terminal ${f.departure.terminal}` : '';
                 const toTerm = f.arrival?.terminal ? ` - Terminal ${f.arrival.terminal}` : '';
 
+                const finalDuration = f.duration || guessDuration(f.departure?.time, f.arrival?.time);
+
                 // Summary looks like: "[JFK ✈️ LAX] Delta DL100 (Yang)"
                 const summaryRaw = `[${f.departure?.code || '?'} ✈️ ${f.arrival?.code || '?'}] ${f.airline || ''} ${f.flight_number || ''} (${f.added_by || 'Unknown'})`.replace(/\s+/g, ' ').trim();
                 const locationRaw = `${f.departure?.code || '?'}${fromTerm} to ${f.arrival?.code || '?'}${toTerm}`;
-                const descriptionRaw = `✈️ FLIGHT INFO\n• Airline: ${f.airline || 'Unknown'}\n• Flight: ${f.flight_number || 'Unknown'}\n• Status: ${f.status || 'unknown'}\n• Duration: ${f.duration || 'Unknown'}\n\n📍 ROUTE\n• From: ${f.departure?.code || '?'}${fromCity}${fromTerm}\n• To: ${f.arrival?.code || '?'}${toCity}${toTerm}\n\n👤 Added by: ${f.added_by || 'Unknown'}`;
+                const descriptionRaw = `✈️ FLIGHT INFO\n• Airline: ${f.airline || 'Unknown'}\n• Flight: ${f.flight_number || 'Unknown'}\n• Status: ${f.status || 'unknown'}\n• Duration: ${finalDuration}\n\n📍 ROUTE\n• From: ${f.departure?.code || '?'}${fromCity}${fromTerm}\n• To: ${f.arrival?.code || '?'}${toCity}${toTerm}\n\n👤 Added by: ${f.added_by || 'Unknown'}`;
 
                 icsLines.push(
                     'BEGIN:VEVENT',

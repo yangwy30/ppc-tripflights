@@ -273,6 +273,23 @@ export async function renderAddFlight(container, tripId) {
     // Submit form
     container.querySelector('#flight-form').addEventListener('submit', async (e) => {
       e.preventDefault();
+
+      // Auto-calculate duration if missing
+      let finalDuration = container.querySelector('#f-duration').value.trim();
+      if (!finalDuration) {
+        const depTime = container.querySelector('#f-dep-time').value;
+        const arrTime = container.querySelector('#f-arr-time').value;
+        if (depTime && arrTime) {
+            let [dHours, dMins] = depTime.split(':').map(Number);
+            let [aHours, aMins] = arrTime.split(':').map(Number);
+            let diffMins = (aHours * 60 + aMins) - (dHours * 60 + dMins);
+            if (diffMins <= 0) diffMins += 24 * 60; // Assume cross overnight
+            const h = Math.floor(diffMins / 60);
+            const m = diffMins % 60;
+            finalDuration = `${h}h ${String(m).padStart(2, '0')}m`;
+        }
+      }
+
       const flight = {
         flightNumber: container.querySelector('#f-number').value.trim().toUpperCase(),
         airline: container.querySelector('#f-airline').value.trim(),
@@ -289,7 +306,7 @@ export async function renderAddFlight(container, tripId) {
           time: container.querySelector('#f-arr-time').value,
           terminal: container.querySelector('#f-arr-terminal').value.trim()
         },
-        duration: container.querySelector('#f-duration').value.trim(),
+        duration: finalDuration,
         addedBy: selectedPerson,
         status: lookupResult?.status || 'scheduled'
       };
