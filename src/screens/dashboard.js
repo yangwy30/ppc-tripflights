@@ -2,7 +2,7 @@
    PPC: Delay No More — Dashboard Screen
    ============================================ */
 
-import { getTrip, getUserNickname, deleteFlight, restoreFlight, deleteTrip, exportTripSummary } from '../data/dataAdapter.js';
+import { getTrip, getUserNickname, deleteFlight, restoreFlight, deleteTrip, exportTripSummary, deleteParticipant } from '../data/dataAdapter.js';
 import { emit, subscribe, EVENTS } from '../data/store.js';
 import { navigate } from '../app.js';
 import { showToast } from '../components/toast.js';
@@ -65,10 +65,19 @@ export async function renderDashboard(container, tripId) {
       <div class="screen">
         <div class="topbar">
           <button class="topbar-back" id="btn-back">← Trips</button>
-          <div class="topbar-actions">
-            <button class="btn btn-sm btn-ghost" id="btn-notes" title="Notes">📝</button>
-            <button class="btn btn-sm btn-ghost" id="btn-share" title="Share">📤</button>
-            <button class="btn btn-sm btn-ghost" id="btn-delete-trip" title="Delete Trip" style="color: var(--color-danger);">🗑</button>
+          <div class="topbar-actions" style="display: flex; gap: var(--space-xs); flex-wrap: nowrap; justify-content: flex-end; align-items: center;">
+            <button class="btn btn-sm btn-ghost" id="btn-subscribe" title="Add to Calendar">
+              <span style="font-size: 1.1em;">📅</span> <span class="hide-mobile">Subscribe</span>
+            </button>
+            <button class="btn btn-sm btn-ghost" id="btn-notes" title="Notes">
+              <span style="font-size: 1.1em;">📝</span> <span class="hide-mobile">Notes</span>
+            </button>
+            <button class="btn btn-sm btn-ghost" id="btn-share" title="Share">
+              <span style="font-size: 1.1em;">📤</span> <span class="hide-mobile">Share</span>
+            </button>
+            <button class="btn btn-sm btn-ghost" id="btn-delete-trip" title="Delete Trip" style="color: var(--color-danger);">
+              <span style="font-size: 1.1em;">🗑</span> <span class="hide-mobile">Delete</span>
+            </button>
           </div>
         </div>
 
@@ -123,13 +132,14 @@ export async function renderDashboard(container, tripId) {
           </div>
 
           <!-- Travelers -->
-          <div class="chip-group mb-base">
+          <div class="chip-group mb-base" style="align-items: center; flex-wrap: wrap;">
             <button class="chip ${filterPerson === 'all' ? 'active' : ''}" data-person="all">All</button>
             ${currentTrip.participants.map((p, i) => `
-              <button class="chip ${filterPerson === p.name ? 'active' : ''}" data-person="${escapeHtml(p.name)}">
-                <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${PERSON_COLORS[i % 6]};margin-right:4px;"></span>
+              <div class="chip ${filterPerson === p.name ? 'active' : ''}" style="display:inline-flex; align-items:center; gap:4px; padding-right:8px; cursor:pointer;" data-person="${escapeHtml(p.name)}">
+                <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${PERSON_COLORS[i % 6]};margin-right:2px;"></span>
                 ${escapeHtml(p.name)}
-              </button>
+                <button class="chip-delete-btn" data-person-del="${escapeHtml(p.name)}" style="all:unset; cursor:pointer; font-size:14px; opacity:0.5; display:flex; align-items:center; justify-content:center; width:18px; height:18px; border-radius:50%; transition: opacity 0.2s;" onmouseover="this.style.opacity=1; this.style.background='var(--color-surface-hover)'" onmouseout="this.style.opacity=0.5; this.style.background='transparent'" title="Remove Profile">×</button>
+              </div>
             `).join('')}
           </div>
 
@@ -179,6 +189,19 @@ export async function renderDashboard(container, tripId) {
     });
     container.querySelector('#btn-add-flight').addEventListener('click', () => navigate(`add-flight/${tripId}`));
     container.querySelector('#btn-notes').addEventListener('click', () => navigate(`notes/${tripId}`));
+
+    container.querySelector('#btn-subscribe').addEventListener('click', async () => {
+      // Use the project reference of the Supabase API to direct to Edge Functions
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://vckjllpsswmbqicbllav.supabase.co';
+      
+      // Pin is hashed by simply combining it with a salt over SHA-256 for a basic token:
+      // But we can also pass the raw pin as fallback for now.
+      const baseUrl = supabaseUrl.replace(/^https?:\/\//, 'webcal://');
+      const subscribeUrl = `${baseUrl}/functions/v1/calendar-feed?tripId=${tripId}&token=${currentTrip.pin}`;
+      
+      // On mobile/macOS, opening a webcal link forces the default calendar app to Subscribe (auto-update)
+      window.location.href = subscribeUrl;
+    });
 
     container.querySelector('#btn-copy-pin').addEventListener('click', () => {
       navigator.clipboard?.writeText(currentTrip.pin).then(() => {
@@ -260,9 +283,32 @@ export async function renderDashboard(container, tripId) {
 
     // Person filter
     container.querySelectorAll('.chip').forEach(chip => {
-      chip.addEventListener('click', () => {
+      chip.addEventListener('click', (e) => {
+        if (e.target.closest('.chip-delete-btn')) return;
         filterPerson = chip.dataset.person;
         render();
+      });
+    });
+
+    // Person deletion
+    container.querySelectorAll('.chip-delete-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const personToDel = btn.dataset.personDel;
+        if (confirm(`Remove ${personToDel} and all their flights from this trip?`)) {
+          btn.disabled = true;
+          await deleteParticipant(tripId, personToDel);
+          if (filterPerson === personToDel) filterPerson = 'all';
+          showToast(`Removed ${personToDel}`, 'info');
+          
+          if (personToDel === nickname) {
+            stopPolling(tripId);
+            unsubscribe();
+            navigate('');
+          } else {
+            render();
+          }
+        }
       });
     });
 

@@ -483,9 +483,24 @@
 }
 
 .flight-date {
-    font-size: var(--font-size-xs);
-    color: var(--color-text-tertiary);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-bold);
+    color: var(--flight-person-color, var(--color-accent));
+    background: color-mix(in srgb, var(--flight-person-color, var(--color-accent)) 15%, transparent);
+    border-radius: var(--radius-full);
+    box-shadow: 0 2px 8px color-mix(in srgb, var(--flight-person-color, var(--color-accent)) 10%, transparent);
+    transition: transform var(--transition-fast), box-shadow var(--transition-fast);
 }
+
+.flight-date:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--flight-person-color, var(--color-accent)) 20%, transparent);
+}
+
 
 /* --- Timeline (Scrollable Multi-day) --- */
 .tl-wrapper {
@@ -971,4 +986,10 @@
 
 .w-full {
     width: 100%;
+}
+
+@media (max-width: 600px) {
+    .hide-mobile {
+        display: none !important;
+    }
 }

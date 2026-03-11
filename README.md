@@ -38,7 +38,8 @@
 - **Auto Flight Lookup (Phase 2)**: Just type a flight number (e.g. `AA100`). The app queries the AeroDataBox API to auto-fill airline, airports, times, and durations.
 - **Robust Web Push Alerts (Phase 5)**: Instead of draining your battery with client-side polling, a **Supabase Edge Function** wakes up every 15 minutes, checks RapidAPI, and dispatches native OS-level **Web Push Notifications** directly to your device's Service Worker if a flight gets delayed or cancelled.
 - **AI Coordination Engine (Phase 4)**: Enter your group's destination, start date, and end date. The web app queries **SerpAPI Google Flights** to find optimal overlapping inbound and outbound legs for every participant based on their home airport, complete with pricing and duration. 
-- **PIN-Based Sharing**: Trips are secured by a short, auto-generated PIN (e.g. `1492`). Share the pinned link via Whatsapp or SMS, and friends can instantly join.
+- **Live Calendar Subscription**: Generate a secure, personalized `webcal://` link for your trip. Subscribe on Apple Calendar, Google, or Outlook to get live, auto-updating flight blocks right on your daily itinerary.
+- **PIN-Based Sharing & Safety**: Trips are secured by a short, auto-generated PIN (e.g. `1492`). Share the pinned link via Whatsapp or SMS, and friends can instantly join. Strict database policies allow users to securely delete their own profiles and flights if plans change without affecting others.
 - **Shared Notes**: Keep a collaborative scratchpad of hotel bookings, meetup spots, and rental car info right next to the flight statuses.
 - **PWA Ready**: Install the app directly to your iOS or Android home screen for a native-like app experience.
 

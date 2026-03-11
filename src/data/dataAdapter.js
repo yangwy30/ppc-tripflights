@@ -364,6 +364,24 @@ export async function updateParticipantDestination(tripId, participantName, dest
     return true;
 }
 
+export async function deleteParticipant(tripId, participantName) {
+    // 1. Delete participant's flights
+    await supabase.from('flights').delete().eq('trip_id', tripId).eq('added_by', participantName);
+    
+    // 2. Delete the participant record
+    const { error } = await supabase
+        .from('participants')
+        .delete()
+        .eq('trip_id', tripId)
+        .eq('name', participantName);
+
+    if (error) {
+        console.error('deleteParticipant error:', error);
+        return false;
+    }
+    return true;
+}
+
 // --- Push Notifications ---
 export async function savePushSubscription(tripId, participantName, subscriptionJson) {
     const { error } = await supabase
