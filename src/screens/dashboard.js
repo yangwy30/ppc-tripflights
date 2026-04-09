@@ -340,8 +340,9 @@ export async function renderDashboard(container, tripId) {
         e.stopPropagation();
         const flightId = btn.dataset.flightId;
         const flightNum = btn.dataset.flightNumber;
+        const flightDate = btn.dataset.flightDate || undefined;
         btn.textContent = '⏳';
-        const newStatus = await refreshFlightStatus(flightNum);
+        const newStatus = await refreshFlightStatus(flightNum, flightDate);
         await updateFlightStatus(tripId, flightId, newStatus);
         showToast(`${flightNum}: ${formatStatus(newStatus)}`, 'flight');
         render();

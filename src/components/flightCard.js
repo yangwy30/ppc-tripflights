@@ -54,7 +54,7 @@ export function renderFlightCard(flight, participants, index, trip) {
         </div>
         <div style="display:flex; align-items:center; gap: var(--space-sm);">
           <span class="badge badge-dot ${statusInfo.class}">${statusInfo.label}</span>
-          <button class="btn btn-icon btn-ghost flight-refresh" data-flight-id="${flight.id}" data-flight-number="${flight.flightNumber}" title="Refresh status" style="width:32px;height:32px;font-size:var(--font-size-sm);">🔄</button>
+          <button class="btn btn-icon btn-ghost flight-refresh" data-flight-id="${flight.id}" data-flight-number="${flight.flightNumber}" data-flight-date="${flight.date || ''}" title="Refresh status" style="width:32px;height:32px;font-size:var(--font-size-sm);">🔄</button>
         </div>
       </div>
 

@@ -187,12 +187,12 @@ export async function lookupFlight(flightNumber, date) {
 /**
  * Refresh flight status using the API.
  */
-export async function refreshFlightStatus(flightNumber) {
+export async function refreshFlightStatus(flightNumber, date) {
     const cleanNumber = flightNumber.toUpperCase().replace(/\s/g, '');
-    const today = new Date().toISOString().split('T')[0];
+    const lookupDate = date || new Date().toISOString().split('T')[0];
 
     try {
-        const url = `${BASE_URL}/flights/number/${encodeURIComponent(cleanNumber)}/${today}?withAircraftImage=false&withLocation=false`;
+        const url = `${BASE_URL}/flights/number/${encodeURIComponent(cleanNumber)}/${lookupDate}?withAircraftImage=false&withLocation=false`;
         const response = await fetch(url, { method: 'GET', headers: API_HEADERS });
 
         if (response.ok) {
