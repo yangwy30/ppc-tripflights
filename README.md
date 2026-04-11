@@ -8,27 +8,59 @@
 
 ## 📸 App Demo
 
-### 1. Group Itinerary Coordination & Auto-Lookup
+> Real data from a **Coachella 2026** group trip — 9 travelers, 12 flights, multiple airlines.
+
+### 1. Home & Trip Overview
+
 <p align="center">
-  <img src="./docs/demo_coordination.webp" alt="Coordinating round trips" width="800" style="border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.2);"/>
+  <img src="./docs/demo_home.png" alt="Home screen with trip list" width="360" style="border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.2);"/>
 </p>
 
-*The proprietary **Coordination Engine** analyzes everyone's home airports and finds the best overlapping flights. Then, it uses the **AeroDataBox API** to automatically pull real-world flight numbers, times, and gates.*
+*Create a new trip or join an existing one via PIN. Each trip shows the date range, number of travelers, and total flights at a glance.*
 
-### 2. Auto-Fill Flight Metadata
+### 2. Live Dashboard & Multi-Traveler Tracking
+
 <p align="center">
-  <img src="./docs/demo_add_flights.webp" alt="Adding flights for multiple travelers" width="800" style="border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.2);"/>
+  <img src="./docs/demo_dashboard.png" alt="Dashboard showing 9 travelers and flight cards" width="360" style="border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.2);"/>
+  &nbsp;&nbsp;
+  <img src="./docs/demo_filter.png" alt="Filtering flights by a single traveler" width="360" style="border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.2);"/>
 </p>
 
-*Manually typing flights is a chore. Look up flights by number (e.g. AA100) — the app auto-fills airline, airports, times, and duration.*
+*The dashboard shows a shareable PIN (897952), auto-refresh alerts, and color-coded traveler chips. Filter by any traveler (e.g. Ryan) to see only their flights. Each flight card shows real-time status, direction badges (Outbound/Return), terminals, and airline info pulled from AeroDataBox.*
 
+### 3. Outbound & Return Flight Cards
 
-### 2. Live Dashboard & Interactive Timeline
 <p align="center">
-  <img src="./docs/demo_dashboard_timeline.webp" alt="Dashboard and timeline view" width="800" style="border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.2);"/>
+  <img src="./docs/demo_flights_outbound.png" alt="Outbound flight cards — UA 353, DL 707" width="360" style="border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.2);"/>
+  &nbsp;&nbsp;
+  <img src="./docs/demo_flights_more.png" alt="More outbound flights — B6 423, AA 117" width="360" style="border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.2);"/>
 </p>
 
-*View all inbound and outbound flights at a glance, filter by traveler, and switch to the interactive, scrollable timeline to visually see how flights overlap across the group.*
+*All 12 flights across United, Delta, JetBlue, American, and Southwest — auto-tagged as Outbound or Return based on destination airports. Refresh any flight's status individually with the 🔄 button.*
+
+### 4. Interactive Timeline
+
+<p align="center">
+  <img src="./docs/demo_timeline.png" alt="Color-coded timeline showing all flights" width="360" style="border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.2);"/>
+</p>
+
+*The scrollable, color-coded timeline visualizes how every traveler's flights overlap across the trip. Each bar represents a flight (DL 707, UA 2445, B6 423, WN 1870) mapped to its actual departure and arrival times, making it easy to see who arrives when.*
+
+### 5. Auto-Fill Flight Lookup
+
+<p align="center">
+  <img src="./docs/demo_add_flight.png" alt="Add Flight screen with auto-lookup" width="360" style="border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.2);"/>
+</p>
+
+*Look up any flight by number (e.g. AA100, DL665) — the app queries the AeroDataBox API to auto-fill airline, airports, terminals, times, and duration. Select which traveler the flight is for, pick the date, and add it in seconds.*
+
+### 6. AI Coordination Engine
+
+<p align="center">
+  <img src="./docs/demo_coordination_tab.png" alt="Coordination tab showing group status" width="360" style="border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.2);"/>
+</p>
+
+*The Coordination Engine analyzes everyone's home airports and finds optimal overlapping flights using SerpAPI Google Flights. The group status tracker shows who's set and who still needs to configure their origin airport.*
 
 ---
 
