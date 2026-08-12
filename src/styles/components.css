@@ -43,14 +43,15 @@
     padding: var(--space-base);
 }
 
-/* --- Route Map Component --- */
-.route-map-wrapper {
+/* --- Leaflet Real Dark Map & Hero Component --- */
+.route-map-hero-card {
     background: var(--color-surface);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-lg);
     padding: var(--space-base);
     margin-bottom: var(--space-lg);
     backdrop-filter: var(--glass-blur);
+    box-shadow: var(--shadow-md);
 }
 
 .route-map-header {
@@ -62,22 +63,23 @@
     border-bottom: 1px solid var(--color-border);
 }
 
-.map-tooltip {
-    position: absolute;
-    background: rgba(15, 23, 42, 0.95);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-    padding: 8px 12px;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6);
-    backdrop-filter: blur(12px);
-    pointer-events: none;
-    z-index: 1000;
-    transition: opacity var(--transition-fast);
+/* Leaflet Tile Overrides to ensure 100% full render */
+.leaflet-container img.leaflet-tile {
+    max-width: none !important;
+    max-height: none !important;
 }
 
-.map-tooltip.hidden {
-    display: none;
-    opacity: 0;
+.leaflet-dark-tooltip {
+    background: rgba(15, 23, 42, 0.95) !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    border-radius: var(--radius-md) !important;
+    color: #ffffff !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8) !important;
+    padding: 8px 12px !important;
+}
+
+.leaflet-dark-tooltip::before {
+    border-top-color: rgba(15, 23, 42, 0.95) !important;
 }
 
 .route-map-legend {
