@@ -41,6 +41,54 @@
     padding: var(--space-base);
 }
 
+/* --- Hero PIN Pill --- */
+.hero-pin-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(15, 23, 42, 0.8);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-full);
+    padding: 3px 10px;
+    backdrop-filter: blur(12px);
+    transition: all var(--transition-fast);
+}
+
+.hero-pin-pill:hover {
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.hero-pin-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--color-text-tertiary);
+}
+
+.hero-pin-code {
+    font-family: var(--font-family-mono);
+    font-size: var(--font-size-sm);
+    font-weight: 700;
+    color: var(--color-text-primary);
+    letter-spacing: 1.5px;
+}
+
+.hero-pin-copy {
+    background: transparent;
+    border: none;
+    color: var(--color-text-secondary);
+    padding: 2px 4px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    transition: color var(--transition-fast);
+}
+
+.hero-pin-copy:hover {
+    color: var(--color-text-primary);
+}
+
 /* --- Button --- */
 .btn {
     display: inline-flex;

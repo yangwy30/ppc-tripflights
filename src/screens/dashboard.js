@@ -124,8 +124,16 @@ export async function renderDashboard(container, tripId) {
           
           <!-- Main Content Column -->
           <div>
+            <!-- Hero Trip Title with Embedded PIN Badge -->
             <div style="margin-bottom: var(--space-lg);">
-              <h1 style="font-size: 2.2rem; font-weight: 800; letter-spacing: -0.03em;">${escapeHtml(currentTrip.name)}</h1>
+              <div style="display:flex; align-items:center; gap: 12px; flex-wrap: wrap;">
+                <h1 style="font-size: 2.2rem; font-weight: 800; letter-spacing: -0.03em;">${escapeHtml(currentTrip.name)}</h1>
+                <div class="hero-pin-pill">
+                  <span class="hero-pin-label">PIN</span>
+                  <span class="hero-pin-code">${currentTrip.pin}</span>
+                  <button class="hero-pin-copy" id="btn-copy-pin" title="Copy PIN">${getIcon('copy')}</button>
+                </div>
+              </div>
               <p style="font-size: var(--font-size-xs); color: var(--color-text-tertiary); margin-top: 4px; font-family: var(--font-family-mono);">
                 📅 ${formatDateRange(currentTrip.startDate, currentTrip.endDate)}
                 ${currentTrip.destinationAirport ? ` · Dest: ${escapeHtml(currentTrip.destinationAirport)}` : ''}
@@ -156,7 +164,7 @@ export async function renderDashboard(container, tripId) {
                 `).join('')}
               </div>
 
-              <!-- Phase & View Sub-Tabs (Outbound / Return / All / Timeline) -->
+              <!-- Phase & View Sub-Tabs -->
               <div class="tabs mb-base">
                 <button class="tab ${activeTab === 'flights' && phaseFilter === 'all' ? 'active' : ''}" data-tab="flights" data-phase="all">All (${currentTrip.flights.length})</button>
                 <button class="tab ${activeTab === 'flights' && phaseFilter === 'outbound' ? 'active' : ''}" data-tab="flights" data-phase="outbound">
@@ -184,15 +192,6 @@ export async function renderDashboard(container, tripId) {
 
           <!-- Sidebar Column -->
           <div class="side-card-stack">
-            <!-- Share PIN Widget -->
-            <div class="pin-display">
-              <div>
-                <div class="pin-label">Share PIN</div>
-                <div class="pin-code">${currentTrip.pin}</div>
-              </div>
-              <button class="pin-copy" id="btn-copy-pin" title="Copy PIN">${getIcon('copy')}</button>
-            </div>
-
             <!-- Group Members Card -->
             <div class="card card-compact">
               <div style="font-size: var(--font-size-xs); font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--color-text-tertiary); margin-bottom: var(--space-sm);">
