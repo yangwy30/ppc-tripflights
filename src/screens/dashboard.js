@@ -1,6 +1,5 @@
 /* ============================================
    PPC: Delay No More — Commercial SaaS Dashboard
-   Aero Precision Dark Slate Theme (#090A0F / #0F172A)
    ============================================ */
 
 import { getTrip, getUserNickname, deleteFlight, restoreFlight, deleteTrip, exportTripSummary, deleteParticipant } from '../data/dataAdapter.js';
@@ -12,7 +11,7 @@ import { updateFlightStatus } from '../data/dataAdapter.js';
 import { renderTimeline } from '../components/timeline.js';
 import { renderFlightCard } from '../components/flightCard.js';
 import { renderCoordinationTab } from '../components/coordinationTab.js';
-import { startPolling, stopPolling, requestNotificationPermission, isPolling, getAutoRefreshPref, setAutoRefreshPref } from '../data/alertService.js';
+import { startPolling, stopPolling, isPolling, setAutoRefreshPref, getAutoRefreshPref } from '../data/alertService.js';
 import { getIcon } from '../components/icons.js';
 
 const PERSON_COLORS = [
@@ -32,6 +31,7 @@ export async function renderDashboard(container, tripId) {
   const nickname = getUserNickname(tripId);
   let activeMainTab = 'tracking';
   let activeTab = 'flights';
+  let phaseFilter = 'all'; // 'all' | 'outbound' | 'return'
   let filterPerson = 'all';
 
   if (getAutoRefreshPref(tripId)) {
@@ -55,9 +55,34 @@ export async function renderDashboard(container, tripId) {
     const currentTrip = await getTrip(tripId);
     if (!currentTrip) return;
 
-    const filteredFlights = filterPerson === 'all'
-      ? currentTrip.flights
-      : currentTrip.flights.filter(f => f.addedBy === filterPerson);
+    // Helper to determine flight phase
+    const getFlightPhase = (flight) => {
+      const pIdx = currentTrip.participants.findIndex(p => p.name === flight.addedBy);
+      const participant = currentTrip.participants[pIdx];
+      const destIata = (participant?.destinationAirport || currentTrip.destinationAirport || '').toUpperCase().trim();
+      const retIata = (participant?.destinationAirport || currentTrip.returnAirport || '').toUpperCase().trim();
+
+      const arrCode = (flight.arrival?.code || '').toUpperCase().trim();
+      const depCode = (flight.departure?.code || '').toUpperCase().trim();
+
+      if (destIata && arrCode === destIata) return 'outbound';
+      if (destIata && depCode === destIata) return 'return';
+      if (retIata && depCode === retIata) return 'return';
+      return 'outbound';
+    };
+
+    let filteredFlights = currentTrip.flights;
+
+    if (filterPerson !== 'all') {
+      filteredFlights = filteredFlights.filter(f => f.addedBy === filterPerson);
+    }
+
+    const outboundCount = filteredFlights.filter(f => getFlightPhase(f) === 'outbound').length;
+    const returnCount = filteredFlights.filter(f => getFlightPhase(f) === 'return').length;
+
+    if (activeTab === 'flights' && phaseFilter !== 'all') {
+      filteredFlights = filteredFlights.filter(f => getFlightPhase(f) === phaseFilter);
+    }
 
     const sortedFlights = [...filteredFlights].sort((a, b) => {
       const dateCompare = (a.date || '').localeCompare(b.date || '');
@@ -97,9 +122,8 @@ export async function renderDashboard(container, tripId) {
         <!-- Dashboard Grid (2-Column Desktop / 1-Column Mobile Layout) -->
         <div class="dashboard-grid mb-xl">
           
-          <!-- Main Content Column (Left Column on Desktop) -->
+          <!-- Main Content Column -->
           <div>
-            <!-- Hero Trip Title -->
             <div style="margin-bottom: var(--space-lg);">
               <h1 style="font-size: 2.2rem; font-weight: 800; letter-spacing: -0.03em;">${escapeHtml(currentTrip.name)}</h1>
               <p style="font-size: var(--font-size-xs); color: var(--color-text-tertiary); margin-top: 4px; font-family: var(--font-family-mono);">
@@ -132,10 +156,12 @@ export async function renderDashboard(container, tripId) {
                 `).join('')}
               </div>
 
-              <!-- Sub Tabs (Flights / Timeline) -->
+              <!-- Phase & View Sub-Tabs (Outbound / Return / All / Timeline) -->
               <div class="tabs mb-base">
-                <button class="tab ${activeTab === 'flights' ? 'active' : ''}" data-tab="flights">Flights (${sortedFlights.length})</button>
-                <button class="tab ${activeTab === 'timeline' ? 'active' : ''}" data-tab="timeline">Timeline</button>
+                <button class="tab ${activeTab === 'flights' && phaseFilter === 'all' ? 'active' : ''}" data-tab="flights" data-phase="all">All (${currentTrip.flights.length})</button>
+                <button class="tab ${activeTab === 'flights' && phaseFilter === 'outbound' ? 'active' : ''}" data-tab="flights" data-phase="outbound">🛫 Outbound (${outboundCount})</button>
+                <button class="tab ${activeTab === 'flights' && phaseFilter === 'return' ? 'active' : ''}" data-tab="flights" data-phase="return">🛬 Return (${returnCount})</button>
+                <button class="tab ${activeTab === 'timeline' ? 'active' : ''}" data-tab="timeline">📊 Timeline</button>
               </div>
 
               <!-- Content Stream -->
@@ -150,7 +176,7 @@ export async function renderDashboard(container, tripId) {
             </div>
           </div>
 
-          <!-- Sidebar Column (Right Column on Desktop) -->
+          <!-- Sidebar Column -->
           <div class="side-card-stack">
             <!-- Share PIN Widget -->
             <div class="pin-display">
@@ -200,10 +226,10 @@ export async function renderDashboard(container, tripId) {
 
     if (activeMainTab === 'tracking' && activeTab === 'timeline') {
       const timelineContainer = container.querySelector('#tab-content');
-      renderTimeline(timelineContainer, sortedFlights, currentTrip.participants);
+      renderTimeline(timelineContainer, currentTrip.flights, currentTrip.participants);
     }
 
-    // --- Event Listeners ---
+    // Event Listeners
     container.querySelector('#btn-back').addEventListener('click', () => {
       stopPolling(tripId);
       unsubscribe();
@@ -274,6 +300,9 @@ export async function renderDashboard(container, tripId) {
     container.querySelectorAll('.tab').forEach(tab => {
       tab.addEventListener('click', () => {
         activeTab = tab.dataset.tab;
+        if (tab.dataset.phase) {
+          phaseFilter = tab.dataset.phase;
+        }
         render();
       });
     });
@@ -350,8 +379,8 @@ function renderFlightsList(flights, trip) {
     return `
       <div class="empty-state">
         <div class="empty-state-icon" style="display:flex; justify-content:center;">${getIcon('plane')}</div>
-        <h3>No flights added yet</h3>
-        <p>Click "+ Add Flight" to start tracking group flights</p>
+        <h3>No flights in this view</h3>
+        <p>Try selecting "All" or adding flights to this trip</p>
       </div>
     `;
   }

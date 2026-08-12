@@ -1,25 +1,21 @@
 /* ============================================
-   PPC: Delay No More — Timeline Component (Overhauled)
-   
-   Features:
-   - Scrollable horizontal timeline spanning all trip days
-   - Multi-day flights rendered correctly
-   - Click any bar to see full flight details in a modal
-   - Color-coded by person with legend
+   PPC: Delay No More — Commercial Timeline Component
    ============================================ */
 
+import { getIcon } from './icons.js';
+
 const PERSON_COLORS_HEX = [
-  '#0A84FF', '#FF9500', '#34C759',
-  '#AF52DE', '#FF2D55', '#5AC8FA'
+  '#0A84FF', '#34C759', '#F59E0B',
+  '#A855F7', '#EC4899', '#38BDF8'
 ];
 
 export function renderTimeline(container, flights, participants) {
-  if (flights.length === 0) {
+  if (!flights || flights.length === 0) {
     container.innerHTML = `
       <div class="empty-state">
-        <div class="empty-state-icon">📊</div>
-        <h3>No flights to show</h3>
-        <p>Add flights to see them on the timeline</p>
+        <div class="empty-state-icon" style="display:flex; justify-content:center;">${getIcon('timeline')}</div>
+        <h3>No flights on timeline</h3>
+        <p>Add flights to see them visualized across dates</p>
       </div>
     `;
     return;
@@ -30,7 +26,6 @@ export function renderTimeline(container, flights, participants) {
   const startDate = allDates[0];
   const endDate = allDates[allDates.length - 1];
 
-  // Build complete list of dates in range
   const dateList = [];
   if (startDate && endDate) {
     let d = new Date(startDate + 'T00:00:00');
@@ -43,11 +38,10 @@ export function renderTimeline(container, flights, participants) {
   if (dateList.length === 0) dateList.push(new Date().toISOString().split('T')[0]);
 
   const totalDays = dateList.length;
-  // Each day = 200px width for scrolling, min total 100% of container
-  const dayWidthPx = Math.max(200, totalDays <= 3 ? 0 : 200);
+  const dayWidthPx = Math.max(180, totalDays <= 3 ? 0 : 180);
   const totalWidthPx = totalDays <= 3 ? '100%' : `${totalDays * dayWidthPx}px`;
 
-  // Group flights by person for separate rows  
+  // Group flights by person
   const personFlights = {};
   participants.forEach(p => { personFlights[p.name] = []; });
   flights.forEach(f => {
@@ -58,45 +52,49 @@ export function renderTimeline(container, flights, participants) {
 
   let html = '<div class="tl-wrapper">';
 
-  // Legend
+  // Legend Header
   html += '<div class="tl-legend">';
   participants.forEach((p, i) => {
     html += `
       <div class="tl-legend-item">
         <span class="tl-legend-dot" style="background:${PERSON_COLORS_HEX[i % 6]};"></span>
-        ${escapeHtml(p.name)}
+        <span>${escapeHtml(p.name)}</span>
       </div>
     `;
   });
-  html += '<div class="tl-legend-hint">↔ Scroll timeline · Tap a flight for details</div>';
+  html += '<div class="tl-legend-hint">↔ Scroll timeline · Tap a flight bar for details</div>';
   html += '</div>';
 
   // Scrollable container
   html += `<div class="tl-scroll">`;
   html += `<div class="tl-canvas" style="min-width: ${totalWidthPx}; position: relative;">`;
 
-  // Date headers row
+  // Date Headers with 6-hour markers cleanly underneath
   html += '<div class="tl-date-row">';
-  dateList.forEach((date, i) => {
+  dateList.forEach((date) => {
     const widthPct = (100 / totalDays);
-    html += `<div class="tl-date-cell" style="width:${widthPct}%;">
-      <span class="tl-date-label">${formatDateShort(date)}</span>
-    </div>`;
+    html += `
+      <div class="tl-date-cell" style="width:${widthPct}%;">
+        <div class="tl-date-label">${formatDateShort(date)}</div>
+        <div class="tl-hour-subrow">
+          <span>00:00</span>
+          <span>06:00</span>
+          <span>12:00</span>
+          <span>18:00</span>
+        </div>
+      </div>
+    `;
   });
   html += '</div>';
 
-  // Hour grid lines
+  // Background Grid Lines
   html += '<div class="tl-grid">';
   dateList.forEach((date, dayIdx) => {
     const dayStartPct = (dayIdx / totalDays) * 100;
     const dayWidthPct = 100 / totalDays;
-    // Draw 6h markers
     for (let h = 0; h <= 24; h += 6) {
       const xPct = dayStartPct + (h / 24) * dayWidthPct;
       html += `<div class="tl-grid-line" style="left:${xPct}%;"></div>`;
-      if (h < 24) {
-        html += `<div class="tl-grid-hour" style="left:${xPct}%;">${String(h).padStart(2, '0')}:00</div>`;
-      }
     }
   });
   html += '</div>';
@@ -110,40 +108,32 @@ export function renderTimeline(container, flights, participants) {
     html += `<div class="tl-person-row">`;
     html += `<div class="tl-person-label">
       <span class="tl-person-dot" style="background:${color};"></span>
-      ${escapeHtml(person.name)}
+      <span style="overflow:hidden; text-overflow:ellipsis;">${escapeHtml(person.name)}</span>
     </div>`;
-    html += `<div class="tl-person-bars" style="min-height:${Math.max(42, pFlights.length * 40)}px;">`;
+    html += `<div class="tl-person-bars">`;
 
-    pFlights.forEach((flight, flightIdx) => {
+    pFlights.forEach((flight) => {
       const depHour = parseTime(flight.departure?.time);
       const arrHour = parseTime(flight.arrival?.time);
       const flightDateIdx = dateList.indexOf(flight.date);
       if (flightDateIdx < 0) return;
 
-      // Determine if it's a multi-day flight (arrival time < departure time)
       const isOvernight = arrHour <= depHour;
-      const spanDays = isOvernight ? 2 : 1;
       const effectiveArr = isOvernight ? arrHour + 24 : arrHour;
 
-      // Calculate position: start from the flight's date at depHour, to effectiveArr
       const startPct = ((flightDateIdx + depHour / 24) / totalDays) * 100;
-      const durationHours = effectiveArr - depHour;
-      const widthPct = Math.max((durationHours / 24 / totalDays) * 100, 0.8); // min visible width
+      const durationHours = Math.max(effectiveArr - depHour, 1.5);
+      const widthPct = Math.max((durationHours / 24 / totalDays) * 100, 1.2);
 
-      // Vertical offset for stacking
-      const topOffset = flightIdx * 40;
-
-      // Flight data attribute for click handler
       const flightData = encodeURIComponent(JSON.stringify(flight));
 
       html += `
         <div class="tl-bar" data-flight="${flightData}" style="
           left: ${startPct}%;
           width: ${widthPct}%;
-          top: ${topOffset}px;
           background: ${color};
         ">
-          <span class="tl-bar-text">${escapeHtml(flight.flightNumber)}</span>
+          <span class="tl-bar-text">${escapeHtml(flight.flightNumber)} (${escapeHtml(flight.departure?.code || '')}➔${escapeHtml(flight.arrival?.code || '')})</span>
         </div>
       `;
     });
@@ -156,7 +146,7 @@ export function renderTimeline(container, flights, participants) {
 
   container.innerHTML = html;
 
-  // --- Click handler for flight detail modal ---
+  // Click handler for flight detail modal
   container.querySelectorAll('.tl-bar').forEach(bar => {
     bar.addEventListener('click', () => {
       try {
@@ -169,7 +159,6 @@ export function renderTimeline(container, flights, participants) {
   });
 }
 
-// --- Flight Detail Modal ---
 function showFlightDetailModal(flight, participants) {
   const personIdx = participants.findIndex(p => p.name === flight.addedBy);
   const color = PERSON_COLORS_HEX[personIdx >= 0 ? personIdx % 6 : 0];
@@ -181,60 +170,53 @@ function showFlightDetailModal(flight, participants) {
   }[flight.status] || 'badge-info';
 
   const statusLabel = {
-    'on-time': '✅ On Time', 'scheduled': '📋 Scheduled',
-    'delayed': '⚠️ Delayed', 'cancelled': '❌ Cancelled',
-    'landed': '🛬 Landed', 'boarding': '🛫 Boarding'
+    'on-time': '● On Time', 'scheduled': '● Scheduled',
+    'delayed': '● Delayed', 'cancelled': '● Cancelled',
+    'landed': '● Landed', 'boarding': '● Boarding'
   }[flight.status] || flight.status;
 
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
   overlay.innerHTML = `
-    <div class="modal" style="animation: slideUp var(--transition-base) ease-out;">
-      <div class="modal-handle"></div>
-
+    <div class="modal" style="animation: scaleIn var(--transition-fast) ease-out;">
       <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: var(--space-lg);">
         <div>
-          <div style="font-size: var(--font-size-xl); font-weight: var(--font-weight-bold);">
+          <div style="font-size: var(--font-size-xl); font-weight: var(--font-weight-bold); font-family: var(--font-family-mono);">
             ${escapeHtml(flight.flightNumber)}
           </div>
-          <div style="font-size: var(--font-size-sm); color: var(--color-text-secondary);">
+          <div style="font-size: var(--font-size-xs); color: var(--color-text-secondary);">
             ${escapeHtml(flight.airline || '')}
           </div>
         </div>
-        <span class="badge badge-dot ${statusClass}">${statusLabel}</span>
+        <span class="badge ${statusClass}">${statusLabel}</span>
       </div>
 
-      <!-- Route -->
-      <div style="display:flex; align-items:center; gap: var(--space-lg); margin-bottom: var(--space-lg); padding: var(--space-base); background: var(--color-surface-secondary); border-radius: var(--radius-md);">
-        <div style="flex:1;">
-          <div style="font-size: var(--font-size-xl); font-weight: var(--font-weight-bold);">${escapeHtml(flight.departure?.code || '')}</div>
-          <div style="font-size: var(--font-size-sm); color: var(--color-text-secondary);">${escapeHtml(flight.departure?.city || '')}</div>
-          <div style="font-size: var(--font-size-md); font-weight: var(--font-weight-semibold); margin-top: var(--space-xs);">${escapeHtml(flight.departure?.time || '')}</div>
-          ${flight.departure?.terminal ? `<div style="font-size: var(--font-size-xs); color: var(--color-text-tertiary); margin-top:2px;">Terminal ${escapeHtml(flight.departure.terminal)}</div>` : ''}
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: var(--space-lg); padding: var(--space-base); background: rgba(30, 41, 59, 0.6); border-radius: var(--radius-md); border: 1px solid var(--color-border);">
+        <div>
+          <div style="font-size: 1.8rem; font-weight: 800; font-family: var(--font-family-mono);">${escapeHtml(flight.departure?.code || '')}</div>
+          <div style="font-size: var(--font-size-xs); color: var(--color-text-secondary);">${escapeHtml(flight.departure?.city || '')}</div>
+          <div style="font-size: var(--font-size-sm); font-weight: 600; font-family: var(--font-family-mono); margin-top: 4px;">${escapeHtml(flight.departure?.time || '')}</div>
         </div>
-        <div style="display:flex; flex-direction:column; align-items:center; gap:4px;">
-          <div style="font-size: 1.2rem;">✈️</div>
-          <div style="width:40px; height:2px; background: var(--color-border);"></div>
-          <div style="font-size: var(--font-size-xs); color: var(--color-text-tertiary);">${escapeHtml(flight.duration || '')}</div>
+        <div style="text-align:center;">
+          <div style="color: var(--color-accent);">${getIcon('plane')}</div>
+          <div style="font-size: var(--font-size-xs); color: var(--color-text-tertiary); font-family: var(--font-family-mono);">${escapeHtml(flight.duration || '')}</div>
         </div>
-        <div style="flex:1; text-align:right;">
-          <div style="font-size: var(--font-size-xl); font-weight: var(--font-weight-bold);">${escapeHtml(flight.arrival?.code || '')}</div>
-          <div style="font-size: var(--font-size-sm); color: var(--color-text-secondary);">${escapeHtml(flight.arrival?.city || '')}</div>
-          <div style="font-size: var(--font-size-md); font-weight: var(--font-weight-semibold); margin-top: var(--space-xs);">${escapeHtml(flight.arrival?.time || '')}</div>
-          ${flight.arrival?.terminal ? `<div style="font-size: var(--font-size-xs); color: var(--color-text-tertiary); margin-top:2px;">Terminal ${escapeHtml(flight.arrival.terminal)}</div>` : ''}
+        <div style="text-align:right;">
+          <div style="font-size: 1.8rem; font-weight: 800; font-family: var(--font-family-mono);">${escapeHtml(flight.arrival?.code || '')}</div>
+          <div style="font-size: var(--font-size-xs); color: var(--color-text-secondary);">${escapeHtml(flight.arrival?.city || '')}</div>
+          <div style="font-size: var(--font-size-sm); font-weight: 600; font-family: var(--font-family-mono); margin-top: 4px;">${escapeHtml(flight.arrival?.time || '')}</div>
         </div>
       </div>
 
-      <!-- Meta info -->
-      <div style="display:flex; gap: var(--space-base); flex-wrap:wrap; margin-bottom: var(--space-lg);">
-        <div style="flex:1; min-width:120px; padding: var(--space-sm) var(--space-base); background: var(--color-surface-secondary); border-radius: var(--radius-sm);">
-          <div style="font-size: var(--font-size-xs); color: var(--color-text-tertiary); text-transform:uppercase; letter-spacing:0.5px;">Date</div>
-          <div style="font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); margin-top:2px;">📅 ${escapeHtml(flight.date || '')}</div>
+      <div style="display:flex; gap: var(--space-base); margin-bottom: var(--space-lg);">
+        <div style="flex:1; padding: var(--space-sm) var(--space-base); background: rgba(30, 41, 59, 0.4); border-radius: var(--radius-sm); border: 1px solid var(--color-border);">
+          <div style="font-size: var(--font-size-xs); color: var(--color-text-tertiary);">Date</div>
+          <div style="font-size: var(--font-size-sm); font-weight: 600; font-family: var(--font-family-mono); margin-top:2px;">${escapeHtml(flight.date || '')}</div>
         </div>
-        <div style="flex:1; min-width:120px; padding: var(--space-sm) var(--space-base); background: var(--color-surface-secondary); border-radius: var(--radius-sm);">
-          <div style="font-size: var(--font-size-xs); color: var(--color-text-tertiary); text-transform:uppercase; letter-spacing:0.5px;">Traveler</div>
-          <div style="font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); margin-top:2px;">
-            <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${color};margin-right:4px;vertical-align:middle;"></span>
+        <div style="flex:1; padding: var(--space-sm) var(--space-base); background: rgba(30, 41, 59, 0.4); border-radius: var(--radius-sm); border: 1px solid var(--color-border);">
+          <div style="font-size: var(--font-size-xs); color: var(--color-text-tertiary);">Traveler</div>
+          <div style="font-size: var(--font-size-sm); font-weight: 600; margin-top:2px; display:flex; align-items:center; gap:4px;">
+            <span style="width:8px;height:8px;border-radius:50%;background:${color};display:inline-block;"></span>
             ${escapeHtml(flight.addedBy || '')}
           </div>
         </div>
@@ -246,10 +228,8 @@ function showFlightDetailModal(flight, participants) {
 
   document.body.appendChild(overlay);
 
-  // Close handlers
   const closeModal = () => {
-    overlay.style.animation = 'fadeIn var(--transition-fast) reverse';
-    setTimeout(() => overlay.remove(), 200);
+    overlay.remove();
   };
 
   overlay.querySelector('#modal-close-btn').addEventListener('click', closeModal);
@@ -258,7 +238,6 @@ function showFlightDetailModal(flight, participants) {
   });
 }
 
-// --- Utilities ---
 function parseTime(timeStr) {
   if (!timeStr) return 12;
   const cleaned = timeStr.replace(/\+\d+/, '');

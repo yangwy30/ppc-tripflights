@@ -427,7 +427,7 @@
     border-radius: 50%;
 }
 
-/* --- Timeline Component --- */
+/* --- Timeline Component (Fixed Layout) --- */
 .tl-wrapper {
     background: var(--color-surface);
     border: 1px solid var(--color-border);
@@ -448,46 +448,90 @@
     font-size: var(--font-size-xs);
 }
 
+.tl-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
 .tl-legend-dot {
     width: 8px;
     height: 8px;
     border-radius: 50%;
     display: inline-block;
-    margin-right: 4px;
 }
 
 .tl-legend-hint {
     margin-left: auto;
     color: var(--color-text-tertiary);
+    font-size: 0.7rem;
 }
 
 .tl-scroll {
     overflow-x: auto;
     padding-bottom: var(--space-xs);
+    position: relative;
+}
+
+.tl-canvas {
+    position: relative;
 }
 
 .tl-date-row {
     display: flex;
     border-bottom: 1px solid var(--color-border);
-    padding-bottom: 4px;
-    margin-bottom: 8px;
+    margin-bottom: var(--space-md);
 }
 
 .tl-date-cell {
-    text-align: center;
+    padding: 4px 6px;
+    border-right: 1px dashed var(--color-border-light);
+}
+
+.tl-date-cell:last-child {
+    border-right: none;
 }
 
 .tl-date-label {
     font-size: var(--font-size-xs);
     font-weight: var(--font-weight-semibold);
-    color: var(--color-text-secondary);
+    color: var(--color-text-primary);
     font-family: var(--font-family-mono);
+    text-align: center;
+}
+
+.tl-hour-subrow {
+    display: flex;
+    justify-content: space-between;
+    font-size: 9px;
+    color: var(--color-text-tertiary);
+    font-family: var(--font-family-mono);
+    margin-top: 4px;
+    opacity: 0.7;
+}
+
+.tl-grid {
+    position: absolute;
+    top: 36px;
+    left: 90px;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+}
+
+.tl-grid-line {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: rgba(255, 255, 255, 0.04);
 }
 
 .tl-person-row {
     display: flex;
     align-items: center;
-    margin-bottom: 12px;
+    margin-bottom: 8px;
+    height: 38px;
 }
 
 .tl-person-label {
@@ -499,18 +543,20 @@
     display: flex;
     align-items: center;
     gap: 6px;
+    padding-right: 8px;
 }
 
 .tl-person-dot {
     width: 6px;
     height: 6px;
     border-radius: 50%;
+    flex-shrink: 0;
 }
 
 .tl-person-bars {
     flex: 1;
     position: relative;
-    height: 36px;
+    height: 32px;
     background: rgba(255, 255, 255, 0.02);
     border-radius: var(--radius-sm);
     border: 1px solid var(--color-border-light);
@@ -518,21 +564,31 @@
 
 .tl-bar {
     position: absolute;
-    height: 28px;
+    top: 3px;
+    height: 26px;
     border-radius: 4px;
     display: flex;
     align-items: center;
     padding: 0 8px;
     color: #ffffff;
-    font-size: var(--font-size-xs);
+    font-size: 11px;
     font-weight: var(--font-weight-bold);
     font-family: var(--font-family-mono);
     cursor: pointer;
-    transition: opacity var(--transition-fast);
+    transition: opacity var(--transition-fast), transform var(--transition-fast);
+    z-index: 2;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
 }
 
 .tl-bar:hover {
     opacity: 0.9;
+    transform: scaleY(1.08);
+}
+
+.tl-bar-text {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 /* --- Modals --- */
