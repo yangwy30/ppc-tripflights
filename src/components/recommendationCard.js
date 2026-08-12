@@ -1,4 +1,4 @@
-/* Recommendation Card */
+import { getIcon } from './icons.js';
 
 /**
  * Renders a single grouped option containing multiple flights.
@@ -25,8 +25,8 @@ export function renderRecommendationCard(option, index, currentNickname, searchD
                         <h4 style="margin: 0; font-size: var(--font-size-md);">Group Option ${index}</h4>
                     </div>
                     <div style="margin: 8px 0 0 0; font-size: var(--font-size-sm); display: flex; flex-direction: column; gap: 4px;">
-                        <span style="color: var(--color-success); font-weight: 500;">🛫 Outbound Spread: ${option.maxArrivalDiff}</span>
-                        ${option.maxDepartureDiff ? `<span style="color: var(--color-primary); font-weight: 500;">🛬 Return Spread: ${option.maxDepartureDiff}</span>` : ''}
+                        <span style="color: var(--color-success); font-weight: 500;">Outbound Spread: ${option.maxArrivalDiff}</span>
+                        ${option.maxDepartureDiff ? `<span style="color: var(--color-primary); font-weight: 500;">Return Spread: ${option.maxDepartureDiff}</span>` : ''}
                     </div>
                 </div>
                 <div style="text-align: right;">
@@ -38,23 +38,23 @@ export function renderRecommendationCard(option, index, currentNickname, searchD
             </div>
 
             <!-- Grouped by Leg -->
-            ${_renderFlightSection('🛫 Outbound', option.maxArrivalDiff, flights, currentNickname, 'outbound')}
+            ${_renderFlightSection('Outbound', option.maxArrivalDiff, flights, currentNickname, 'outbound')}
             
             ${flights.some(e => e.inbound && e.inbound.airline) ?
-            _renderFlightSection('🛬 Return', option.maxDepartureDiff, flights, currentNickname, 'inbound')
+            _renderFlightSection('Return', option.maxDepartureDiff, flights, currentNickname, 'inbound')
             : ''}
             
             <div style="margin-top: var(--space-md); display: flex; justify-content: flex-end; gap: var(--space-sm);">
                 <button class="btn btn-sm btn-success btn-add-timeline" 
                         data-entry="${encodeURIComponent(JSON.stringify(userEntry))}"
                         style="display: inline-flex; align-items: center; gap: 6px;">
-                    ✅ Add to Timeline
+                    <span style="display:flex;">${getIcon('check')}</span> Add to Timeline
                 </button>
                 <a href="${_buildGoogleFlightsUrl(userEntry?.outbound, userEntry?.inbound)}" 
                    target="_blank" rel="noopener noreferrer"
                    class="btn btn-sm btn-primary"
                    style="text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
-                    ✈️ Book on Google Flights
+                    <span style="display:flex;">${getIcon('plane')}</span> Book on Google Flights
                 </a>
             </div>
         </div>

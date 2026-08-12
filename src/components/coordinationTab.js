@@ -36,18 +36,10 @@ export async function renderCoordinationTab(container, trip) {
     const hasBookedFlight = trip.flights && trip.flights.some(f => f.addedBy === currentNickname);
 
     const render = () => {
-        if (hasBookedFlight) {
-            container.innerHTML = `
-                <div class="coordination-panel">
-                    ${renderBookedSuccessState(trip, origins, currentNickname)}
-                </div>
-            `;
-            return;
-        }
-
         container.innerHTML = `
             <div class="coordination-panel">
                 ${renderStatusHeader(trip, origins)}
+                ${hasBookedFlight ? renderBookedSuccessState(trip, origins, currentNickname) : ''}
                 
                 ${state === 'idle' ? renderIdleState() : ''}
                 ${state === 'loading' ? renderLoadingState() : ''}
