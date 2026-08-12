@@ -1,5 +1,6 @@
 /* ============================================
-   PPC: Delay No More — Flighty Unified Airport Pin & Dynamic Arc Map Engine
+   PPC: Delay No More — Professional Flight Route Map Engine
+   High North vs Low South Arc Separation + Metro Airport Diagonal Uncoupling
    ============================================ */
 
 import L from 'leaflet';
@@ -60,6 +61,16 @@ const AIRPORT_COORDS = {
   BNE: [-27.3842, 153.1175]
 };
 
+// Precise Diagonal Pill Offsets so close airports (EWR/JFK/LGA or SFO/SJC/LAX) never overlap
+const AIRPORT_PILL_STYLING = {
+  EWR: 'top: -24px; left: -42px; transform: translate(-50%, -50%);',
+  JFK: 'top: 24px; left: 42px; transform: translate(-50%, -50%);',
+  LGA: 'top: -30px; left: 0px; transform: translate(-50%, -50%);',
+  SJC: 'top: -22px; left: -35px; transform: translate(-50%, -50%);',
+  LAX: 'top: 22px; left: -10px; transform: translate(-50%, -50%);',
+  SFO: 'top: -22px; left: 35px; transform: translate(-50%, -50%);'
+};
+
 let activeLeafletMap = null;
 
 export function renderRouteMap(container, flights = [], participants = [], trip = {}, activePersonFilter = 'all', phaseName = 'All') {
@@ -114,9 +125,7 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
   const bounds = [];
   const airportMap = new Map();
 
-  // Track flight counts per route pair for subtle arc offsets
-  const routePairCounts = new Map();
-
+  // Route Arc Curvature Separation Engine (High North vs Low South)
   flights.forEach(f => {
     const depCode = (f.departure?.code || 'JFK').toUpperCase().trim();
     const arrCode = (f.arrival?.code || 'LAX').toUpperCase().trim();
@@ -137,20 +146,18 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
     airportMap.get(depCode).departures.push({ name: f.addedBy, color, flight: f });
     airportMap.get(arrCode).arrivals.push({ name: f.addedBy, color, flight: f });
 
-    // Compute route pair count for curvature variation
-    const pairKey = [depCode, arrCode].sort().join('-');
-    const pairIdx = routePairCounts.get(pairKey) || 0;
-    routePairCounts.set(pairKey, pairIdx + 1);
-
-    // Dynamic Arc Curvature based on dep airport code & pair index
-    const arcHeightFactor = depCode === 'EWR' ? 0.22 : depCode === 'JFK' ? 0.12 : 0.16 + (pairIdx * 0.05);
+    // Distinct Arc Height Factors for High North (EWR) vs Low South (JFK) separation
+    let arcHeightFactor = 0.15;
+    if (depCode === 'EWR') arcHeightFactor = 0.38; // Curves High North over Great Lakes
+    else if (depCode === 'JFK') arcHeightFactor = 0.08; // Curves Low South over South-Central US
+    else if (depCode === 'SJC' || arrCode === 'SJC') arcHeightFactor = -0.22; // Curves West
 
     const arcPoints = getGreatCircleArcOffset(startCoords, endCoords, 60, arcHeightFactor);
 
     // Draw Sleek Polyline Arc
     const polyline = L.polyline(arcPoints, {
       color: color,
-      weight: isFilteredOut ? 1.5 : 3,
+      weight: isFilteredOut ? 1.5 : 3.5,
       opacity: isFilteredOut ? 0.2 : 0.85,
       lineCap: 'round'
     }).addTo(map);
@@ -169,7 +176,7 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
     `, { sticky: true, className: 'leaflet-dark-tooltip' });
   });
 
-  // Render UNIFIED Single Pill Pins at Airport Locations
+  // Render UNIFIED Pill Pins with Diagonal Uncoupling for Close Airports
   airportMap.forEach((data, code) => {
     const { coords, departures, arrivals } = data;
     const allTravelers = [...departures, ...arrivals];
@@ -191,17 +198,24 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
       </span>
     `).join('');
 
+    const pillStyle = AIRPORT_PILL_STYLING[code] || 'top: -20px; left: 0px; transform: translate(-50%, -50%);';
+
     const customIcon = L.divIcon({
-      className: 'airport-unified-pill-marker',
+      className: 'airport-pill-marker',
       html: `
-        <div style="display:inline-flex; align-items:center; gap:5px; background:rgba(15,23,42,0.92); border:1px solid rgba(255,255,255,0.2); border-radius:12px; padding:3px 8px; backdrop-filter:blur(8px); box-shadow:0 4px 15px rgba(0,0,0,0.6); transform:translate(-50%, -50%); cursor:pointer; opacity:${isFiltered ? 0.35 : 1};">
-          <span style="width:6px; height:6px; border-radius:50%; background:#0A84FF; box-shadow:0 0 8px #0A84FF;"></span>
-          <span style="font-size:11px; font-weight:800; font-family:var(--font-family-mono); color:#ffffff;">${code}</span>
-          ${uniqueTravelers.length > 0 ? `
-            <div style="display:flex; align-items:center; margin-left:4px;">
-              ${avatarStackHtml}
-            </div>
-          ` : ''}
+        <div style="position:relative; cursor:pointer; opacity:${isFiltered ? 0.35 : 1};">
+          <!-- Exact Airport Location Dot -->
+          <div style="width:8px; height:8px; border-radius:50%; background:#0A84FF; box-shadow:0 0 10px #0A84FF; border:1.5px solid #ffffff; transform:translate(-50%, -50%);"></div>
+          
+          <!-- Diagonally Uncoupled Pill Badge -->
+          <div style="position:absolute; ${pillStyle} display:inline-flex; align-items:center; gap:5px; background:rgba(15,23,42,0.95); border:1px solid rgba(255,255,255,0.22); border-radius:12px; padding:3px 8px; backdrop-filter:blur(10px); box-shadow:0 4px 18px rgba(0,0,0,0.75); white-space:nowrap; z-index:10;">
+            <span style="font-size:11px; font-weight:800; font-family:var(--font-family-mono); color:#ffffff;">${code}</span>
+            ${uniqueTravelers.length > 0 ? `
+              <div style="display:flex; align-items:center; margin-left:4px;">
+                ${avatarStackHtml}
+              </div>
+            ` : ''}
+          </div>
         </div>
       `,
       iconSize: [0, 0]
@@ -262,7 +276,7 @@ function getGreatCircleArcOffset(start, end, numPoints = 50, arcHeightFactor = 0
     let lon = Math.atan2(y, x) * 180 / Math.PI;
 
     // Apply smooth arc curve height
-    const curveOffset = Math.sin(f * Math.PI) * arcHeightFactor * (end[1] - start[1] < 0 ? -15 : 15);
+    const curveOffset = Math.sin(f * Math.PI) * arcHeightFactor * 25;
     lat += curveOffset * 0.15;
 
     points.push([lat, lon]);
