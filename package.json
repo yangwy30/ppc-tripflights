@@ -13,6 +13,7 @@
     "vite-plugin-pwa": "^0.17"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.98.0"
+    "@supabase/supabase-js": "^2.98.0",
+    "leaflet": "^1.9.4"
   }
 }

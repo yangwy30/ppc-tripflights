@@ -3,6 +3,9 @@
    Flighty Aesthetic with Real CartoDB Dark Basemap Tiles
    ============================================ */
 
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+
 const PERSON_COLORS_HEX = [
   '#0A84FF', '#34C759', '#F59E0B',
   '#A855F7', '#EC4899', '#38BDF8'
@@ -85,7 +88,7 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
         </div>
       </div>
 
-      <div id="leaflet-map" style="width:100%; height:420px; border-radius: var(--radius-lg); overflow:hidden; border: 1px solid var(--color-border); z-index:1;"></div>
+      <div id="leaflet-map" style="width:100%; height:440px; border-radius: var(--radius-lg); overflow:hidden; border: 1px solid var(--color-border); z-index:1; background:#090A0F;"></div>
 
       <!-- Map Legend Drawer -->
       <div class="route-map-legend">
@@ -100,10 +103,7 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
   `;
 
   const mapEl = container.querySelector('#leaflet-map');
-  if (!mapEl || typeof L === 'undefined') {
-    if (mapEl) mapEl.innerHTML = `<div style="padding:20px; text-align:center; color:#94A3B8;">Loading Map Tiles...</div>`;
-    return;
-  }
+  if (!mapEl) return;
 
   // Initialize Leaflet Map
   const map = L.map(mapEl, {
@@ -149,8 +149,8 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
     // Polyline
     const polyline = L.polyline(arcPoints, {
       color: color,
-      weight: isFilteredOut ? 1.5 : 3.5,
-      opacity: isFilteredOut ? 0.2 : 0.85,
+      weight: isFilteredOut ? 2 : 4,
+      opacity: isFilteredOut ? 0.25 : 0.9,
       lineCap: 'round'
     }).addTo(map);
 
@@ -177,14 +177,15 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
     const customIcon = L.divIcon({
       className: 'airport-beacon-marker',
       html: `
-        <div style="display:flex; align-items:center; gap:4px; transform: translate(-50%, -50%);">
-          <div style="width:10px; height:10px; border-radius:50%; background:#0A84FF; box-shadow:0 0 10px #0A84FF; border:2px solid #fff;"></div>
-          <div style="font-size:10px; font-weight:800; font-family:var(--font-family-mono); color:${isFiltered ? '#64748B' : '#ffffff'}; text-shadow:0 1px 4px #000; white-space:nowrap;">
-            ${code} <span style="font-size:9px; font-weight:500; color:#94A3B8;">${label}</span>
+        <div style="display:flex; align-items:center; gap:5px; transform: translate(-50%, -50%); cursor:pointer;">
+          <div style="width:12px; height:12px; border-radius:50%; background:#0A84FF; box-shadow:0 0 12px #0A84FF; border:2px solid #fff;"></div>
+          <div style="font-size:11px; font-weight:800; font-family:var(--font-family-mono); color:${isFiltered ? '#64748B' : '#ffffff'}; text-shadow:0 1px 4px #000; white-space:nowrap; background:rgba(15,23,42,0.85); padding:2px 6px; border-radius:4px; border:1px solid rgba(255,255,255,0.15);">
+            ${code} <span style="font-size:9px; font-weight:500; color:#38BDF8;">${label}</span>
           </div>
         </div>
       `,
-      iconSize: [0, 0]
+      iconSize: [20, 20],
+      iconAnchor: [10, 10]
     });
 
     L.marker(coords, { icon: customIcon }).addTo(map);
@@ -193,9 +194,14 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
   // Fit bounds if valid points exist
   if (bounds.length > 0) {
     try {
-      map.fitBounds(bounds, { padding: [40, 40], maxZoom: 8 });
+      map.fitBounds(bounds, { padding: [50, 50], maxZoom: 8 });
     } catch (e) { }
   }
+
+  // Force Leaflet map size recalculation so tiles fill 100% of container!
+  setTimeout(() => {
+    if (map) map.invalidateSize();
+  }, 100);
 
   // Legend Filter Click Listener
   container.querySelectorAll('.legend-chip').forEach(chip => {
