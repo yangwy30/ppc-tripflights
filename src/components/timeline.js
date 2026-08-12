@@ -1,5 +1,6 @@
 /* ============================================
-   PPC: Delay No More — Commercial Timeline Component
+   PPC: Delay No More — Commercial Pro Timeline Component
+   Features: Timezone-Calibrated Flight Duration Width + Full Flight Number & Route Display
    ============================================ */
 
 import { getIcon } from './icons.js';
@@ -12,6 +13,16 @@ const PERSON_COLORS_HEX = [
   '#34C759', // Person 5: Mint Green
   '#FF9500'  // Person 6: Bright Orange
 ];
+
+const AIRPORT_TZ_OFFSETS = {
+  JFK: -5, EWR: -5, LGA: -5, BOS: -5, MIA: -5, MCO: -5, IAD: -5, ATL: -5, DTW: -5,
+  ORD: -6, DFW: -6, IAH: -6, MSP: -6, MDW: -6,
+  DEN: -7, SLC: -7, PHX: -7,
+  LAX: -8, SFO: -8, SEA: -8, SAN: -8, SJC: -8, OAK: -8, LAS: -8,
+  LHR: 0, LGW: 0, CDG: 1, FRA: 1, AMS: 1, FCO: 1, MUC: 1,
+  DXB: 4, SIN: 8, HND: 9, NRT: 9, ICN: 9, HKG: 8, PEK: 8, PVG: 8,
+  SYD: 10, MEL: 10
+};
 
 export function renderTimeline(container, tripOrFlights, participantsOrFilter, filterPerson = 'all') {
   let flights = [];
@@ -64,8 +75,9 @@ export function renderTimeline(container, tripOrFlights, participantsOrFilter, f
   if (dateList.length === 0) dateList.push(new Date().toISOString().split('T')[0]);
 
   const totalDays = dateList.length;
-  const dayWidthPx = Math.max(180, totalDays <= 3 ? 0 : 180);
-  const totalWidthPx = totalDays <= 3 ? '100%' : `${totalDays * dayWidthPx}px`;
+  // Make day column wide enough so bars have clear space to display flight numbers
+  const dayWidthPx = Math.max(260, totalDays <= 2 ? 380 : 280);
+  const totalWidthPx = `${totalDays * dayWidthPx}px`;
 
   // Group flights by person
   const personFlights = {};
@@ -131,25 +143,27 @@ export function renderTimeline(container, tripOrFlights, participantsOrFilter, f
     const pFlights = personFlights[person.name] || [];
     if (pFlights.length === 0) return;
 
-    html += `<div class="tl-person-row">`;
-    html += `<div class="tl-person-label">
+    html += `<div class="tl-person-row" style="height: 48px; margin-bottom: 10px;">`;
+    html += `<div class="tl-person-label" style="width: 100px;">
       <span class="tl-person-dot" style="background:${color};"></span>
-      <span style="overflow:hidden; text-overflow:ellipsis;">${escapeHtml(person.name)}</span>
+      <span style="overflow:hidden; text-overflow:ellipsis; font-weight:700;">${escapeHtml(person.name)}</span>
     </div>`;
-    html += `<div class="tl-person-bars">`;
+    html += `<div class="tl-person-bars" style="height: 42px;">`;
 
     pFlights.forEach((flight) => {
       const depHour = parseTime(flight.departure?.time);
-      const arrHour = parseTime(flight.arrival?.time);
       const flightDateIdx = dateList.indexOf(flight.date);
       if (flightDateIdx < 0) return;
 
-      const isOvernight = arrHour <= depHour;
-      const effectiveArr = isOvernight ? arrHour + 24 : arrHour;
+      // Accurate Flight Duration Calculation (accounting for Timezone Offsets)
+      const durationHours = getDurationHours(flight);
 
       const startPct = ((flightDateIdx + depHour / 24) / totalDays) * 100;
-      const durationHours = Math.max(effectiveArr - depHour, 1.5);
-      const widthPct = Math.max((durationHours / 24 / totalDays) * 100, 1.2);
+      const widthPct = Math.max((durationHours / 24 / totalDays) * 100, 1.8);
+
+      const depCode = (flight.departure?.code || 'DEP').toUpperCase();
+      const arrCode = (flight.arrival?.code || 'ARR').toUpperCase();
+      const fn = flight.flightNumber || 'FLIGHT';
 
       const flightData = encodeURIComponent(JSON.stringify(flight));
 
@@ -157,9 +171,28 @@ export function renderTimeline(container, tripOrFlights, participantsOrFilter, f
         <div class="tl-bar" data-flight="${flightData}" style="
           left: ${startPct}%;
           width: ${widthPct}%;
+          min-width: 115px;
+          height: 36px;
           background: ${color};
+          border-radius: 8px;
+          padding: 3px 8px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+          z-index: 5;
         ">
-          <span class="tl-bar-text">${escapeHtml(flight.flightNumber)} (${escapeHtml(flight.departure?.code || '')}➔${escapeHtml(flight.arrival?.code || '')})</span>
+          <div style="display:flex; flex-direction:column; overflow:hidden; line-height:1.2;">
+            <div style="font-weight:900; font-family:var(--font-family-mono); font-size:11px; color:#ffffff; white-space:nowrap;">
+              ${escapeHtml(fn)}
+            </div>
+            <div style="font-size:9px; color:rgba(255,255,255,0.85); font-family:var(--font-family-mono); white-space:nowrap;">
+              ${escapeHtml(depCode)}➔${escapeHtml(arrCode)}
+            </div>
+          </div>
+          <div style="font-size:9px; font-weight:800; font-family:var(--font-family-mono); color:rgba(255,255,255,0.9); background:rgba(0,0,0,0.25); padding:2px 5px; border-radius:4px; margin-left:4px; flex-shrink:0;">
+            ${durationHours.toFixed(1)}h
+          </div>
         </div>
       `;
     });
@@ -183,6 +216,52 @@ export function renderTimeline(container, tripOrFlights, participantsOrFilter, f
       }
     });
   });
+}
+
+/**
+ * Timezone-Calibrated Duration Resolver
+ */
+function getDurationHours(flight) {
+  // 1. Try parsing explicit duration string (e.g. "6h 30m", "5.5h", "320m")
+  if (flight.duration) {
+    const durStr = String(flight.duration).toLowerCase().trim();
+    const hMatch = durStr.match(/(\d+)\s*h/);
+    const mMatch = durStr.match(/(\d+)\s*m/);
+
+    if (hMatch || mMatch) {
+      const h = hMatch ? parseInt(hMatch[1], 10) : 0;
+      const m = mMatch ? parseInt(mMatch[1], 10) : 0;
+      return Math.max(1.0, h + m / 60);
+    }
+  }
+
+  // 2. Compute local wall-clock times + timezone offset
+  const depCode = (flight.departure?.code || '').toUpperCase().trim();
+  const arrCode = (flight.arrival?.code || '').toUpperCase().trim();
+
+  const depHour = parseTime(flight.departure?.time);
+  let arrHour = parseTime(flight.arrival?.time);
+
+  if (arrHour <= depHour) {
+    arrHour += 24; // Cross overnight
+  }
+
+  let localDiff = arrHour - depHour;
+
+  // Timezone adjustment if offsets are known
+  const depTz = AIRPORT_TZ_OFFSETS[depCode];
+  const arrTz = AIRPORT_TZ_OFFSETS[arrCode];
+
+  if (depTz !== undefined && arrTz !== undefined) {
+    // True elapsed flight time = Local Arrival - Local Departure + (Dep TZ - Arr TZ)
+    const tzDiff = depTz - arrTz;
+    const trueDuration = localDiff + tzDiff;
+    if (trueDuration > 0.5 && trueDuration < 24) {
+      return trueDuration;
+    }
+  }
+
+  return Math.max(1.5, localDiff);
 }
 
 function showFlightDetailModal(flight, participants) {
@@ -266,9 +345,9 @@ function showFlightDetailModal(flight, participants) {
 
 function parseTime(timeStr) {
   if (!timeStr) return 12;
-  const cleaned = timeStr.replace(/\+\d+/, '');
+  const cleaned = String(timeStr).replace(/\+\d+/, '');
   const [h, m] = cleaned.split(':').map(Number);
-  return h + (m || 0) / 60;
+  return (h || 0) + (m || 0) / 60;
 }
 
 function formatDateShort(dateStr) {
