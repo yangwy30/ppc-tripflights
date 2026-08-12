@@ -1,6 +1,6 @@
 /* ============================================
    PPC: Delay No More — Scalable Algorithmic Flight Route Map Engine
-   Zero Hardcoding: Screen Point Collision Auto-Layout + Algorithmic Arc Fan-Out
+   Clean Destination Hub Pin + Origin Traveler Avatar Badges
    ============================================ */
 
 import L from 'leaflet';
@@ -90,7 +90,7 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
           </span>
         </div>
         <div style="font-size: 11px; color: var(--color-text-tertiary); font-family: var(--font-family-mono);">
-          CartoDB Dark Basemap · Algorithmic Auto-Layout
+          CartoDB Dark Basemap · Hover Lines for Details
         </div>
       </div>
 
@@ -120,13 +120,18 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
   const bounds = [];
   const airportMap = new Map();
 
+  // Destination Airport Codes
+  const destinationAirportCodes = (trip.destinationAirport || '')
+    .split(',')
+    .map(s => s.trim().toUpperCase())
+    .filter(Boolean);
+
   // Normalized traveler color resolution helper
   const normalizedParticipants = participants.map(p => p.name.trim().toLowerCase());
   const getTravelerColor = (name) => {
     const norm = (name || '').trim().toLowerCase();
     const idx = normalizedParticipants.indexOf(norm);
     if (idx >= 0) return PERSON_COLORS_HEX[idx % PERSON_COLORS_HEX.length];
-    // Deterministic Hash Fallback for non-listed participants
     let hash = 0;
     for (let i = 0; i < norm.length; i++) hash = norm.charCodeAt(i) + ((hash << 5) - hash);
     return PERSON_COLORS_HEX[Math.abs(hash) % PERSON_COLORS_HEX.length];
@@ -204,11 +209,11 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
     } catch (e) { }
   }
 
-  // ALGORITHMIC DYNAMIC COLLISION AUTO-LAYOUT FOR AIRPORT PINS (Zero Hardcoding!)
+  // ALGORITHMIC DYNAMIC COLLISION AUTO-LAYOUT FOR AIRPORT PINS
   const airportList = Array.from(airportMap.values());
   const pillOffsetsMap = new Map();
 
-  airportList.forEach((ap, i) => {
+  airportList.forEach((ap) => {
     pillOffsetsMap.set(ap.code, { dx: 0, dy: -20 });
   });
 
@@ -225,12 +230,10 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
       const dy = ptB.y - ptA.y;
       const dist = Math.hypot(dx, dy);
 
-      // If screen pixel distance < 50px, compute 2D repulsion vector
       if (dist < 50) {
         const angle = Math.atan2(dy, dx);
-        const pushDistance = 32; // px
+        const pushDistance = 32;
 
-        // Repel A in opposite angle (-angle), B in angle
         pillOffsetsMap.set(apA.code, {
           dx: Math.round(-Math.cos(angle) * pushDistance),
           dy: Math.round(-Math.sin(angle) * pushDistance)
@@ -244,27 +247,31 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
     }
   }
 
-  // Render UNIFIED Pill Pins with Algorithmic Auto-Layout Offsets
+  // Render Airport Pins: Destination as Clean Hub Pin, Origins with Traveler Avatar Badges
   airportMap.forEach((data, code) => {
     const { coords, departures, arrivals } = data;
+    const isDestination = destinationAirportCodes.includes(code) || (phaseName === 'outbound' && departures.length === 0 && arrivals.length > 0);
+
     const allTravelers = [...departures, ...arrivals];
     const isFiltered = activePersonFilter !== 'all' && !allTravelers.some(t => t.name === activePersonFilter);
 
-    // Distinct traveler initials for clean badges
-    const uniqueTravelers = [];
+    // Only render traveler avatar badges for DEPARTURES at Origin Airports!
+    const originTravelers = [];
     const seenNames = new Set();
-    allTravelers.forEach(t => {
+    departures.forEach(t => {
       if (!seenNames.has(t.name)) {
         seenNames.add(t.name);
-        uniqueTravelers.push(t);
+        originTravelers.push(t);
       }
     });
 
-    const avatarStackHtml = uniqueTravelers.slice(0, 3).map(t => `
-      <span style="width:16px; height:16px; border-radius:50%; background:${t.color}; display:inline-flex; align-items:center; justify-content:center; font-size:8px; font-weight:800; color:#fff; border:1px solid #0F172A; margin-left:-4px;">
-        ${escapeHtml(t.name.charAt(0).toUpperCase())}
-      </span>
-    `).join('');
+    const avatarStackHtml = (!isDestination && originTravelers.length > 0)
+      ? originTravelers.slice(0, 3).map(t => `
+        <span style="width:16px; height:16px; border-radius:50%; background:${t.color}; display:inline-flex; align-items:center; justify-content:center; font-size:8px; font-weight:800; color:#fff; border:1px solid #0F172A; margin-left:-4px;">
+          ${escapeHtml(t.name.charAt(0).toUpperCase())}
+        </span>
+      `).join('')
+      : '';
 
     const offset = pillOffsetsMap.get(code) || { dx: 0, dy: -20 };
     const pillStyle = `top: ${offset.dy}px; left: ${offset.dx}px; transform: translate(-50%, -50%);`;
@@ -274,12 +281,13 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
       html: `
         <div style="position:relative; cursor:pointer; opacity:${isFiltered ? 0.35 : 1};">
           <!-- Exact Airport Location Dot -->
-          <div style="width:8px; height:8px; border-radius:50%; background:#0A84FF; box-shadow:0 0 10px #0A84FF; border:1.5px solid #ffffff; transform:translate(-50%, -50%);"></div>
+          <div style="width:8px; height:8px; border-radius:50%; background:${isDestination ? '#F59E0B' : '#0A84FF'}; box-shadow:0 0 10px ${isDestination ? '#F59E0B' : '#0A84FF'}; border:1.5px solid #ffffff; transform:translate(-50%, -50%);"></div>
           
-          <!-- Algorithmically Repelled Pill Badge -->
-          <div style="position:absolute; ${pillStyle} display:inline-flex; align-items:center; gap:5px; background:rgba(15,23,42,0.95); border:1px solid rgba(255,255,255,0.22); border-radius:12px; padding:3px 8px; backdrop-filter:blur(10px); box-shadow:0 4px 18px rgba(0,0,0,0.75); white-space:nowrap; z-index:10;">
-            <span style="font-size:11px; font-weight:800; font-family:var(--font-family-mono); color:#ffffff;">${code}</span>
-            ${uniqueTravelers.length > 0 ? `
+          <!-- Pill Badge -->
+          <div style="position:absolute; ${pillStyle} display:inline-flex; align-items:center; gap:5px; background:rgba(15,23,42,0.95); border:1px solid ${isDestination ? 'rgba(245, 158, 11, 0.4)' : 'rgba(255,255,255,0.22)'}; border-radius:12px; padding:3px 8px; backdrop-filter:blur(10px); box-shadow:0 4px 18px rgba(0,0,0,0.75); white-space:nowrap; z-index:10;">
+            ${isDestination ? `<span style="font-size:10px;">🎯</span>` : ''}
+            <span style="font-size:11px; font-weight:800; font-family:var(--font-family-mono); color:${isDestination ? '#F59E0B' : '#ffffff'};">${code}</span>
+            ${avatarStackHtml ? `
               <div style="display:flex; align-items:center; margin-left:4px;">
                 ${avatarStackHtml}
               </div>
@@ -292,13 +300,13 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
 
     const marker = L.marker(coords, { icon: customIcon }).addTo(map);
 
-    const namesList = uniqueTravelers.map(t => escapeHtml(t.name)).join(', ');
+    const namesList = Array.from(new Set(allTravelers.map(t => escapeHtml(t.name)))).join(', ');
     marker.bindTooltip(`
       <div style="font-size:11px; font-weight:700; color:#fff; font-family:var(--font-family-mono);">
-        📍 Airport ${code}
+        ${isDestination ? '🎯 Destination Hub' : '📍 Airport'} ${code}
       </div>
       <div style="font-size:10px; color:#94A3B8; margin-top:2px;">
-        Group Travelers: ${namesList || 'None'}
+        Travelers: ${namesList || 'None'}
       </div>
     `, { sticky: true, className: 'leaflet-dark-tooltip' });
   });
