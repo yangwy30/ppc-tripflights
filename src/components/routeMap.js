@@ -1,6 +1,6 @@
 /* ============================================
-   PPC: Delay No More — Professional Flight Route Map Engine
-   Single-Layer CartoDB Dark Matter @2x Retina Basemap + Dynamic Multi-Arc Fan Offset
+   PPC: Delay No More — Elegant Single Bundled Master Arc Route Map Engine
+   Flighty & Linear Aesthetic: Single Master Arc + Avatar Ring Stack
    ============================================ */
 
 import L from 'leaflet';
@@ -85,7 +85,7 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
           </span>
         </div>
         <div style="font-size: 11px; color: var(--color-text-tertiary); font-family: var(--font-family-mono);">
-          CartoDB Dark Retina Basemap · Scroll to Zoom · Drag to Pan
+          Bundled Master Arcs · CartoDB Dark Basemap
         </div>
       </div>
 
@@ -114,88 +114,138 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
   L.control.zoom({ position: 'topright' }).addTo(map);
 
   const bounds = [];
-  const airportMap = new Map();
 
-  // Group Flights by Route Pair to Compute Dynamic Curvature Fan Offsets
-  const routeGroups = new Map();
+  // Group Flights by Unique Route Pair (e.g. "EWR-LAX", "JFK-LHR")
+  const routeMasterMap = new Map();
+
   flights.forEach(f => {
     const depCode = (f.departure?.code || 'JFK').toUpperCase().trim();
     const arrCode = (f.arrival?.code || 'LAX').toUpperCase().trim();
-    const routeKey = `${depCode}-${arrCode}`;
+    const routeKey = `${depCode}➔${arrCode}`;
 
-    if (!routeGroups.has(routeKey)) routeGroups.set(routeKey, []);
-    routeGroups.get(routeKey).push(f);
+    if (!routeMasterMap.has(routeKey)) {
+      routeMasterMap.set(routeKey, {
+        depCode,
+        arrCode,
+        flights: [],
+        travelers: []
+      });
+    }
+    const entry = routeMasterMap.get(routeKey);
+    entry.flights.push(f);
+
+    const pIndex = participants.findIndex(p => p.name === f.addedBy);
+    const color = PERSON_COLORS_HEX[pIndex >= 0 ? pIndex % 6 : 0];
+    entry.travelers.push({ name: f.addedBy, color, flight: f });
   });
 
-  // Render Flights with Dynamic Arc Fan Offsets
-  routeGroups.forEach((flightList, routeKey) => {
-    const totalInGroup = flightList.length;
+  const airportMap = new Map();
 
-    flightList.forEach((f, idxInGroup) => {
-      const depCode = (f.departure?.code || 'JFK').toUpperCase().trim();
-      const arrCode = (f.arrival?.code || 'LAX').toUpperCase().trim();
-      const pIndex = participants.findIndex(p => p.name === f.addedBy);
-      const color = PERSON_COLORS_HEX[pIndex >= 0 ? pIndex % 6 : 0];
-      const isFilteredOut = activePersonFilter !== 'all' && activePersonFilter !== f.addedBy;
+  // Render ONE Single Bundled Master Arc for Each Route Pair
+  routeMasterMap.forEach((entry, routeKey) => {
+    const { depCode, arrCode, flights: routeFlights, travelers } = entry;
 
-      const startCoords = AIRPORT_COORDS[depCode] || [40.6413, -73.7781];
-      const endCoords = AIRPORT_COORDS[arrCode] || [33.9416, -118.4085];
+    const startCoords = AIRPORT_COORDS[depCode] || [40.6413, -73.7781];
+    const endCoords = AIRPORT_COORDS[arrCode] || [33.9416, -118.4085];
 
-      bounds.push(startCoords);
-      bounds.push(endCoords);
+    bounds.push(startCoords);
+    bounds.push(endCoords);
 
-      if (!airportMap.has(depCode)) airportMap.set(depCode, { coords: startCoords, people: new Set() });
-      if (!airportMap.has(arrCode)) airportMap.set(arrCode, { coords: endCoords, people: new Set() });
-      airportMap.get(depCode).people.add(f.addedBy);
+    if (!airportMap.has(depCode)) airportMap.set(depCode, { coords: startCoords, travelers: [] });
+    if (!airportMap.has(arrCode)) airportMap.set(arrCode, { coords: endCoords, travelers: [] });
 
-      // Compute Dynamic Fan Offset Factor so lines never overlap!
-      // Center the fan: e.g. for 3 flights -> offsets: -0.12, 0, +0.12
-      const offsetMultiplier = totalInGroup > 1
-        ? (idxInGroup - (totalInGroup - 1) / 2) * 0.14
-        : 0;
-
-      const arcPoints = getGreatCircleArcOffset(startCoords, endCoords, 60, offsetMultiplier);
-
-      const polyline = L.polyline(arcPoints, {
-        color: color,
-        weight: isFilteredOut ? 2 : 4,
-        opacity: isFilteredOut ? 0.2 : 0.9,
-        lineCap: 'round'
-      }).addTo(map);
-
-      polyline.bindTooltip(`
-        <div style="font-weight:800; font-family:var(--font-family-mono); font-size:12px; color:#fff;">
-          ${escapeHtml(f.flightNumber)} · ${escapeHtml(depCode)} ➔ ${escapeHtml(arrCode)}
-        </div>
-        <div style="font-size:11px; color:#94A3B8; margin-top:2px;">
-          Traveler: <strong style="color:${color}">${escapeHtml(f.addedBy)}</strong>
-        </div>
-        <div style="font-size:10px; color:#64748B; margin-top:2px; font-family:var(--font-family-mono);">
-          ${escapeHtml(f.departure?.time || '')} ➔ ${escapeHtml(f.arrival?.time || '')}
-        </div>
-      `, { sticky: true, className: 'leaflet-dark-tooltip' });
+    travelers.forEach(t => {
+      if (!airportMap.get(depCode).travelers.some(existing => existing.name === t.name)) {
+        airportMap.get(depCode).travelers.push(t);
+      }
     });
+
+    // Check if active filter matches any traveler on this master route
+    const isMatchedByFilter = activePersonFilter === 'all' || travelers.some(t => t.name === activePersonFilter);
+    const mainColor = travelers[0]?.color || '#0A84FF';
+
+    // Compute Single Master Great Circle Arc Points
+    const arcPoints = getGreatCircleArc(startCoords, endCoords, 60);
+
+    // Draw One Master Glowing Polyline
+    const polyline = L.polyline(arcPoints, {
+      color: mainColor,
+      weight: isMatchedByFilter ? 3.5 : 1.5,
+      opacity: isMatchedByFilter ? 0.9 : 0.25,
+      lineCap: 'round'
+    }).addTo(map);
+
+    // Construct Elegant Popover Tooltip for All Travelers on this Route
+    const travelerRowsHtml = travelers.map(t => `
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:4px; padding-top:4px; border-top:1px solid rgba(255,255,255,0.06);">
+        <div style="display:flex; align-items:center; gap:6px;">
+          <span style="width:7px; height:7px; border-radius:50%; background:${t.color}; display:inline-block;"></span>
+          <strong style="color:#ffffff; font-size:11px;">${escapeHtml(t.name)}</strong>
+        </div>
+        <span style="font-family:var(--font-family-mono); font-size:10px; color:#38BDF8;">
+          ${escapeHtml(t.flight.flightNumber)} (${escapeHtml(t.flight.departure?.time || '')})
+        </span>
+      </div>
+    `).join('');
+
+    polyline.bindTooltip(`
+      <div style="min-width:180px;">
+        <div style="font-weight:800; font-family:var(--font-family-mono); font-size:12px; color:#fff; display:flex; align-items:center; justify-content:space-between;">
+          <span>✈️ ${escapeHtml(depCode)} ➔ ${escapeHtml(arrCode)}</span>
+          <span style="font-size:10px; color:#94A3B8; font-weight:normal;">${travelers.length} traveler${travelers.length > 1 ? 's' : ''}</span>
+        </div>
+        ${travelerRowsHtml}
+      </div>
+    `, { sticky: true, className: 'leaflet-dark-tooltip' });
+
+    // Add Midpoint Avatar Ring Stack Marker on the Arc
+    const midIndex = Math.floor(arcPoints.length / 2);
+    const midCoords = arcPoints[midIndex];
+
+    const visibleTravelers = travelers.slice(0, 3);
+    const overflowCount = Math.max(0, travelers.length - 3);
+
+    const avatarStackHtml = `
+      <div class="arc-avatar-pill" style="opacity:${isMatchedByFilter ? 1 : 0.35};">
+        <div class="avatar-ring-stack">
+          ${visibleTravelers.map((t, idx) => `
+            <div class="avatar-ring-mini" style="background:${t.color}; margin-left:${idx > 0 ? '-6px' : '0'};">
+              ${escapeHtml(t.name.charAt(0).toUpperCase())}
+            </div>
+          `).join('')}
+          ${overflowCount > 0 ? `<div class="avatar-ring-mini overflow-mini">+${overflowCount}</div>` : ''}
+        </div>
+        <span style="font-size:10px; font-weight:700; font-family:var(--font-family-mono); color:#ffffff;">
+          ${escapeHtml(depCode)}➔${escapeHtml(arrCode)}
+        </span>
+      </div>
+    `;
+
+    const arcMarkerIcon = L.divIcon({
+      className: 'arc-avatar-marker',
+      html: avatarStackHtml,
+      iconSize: [0, 0]
+    });
+
+    L.marker(midCoords, { icon: arcMarkerIcon }).addTo(map);
   });
 
-  // Add Airport Beacons with Clean Aggregated Labels
+  // Add Clean Airport Node Markers
   airportMap.forEach((data, code) => {
-    const { coords, people } = data;
-    const peopleArr = Array.from(people);
-    const isFiltered = activePersonFilter !== 'all' && !peopleArr.includes(activePersonFilter);
-    const peopleLabel = peopleArr.length > 0 ? ` (${peopleArr.join(', ')})` : '';
+    const { coords, travelers } = data;
+    const isFiltered = activePersonFilter !== 'all' && !travelers.some(t => t.name === activePersonFilter);
 
     const customIcon = L.divIcon({
-      className: 'airport-beacon-marker',
+      className: 'airport-node-marker',
       html: `
-        <div style="display:flex; align-items:center; gap:5px; transform: translate(-50%, -50%); cursor:pointer;">
-          <div style="width:12px; height:12px; border-radius:50%; background:#0A84FF; box-shadow:0 0 12px #0A84FF; border:2px solid #fff;"></div>
-          <div style="font-size:11px; font-weight:800; font-family:var(--font-family-mono); color:${isFiltered ? '#64748B' : '#ffffff'}; text-shadow:0 1px 4px #000; white-space:nowrap; background:rgba(15,23,42,0.9); padding:2px 8px; border-radius:6px; border:1px solid rgba(255,255,255,0.2);">
-            ${code} <span style="font-size:9px; font-weight:500; color:#38BDF8;">${peopleLabel}</span>
+        <div style="display:flex; align-items:center; gap:4px; transform: translate(-50%, -50%); cursor:pointer;">
+          <div style="width:10px; height:10px; border-radius:50%; background:#0A84FF; box-shadow:0 0 10px #0A84FF; border:2px solid #fff;"></div>
+          <div style="font-size:10px; font-weight:800; font-family:var(--font-family-mono); color:${isFiltered ? '#64748B' : '#ffffff'}; text-shadow:0 1px 4px #000; background:rgba(15,23,42,0.9); padding:2px 6px; border-radius:4px; border:1px solid rgba(255,255,255,0.2);">
+            ${code}
           </div>
         </div>
       `,
-      iconSize: [20, 20],
-      iconAnchor: [10, 10]
+      iconSize: [0, 0]
     });
 
     L.marker(coords, { icon: customIcon }).addTo(map);
@@ -215,9 +265,9 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
 }
 
 /**
- * Great Circle Arc Geodesic Interpolation with Curvature Offset
+ * Great Circle Arc Geodesic Interpolation
  */
-function getGreatCircleArcOffset(start, end, numPoints = 50, offsetFactor = 0) {
+function getGreatCircleArc(start, end, numPoints = 50) {
   const lat1 = start[0] * Math.PI / 180;
   const lon1 = start[1] * Math.PI / 180;
   const lat2 = end[0] * Math.PI / 180;
@@ -230,12 +280,6 @@ function getGreatCircleArcOffset(start, end, numPoints = 50, offsetFactor = 0) {
 
   if (d === 0) return [start, end];
 
-  // Perpendicular vector for arc curvature offset
-  const dLat = end[0] - start[0];
-  const dLon = end[1] - start[1];
-  const perpLat = -dLon * 0.15 * offsetFactor;
-  const perpLon = dLat * 0.15 * offsetFactor;
-
   const points = [];
   for (let i = 0; i <= numPoints; i++) {
     const f = i / numPoints;
@@ -246,13 +290,8 @@ function getGreatCircleArcOffset(start, end, numPoints = 50, offsetFactor = 0) {
     const y = A * Math.cos(lat1) * Math.sin(lon1) + B * Math.cos(lat2) * Math.sin(lon2);
     const z = A * Math.sin(lat1) + B * Math.sin(lat2);
 
-    let lat = Math.atan2(z, Math.sqrt(x * x + y * y)) * 180 / Math.PI;
-    let lon = Math.atan2(y, x) * 180 / Math.PI;
-
-    // Apply smooth parabolic offset along arc
-    const arcHeight = Math.sin(f * Math.PI);
-    lat += perpLat * arcHeight;
-    lon += perpLon * arcHeight;
+    const lat = Math.atan2(z, Math.sqrt(x * x + y * y)) * 180 / Math.PI;
+    const lon = Math.atan2(y, x) * 180 / Math.PI;
 
     points.push([lat, lon]);
   }

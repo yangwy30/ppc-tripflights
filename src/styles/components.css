@@ -82,6 +82,53 @@
     border-top-color: rgba(15, 23, 42, 0.95) !important;
 }
 
+/* Single Master Arc Avatar Ring Stack Badge */
+.arc-avatar-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(15, 23, 42, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: var(--radius-full);
+    padding: 3px 8px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(12px);
+    transform: translate(-50%, -50%);
+    cursor: pointer;
+    transition: transform var(--transition-fast);
+}
+
+.arc-avatar-pill:hover {
+    transform: translate(-50%, -50%) scale(1.08);
+    border-color: rgba(255, 255, 255, 0.4);
+}
+
+.avatar-ring-stack {
+    display: flex;
+    align-items: center;
+}
+
+.avatar-ring-mini {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 1.5px solid #0F172A;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 8px;
+    font-weight: 700;
+    color: #ffffff;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+}
+
+.avatar-ring-mini.overflow-mini {
+    background: rgba(30, 41, 59, 0.9);
+    border-color: var(--color-border);
+    color: var(--color-text-secondary);
+    font-size: 8px;
+}
+
 .route-map-legend {
     display: flex;
     align-items: center;
