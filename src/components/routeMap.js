@@ -1,14 +1,19 @@
 /* ============================================
    PPC: Delay No More — Professional Flight Route Map Engine
-   High North vs Low South Arc Separation + Metro Airport Diagonal Uncoupling
+   Distinct Neon High-Contrast Traveler Palette + High/Low Arc Separation
    ============================================ */
 
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
+// High-Contrast Neon Palette tuned for Dark Basemaps (Cyan, Hot Coral, Amber Gold, Electric Violet, Mint Green, Bright Orange)
 const PERSON_COLORS_HEX = [
-  '#0A84FF', '#34C759', '#F59E0B',
-  '#A855F7', '#EC4899', '#38BDF8'
+  '#38BDF8', // Person 1: Sky Cyan
+  '#FF2D55', // Person 2: Neon Coral Red
+  '#F59E0B', // Person 3: Amber Gold
+  '#AF52DE', // Person 4: Electric Violet
+  '#34C759', // Person 5: Mint Green
+  '#FF9500'  // Person 6: Bright Orange
 ];
 
 const AIRPORT_COORDS = {
@@ -61,7 +66,7 @@ const AIRPORT_COORDS = {
   BNE: [-27.3842, 153.1175]
 };
 
-// Precise Diagonal Pill Offsets so close airports (EWR/JFK/LGA or SFO/SJC/LAX) never overlap
+// Precise Diagonal Pill Offsets for close airports
 const AIRPORT_PILL_STYLING = {
   EWR: 'top: -24px; left: -42px; transform: translate(-50%, -50%);',
   JFK: 'top: 24px; left: 42px; transform: translate(-50%, -50%);',
@@ -125,12 +130,14 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
   const bounds = [];
   const airportMap = new Map();
 
-  // Route Arc Curvature Separation Engine (High North vs Low South)
-  flights.forEach(f => {
+  // Distinct Arc Heights & Contrast Palette per Flight
+  flights.forEach((f, idx) => {
     const depCode = (f.departure?.code || 'JFK').toUpperCase().trim();
     const arrCode = (f.arrival?.code || 'LAX').toUpperCase().trim();
+
+    // Find person index in trip participants array
     const pIndex = participants.findIndex(p => p.name === f.addedBy);
-    const color = PERSON_COLORS_HEX[pIndex >= 0 ? pIndex % 6 : 0];
+    const color = PERSON_COLORS_HEX[pIndex >= 0 ? pIndex % 6 : idx % 6];
     const isFilteredOut = activePersonFilter !== 'all' && activePersonFilter !== f.addedBy;
 
     const startCoords = AIRPORT_COORDS[depCode] || [40.6413, -73.7781];
@@ -146,10 +153,10 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
     airportMap.get(depCode).departures.push({ name: f.addedBy, color, flight: f });
     airportMap.get(arrCode).arrivals.push({ name: f.addedBy, color, flight: f });
 
-    // Distinct Arc Height Factors for High North (EWR) vs Low South (JFK) separation
+    // Distinct Arc Height Factors for High North (EWR) vs Low South (JFK)
     let arcHeightFactor = 0.15;
-    if (depCode === 'EWR') arcHeightFactor = 0.38; // Curves High North over Great Lakes
-    else if (depCode === 'JFK') arcHeightFactor = 0.08; // Curves Low South over South-Central US
+    if (depCode === 'EWR') arcHeightFactor = 0.38; // Curves High North
+    else if (depCode === 'JFK') arcHeightFactor = 0.06 + (idx * 0.05); // Curves Low South
     else if (depCode === 'SJC' || arrCode === 'SJC') arcHeightFactor = -0.22; // Curves West
 
     const arcPoints = getGreatCircleArcOffset(startCoords, endCoords, 60, arcHeightFactor);
@@ -158,7 +165,7 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
     const polyline = L.polyline(arcPoints, {
       color: color,
       weight: isFilteredOut ? 1.5 : 3.5,
-      opacity: isFilteredOut ? 0.2 : 0.85,
+      opacity: isFilteredOut ? 0.2 : 0.9,
       lineCap: 'round'
     }).addTo(map);
 
@@ -176,7 +183,7 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
     `, { sticky: true, className: 'leaflet-dark-tooltip' });
   });
 
-  // Render UNIFIED Pill Pins with Diagonal Uncoupling for Close Airports
+  // Render UNIFIED Pill Pins with High-Contrast Avatar Badges
   airportMap.forEach((data, code) => {
     const { coords, departures, arrivals } = data;
     const allTravelers = [...departures, ...arrivals];
@@ -193,7 +200,7 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
     });
 
     const avatarStackHtml = uniqueTravelers.slice(0, 3).map(t => `
-      <span style="width:16px; height:16px; border-radius:50%; background:${t.color}; display:inline-flex; align-items:center; justify-content:center; font-size:8px; font-weight:700; color:#fff; border:1px solid #0F172A; margin-left:-4px;">
+      <span style="width:16px; height:16px; border-radius:50%; background:${t.color}; display:inline-flex; align-items:center; justify-content:center; font-size:8px; font-weight:800; color:#fff; border:1px solid #0F172A; margin-left:-4px;">
         ${escapeHtml(t.name.charAt(0).toUpperCase())}
       </span>
     `).join('');
