@@ -1,13 +1,12 @@
 /* ============================================
-   PPC: Delay No More — Commercial SaaS Dashboard (Hero Route Map + Phase Integration)
+   PPC: Delay No More — Commercial Dashboard Screen
+   Features: Hero Route Map, Three-Segment Tab Stream [Outbound ➔ Return ➔ Timeline]
    ============================================ */
 
-import { getTrip, getUserNickname, deleteFlight, restoreFlight, deleteTrip, exportTripSummary, deleteParticipant } from '../data/dataAdapter.js';
-import { emit, subscribe, EVENTS } from '../data/store.js';
+import { getTrip, updateFlightStatus, getUserNickname, deleteParticipant, deleteFlight } from '../data/dataAdapter.js';
+import { subscribe, EVENTS } from '../data/store.js';
 import { navigate } from '../app.js';
 import { showToast } from '../components/toast.js';
-import { refreshFlightStatus } from '../data/flightService.js';
-import { updateFlightStatus } from '../data/dataAdapter.js';
 import { renderTimeline } from '../components/timeline.js';
 import { renderFlightCard, renderCompactFlightRow } from '../components/flightCard.js';
 import { renderCoordinationTab } from '../components/coordinationTab.js';
@@ -21,13 +20,13 @@ const PERSON_COLORS = [
 ];
 
 const PERSON_COLORS_HEX = [
-  '#0A84FF', '#34C759', '#F59E0B',
-  '#A855F7', '#EC4899', '#38BDF8'
+  '#38BDF8', '#FF2D55', '#F59E0B',
+  '#AF52DE', '#34C759', '#FF9500'
 ];
 
 export async function renderDashboard(container, tripId) {
   let filterPerson = 'all';
-  let phaseFilter = 'all'; // 'all', 'outbound', 'return'
+  let phaseFilter = 'outbound'; // Default tab: 'outbound' (No 'all' tab!)
   let activeTab = 'flights'; // 'flights', 'timeline'
   let activeMainTab = 'tracking'; // 'tracking', 'coordination'
   let viewMode = 'compact'; // 'compact' vs 'expanded'
@@ -67,86 +66,80 @@ export async function renderDashboard(container, tripId) {
     if (filterPerson !== 'all') {
       filteredFlights = filteredFlights.filter(f => f.addedBy === filterPerson);
     }
+
     if (phaseFilter === 'outbound') {
-      filteredFlights = filteredFlights.filter(f => isOutboundFlight(f, currentTrip));
+      filteredFlights = filteredFlights.filter(f => f.phase === 'outbound');
     } else if (phaseFilter === 'return') {
-      filteredFlights = filteredFlights.filter(f => isReturnFlight(f, currentTrip));
+      filteredFlights = filteredFlights.filter(f => f.phase === 'return');
     }
 
-    // Sort by date and departure time
+    const filteredOutbound = (currentTrip.flights || []).filter(f => (filterPerson === 'all' || f.addedBy === filterPerson) && f.phase === 'outbound').length;
+    const filteredReturn = (currentTrip.flights || []).filter(f => (filterPerson === 'all' || f.addedBy === filterPerson) && f.phase === 'return').length;
+
+    // Sort flights chronologically
     const sortedFlights = [...filteredFlights].sort((a, b) => {
-      const da = (a.date || '') + (a.departure?.time || '');
-      const db = (b.date || '') + (b.departure?.time || '');
-      return da.localeCompare(db);
+      const dateA = a.departure?.date || '';
+      const timeA = a.departure?.time || '';
+      const dateB = b.departure?.date || '';
+      const timeB = b.departure?.time || '';
+      return (dateA + ' ' + timeA).localeCompare(dateB + ' ' + timeB);
     });
 
-    const isAutoRefreshing = isPolling(tripId);
-
-    // Filter counts for badges
-    const totalOutbound = (currentTrip.flights || []).filter(f => isOutboundFlight(f, currentTrip)).length;
-    const totalReturn = (currentTrip.flights || []).filter(f => isReturnFlight(f, currentTrip)).length;
-    const filteredOutbound = filterPerson === 'all'
-      ? totalOutbound
-      : (currentTrip.flights || []).filter(f => f.addedBy === filterPerson && isOutboundFlight(f, currentTrip)).length;
-    const filteredReturn = filterPerson === 'all'
-      ? totalReturn
-      : (currentTrip.flights || []).filter(f => f.addedBy === filterPerson && isReturnFlight(f, currentTrip)).length;
-
-    // Avatar ring data for Hero Insights Banner
-    const participantsList = currentTrip.participants || [];
+    const participantsList = (currentTrip.participants || []).map(p => typeof p === 'string' ? { name: p } : p);
     const visibleAvatars = participantsList.slice(0, 4);
     const overflowCount = Math.max(0, participantsList.length - 4);
 
+    const isCurrentlyPolling = isPolling(tripId);
+
     container.innerHTML = `
       <div class="screen">
-        <!-- Top Bar -->
-        <div class="topbar">
+
+        <!-- Compact Top Navigation Bar -->
+        <div class="topbar" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-md);">
           <button class="topbar-back" id="btn-back">
             <span style="display:flex;">${getIcon('arrowLeft')}</span> All Trips
           </button>
-          <div style="display:flex; gap: var(--space-xs); align-items:center;">
-            <button class="btn btn-ghost btn-sm" id="btn-toggle-refresh" title="${isAutoRefreshing ? 'Auto-refresh Active (Every 60s)' : 'Click to enable Auto-refresh'}">
-              <span class="live-dot" style="background:${isAutoRefreshing ? 'var(--color-success)' : 'var(--color-text-tertiary)'};"></span>
-              ${isAutoRefreshing ? 'Live' : 'Off'}
+
+          <div style="display: flex; align-items: center; gap: var(--space-xs);">
+            <!-- Live Auto Refresh Indicator -->
+            <button class="btn btn-ghost btn-sm" id="btn-toggle-refresh" title="${isCurrentlyPolling ? 'Live Refresh Active (Polling 30s)' : 'Click to enable live status refresh'}" style="font-family: var(--font-family-mono); font-size: 11px;">
+              <span class="live-dot" style="background: ${isCurrentlyPolling ? 'var(--color-success)' : 'var(--color-text-tertiary)'};"></span>
+              ${isCurrentlyPolling ? 'LIVE' : 'REFRESH'}
             </button>
-            <button class="btn btn-secondary btn-sm" id="btn-notes">
-              <span style="display:flex;">${getIcon('notes')}</span> Notes
-            </button>
-            <button class="btn btn-secondary btn-sm" id="btn-subscribe" title="Add to Apple/Google Calendar">
-              <span style="display:flex;">${getIcon('calendar')}</span> Calendar
-            </button>
-            <button class="btn btn-primary btn-sm" id="btn-add-flight-top">
+
+            <!-- Add Flight Action -->
+            <button class="btn btn-primary btn-sm" id="btn-add-flight">
               <span style="display:flex;">${getIcon('plus')}</span> Add Flight
             </button>
+
+            <!-- Share PIN Trigger -->
+            <button class="btn btn-secondary btn-sm" id="btn-share" title="Share Trip Code">
+              <span style="display:flex;">${getIcon('share')}</span> PIN
+            </button>
           </div>
         </div>
 
-        <!-- Hero Title Header with Embedded PIN Badge -->
-        <div class="screen-header" style="margin-bottom: var(--space-md);">
-          <div style="display:flex; align-items:center; gap: var(--space-md); flex-wrap:wrap;">
-            <h1 style="font-size: var(--font-size-3xl); margin:0;">${escapeHtml(currentTrip.name)}</h1>
-            <div class="hero-pin-pill" title="Click to copy 6-digit PIN code">
-              <span class="hero-pin-label">PIN</span>
-              <span class="hero-pin-code">${currentTrip.pin}</span>
-              <button class="hero-pin-copy" id="btn-copy-pin" title="Copy PIN">
-                <span style="display:flex;">${getIcon('copy')}</span>
-              </button>
-            </div>
-          </div>
-          <p style="margin-top: 4px; font-family: var(--font-family-mono); font-size: var(--font-size-sm); color: var(--color-text-tertiary);">
-            ${formatDateRange(currentTrip.startDate, currentTrip.endDate)}
-          </p>
-        </div>
-
-        <!-- Hero Embedded Insights Card (Avatar Popover Interactivity) -->
+        <!-- Embedded Hero Insights Card -->
         <div class="hero-insights-card">
-          <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap: var(--space-sm);">
+          <div style="display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: var(--space-sm);">
             <div>
-              <div style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; color: var(--color-text-tertiary);">
-                Trip Insights & Group Overview
+              <div style="display:flex; align-items:center; gap: 8px; margin-bottom: 4px;">
+                <h1 style="font-size: 1.6rem; font-weight: 800; letter-spacing: -0.03em; color: var(--color-text-primary); margin:0;">
+                  ${escapeHtml(currentTrip.name)}
+                </h1>
+                
+                <!-- Shareable PIN Badge Pill -->
+                <div class="hero-pin-pill" id="hero-pin-copy-trigger" title="Click to copy PIN code">
+                  <span class="hero-pin-label">PIN</span>
+                  <span class="hero-pin-code">${escapeHtml(currentTrip.pin || 'PPC')}</span>
+                  <span class="hero-pin-copy">${getIcon('copy')}</span>
+                </div>
               </div>
-              <div style="font-size: var(--font-size-md); font-weight: var(--font-weight-semibold); color: var(--color-text-primary); margin-top: 2px;">
-                Destination: <strong style="font-family: var(--font-family-mono);">${currentTrip.destinationAirport || 'Not set'}</strong>
+
+              <div style="font-size: var(--font-size-xs); color: var(--color-text-secondary); display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                <span>${currentTrip.startDate || ''} ~ ${currentTrip.endDate || ''}</span>
+                <span>·</span>
+                <span>Destination: <strong style="font-family: var(--font-family-mono); color: var(--color-text-primary);">${currentTrip.destinationAirport || 'Not Set'}</strong></span>
                 ${currentTrip.returnAirport ? ` · Return: <strong style="font-family: var(--font-family-mono);">${currentTrip.returnAirport}</strong>` : ''}
               </div>
             </div>
@@ -225,10 +218,9 @@ export async function renderDashboard(container, tripId) {
               `).join('')}
             </div>
 
-            <!-- Phase Sub-Tabs Bar -->
+            <!-- Three-Segment Sub-Tabs Bar: Outbound -> Return -> Timeline -->
             <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:var(--space-sm);" class="mb-base">
               <div class="tabs">
-                <button class="tab ${activeTab === 'flights' && phaseFilter === 'all' ? 'active' : ''}" data-tab="flights" data-phase="all">All (${currentTrip.flights.length})</button>
                 <button class="tab ${activeTab === 'flights' && phaseFilter === 'outbound' ? 'active' : ''}" data-tab="flights" data-phase="outbound">
                   <span style="color: #34D399; display:flex;">${getIcon('plane')}</span> Outbound (${filteredOutbound})
                 </button>
@@ -241,7 +233,7 @@ export async function renderDashboard(container, tripId) {
               </div>
             </div>
 
-            <!-- HERO ROUTE MAP CONTAINER (Placed directly at top of main stream) -->
+            <!-- HERO ROUTE MAP CONTAINER -->
             ${activeTab !== 'timeline' ? `<div id="hero-map-container" class="mb-base"></div>` : ''}
 
             <!-- Flight List Section Header & Mode Toggles -->
@@ -278,216 +270,216 @@ export async function renderDashboard(container, tripId) {
 
           <!-- Coordination Tab -->
           <div id="coordination-tab-content" class="${activeMainTab === 'coordination' ? '' : 'hidden-tab'}">
-            <!-- Rendered by renderCoordinationTab -->
+            <!-- Lazy rendered via renderCoordinationTab -->
           </div>
 
         </div>
+
       </div>
     `;
 
-    const coordContainer = container.querySelector('#coordination-tab-content');
-    if (coordContainer) {
-      renderCoordinationTab(coordContainer, currentTrip);
-    }
-
-    if (activeMainTab === 'tracking') {
-      if (activeTab !== 'timeline') {
-        const heroMapContainer = container.querySelector('#hero-map-container');
-        if (heroMapContainer) {
-          renderRouteMap(heroMapContainer, sortedFlights, currentTrip.participants, currentTrip, filterPerson, phaseFilter);
-        }
-      } else {
-        const tabContent = container.querySelector('#tab-content');
-        renderTimeline(tabContent, currentTrip.flights, currentTrip.participants);
+    // Render Hero Route Map if activeTab !== 'timeline'
+    if (activeTab !== 'timeline') {
+      const heroMapContainer = container.querySelector('#hero-map-container');
+      if (heroMapContainer) {
+        renderRouteMap(heroMapContainer, sortedFlights, currentTrip.participants || [], currentTrip, filterPerson, phaseFilter);
+      }
+    } else {
+      const tabContent = container.querySelector('#tab-content');
+      if (tabContent) {
+        renderTimeline(tabContent, currentTrip, filterPerson);
       }
     }
 
-    // Avatar Popover Interactivity
-    const wrapper = container.querySelector('#avatar-group-wrapper');
-    const trigger = container.querySelector('#avatar-group-trigger');
-    const popover = container.querySelector('#avatar-popover');
-
-    if (wrapper && trigger && popover) {
-      const togglePopover = (e) => {
-        e.stopPropagation();
-        popover.classList.toggle('hidden');
-      };
-
-      trigger.addEventListener('click', togglePopover);
-
-      const handleOutsideClick = (e) => {
-        if (!wrapper.contains(e.target)) {
-          popover.classList.add('hidden');
-        }
-      };
-      document.addEventListener('click', handleOutsideClick);
-
-      container.querySelectorAll('.avatar-popover-item').forEach(item => {
-        item.addEventListener('click', (e) => {
-          e.stopPropagation();
-          filterPerson = item.dataset.popoverPerson;
-          popover.classList.add('hidden');
-          render();
-        });
-      });
+    // Lazy render Coordination Engine tab if active
+    if (activeMainTab === 'coordination') {
+      const coordContainer = container.querySelector('#coordination-tab-content');
+      if (coordContainer) {
+        renderCoordinationTab(coordContainer, currentTrip, nickname);
+      }
     }
 
-    // View mode toggle handlers
-    const btnCompact = container.querySelector('#btn-view-compact');
-    const btnExpanded = container.querySelector('#btn-view-expanded');
+    bindEvents();
+  }
 
-    if (btnCompact) {
-      btnCompact.addEventListener('click', () => {
-        viewMode = 'compact';
-        render();
-      });
-    }
-
-    if (btnExpanded) {
-      btnExpanded.addEventListener('click', () => {
-        viewMode = 'expanded';
-        render();
-      });
-    }
-
-    // Bidirectional Expand / collapse in compact mode
-    if (viewMode === 'compact') {
-      container.querySelectorAll('[data-flight-toggle-id]').forEach(el => {
-        el.addEventListener('click', (e) => {
-          if (e.target.closest('.flight-refresh') || e.target.closest('.flight-delete')) return;
-          const flightId = el.dataset.flightToggleId;
-          if (!flightId) return;
-          if (expandedFlightIds.has(flightId)) {
-            expandedFlightIds.delete(flightId);
-          } else {
-            expandedFlightIds.add(flightId);
-          }
-          render();
-        });
-      });
-    }
-
-    // Event Listeners
+  function bindEvents() {
+    // Topbar back
     container.querySelector('#btn-back')?.addEventListener('click', () => {
-      stopPolling(tripId);
       unsubscribe();
       navigate('');
     });
 
-    const triggerAddFlight = () => navigate(`add-flight/${tripId}`);
-    container.querySelector('#btn-add-flight-top')?.addEventListener('click', triggerAddFlight);
-    container.querySelector('#btn-add-flight-bottom')?.addEventListener('click', triggerAddFlight);
+    // Share PIN Copy
+    const copyPinTrigger = container.querySelector('#hero-pin-copy-trigger');
+    const shareBtn = container.querySelector('#btn-share');
 
-    container.querySelector('#btn-notes')?.addEventListener('click', () => navigate(`notes/${tripId}`));
+    const handleShare = () => {
+      const pin = trip.pin || '';
 
-    container.querySelector('#btn-subscribe')?.addEventListener('click', async () => {
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://zgqjctiuycrhwrstorxw.supabase.co';
-      const baseUrl = supabaseUrl.replace(/^https?:\/\//, 'webcal://');
-      const subscribeUrl = `${baseUrl}/functions/v1/calendar-feed?tripId=${tripId}&token=${currentTrip.pin}`;
-      window.location.href = subscribeUrl;
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(pin);
+        showToast(`PIN Code ${pin} copied to clipboard!`, 'success');
+      } else {
+        showToast(`PIN Code: ${pin}`, 'info');
+      }
+    };
+
+    copyPinTrigger?.addEventListener('click', handleShare);
+    shareBtn?.addEventListener('click', handleShare);
+
+    // Toggle Live Refresh Polling
+    container.querySelector('#btn-toggle-refresh')?.addEventListener('click', () => {
+      const currentPref = getAutoRefreshPref(tripId);
+      const newPref = !currentPref;
+      setAutoRefreshPref(tripId, newPref);
+
+      if (newPref) {
+        startPolling(tripId);
+        showToast('Live status refresh enabled (30s polling)', 'success');
+      } else {
+        stopPolling(tripId);
+        showToast('Live status refresh disabled', 'info');
+      }
+      render();
     });
 
-    container.querySelector('#btn-copy-pin')?.addEventListener('click', () => {
-      navigator.clipboard?.writeText(currentTrip.pin).then(() => {
-        showToast('PIN copied!', 'success');
-      }).catch(() => {
-        showToast(`PIN: ${currentTrip.pin}`, 'info');
-      });
+    // Add Flight
+    const handleAddFlight = () => {
+      navigate(`trip/${tripId}/add-flight`);
+    };
+    container.querySelector('#btn-add-flight')?.addEventListener('click', handleAddFlight);
+    container.querySelector('#btn-add-flight-bottom')?.addEventListener('click', handleAddFlight);
+
+    // Avatar Popover Toggle
+    const avatarTrigger = container.querySelector('#avatar-group-trigger');
+    const avatarPopover = container.querySelector('#avatar-popover');
+
+    avatarTrigger?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      avatarPopover?.classList.toggle('hidden');
     });
 
-    const toggleBtn = container.querySelector('#btn-toggle-refresh');
-    if (toggleBtn) {
-      toggleBtn.addEventListener('click', () => {
-        if (isPolling(tripId)) {
-          stopPolling(tripId);
-          setAutoRefreshPref(tripId, false);
-          showToast('Auto-refresh turned off', 'info');
-        } else {
-          startPolling(tripId);
-          setAutoRefreshPref(tripId, true);
-          showToast('Auto-refresh turned on', 'success');
-        }
+    // Click outside to close popover
+    document.addEventListener('click', (e) => {
+      if (!container.querySelector('#avatar-group-wrapper')?.contains(e.target)) {
+        avatarPopover?.classList.add('hidden');
+      }
+    });
+
+    // Popover member click to filter
+    avatarPopover?.querySelectorAll('[data-popover-person]').forEach(item => {
+      item.addEventListener('click', () => {
+        const personName = item.getAttribute('data-popover-person');
+        filterPerson = filterPerson === personName ? 'all' : personName;
+        avatarPopover.classList.add('hidden');
         render();
       });
-    }
+    });
 
-    container.querySelectorAll('.tab-btn[data-maintab]').forEach(btn => {
+    // Main Tabs (Tracking vs Coordination)
+    container.querySelectorAll('[data-maintab]').forEach(btn => {
       btn.addEventListener('click', () => {
-        activeMainTab = btn.dataset.maintab;
+        activeMainTab = btn.getAttribute('data-maintab');
         render();
       });
     });
 
-    // Clean Combined Tab Switching Event Delegator
-    container.querySelectorAll('.tab[data-tab]').forEach(tab => {
-      tab.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const targetTab = tab.dataset.tab;
-        const targetPhase = tab.dataset.phase;
-
-        if (targetPhase) {
-          phaseFilter = targetPhase;
-          activeTab = 'flights';
-        } else {
-          activeTab = targetTab;
-        }
-        render();
-      });
-    });
-
-    container.querySelectorAll('.chip[data-person]').forEach(chip => {
+    // Person chips filter
+    container.querySelectorAll('[data-person]').forEach(chip => {
       chip.addEventListener('click', (e) => {
         if (e.target.classList.contains('chip-delete-btn')) return;
-        filterPerson = chip.dataset.person;
+        filterPerson = chip.getAttribute('data-person');
         render();
       });
     });
 
-    // Handle profile deletion from chip
-    container.querySelectorAll('.chip-delete-btn').forEach(btn => {
+    // Delete person profile
+    container.querySelectorAll('[data-person-del]').forEach(btn => {
       btn.addEventListener('click', async (e) => {
         e.stopPropagation();
-        const pName = btn.dataset.personDel;
-        if (confirm(`Remove ${pName}'s profile from this trip?`)) {
-          await deleteParticipant(tripId, pName);
-          if (filterPerson === pName) filterPerson = 'all';
-          showToast(`Profile ${pName} removed`, 'info');
+        const personName = btn.getAttribute('data-person-del');
+
+        if (confirm(`Remove profile "${personName}" and all associated flights from this trip?`)) {
+          await deleteParticipant(tripId, personName);
+          if (filterPerson === personName) filterPerson = 'all';
+          showToast(`Profile "${personName}" removed`, 'info');
           render();
         }
       });
     });
 
-    // Refresh flight status
-    container.querySelectorAll('.flight-refresh').forEach(btn => {
-      btn.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        const flightId = btn.dataset.flightId;
-        const flight = currentTrip.flights.find(f => f.id === flightId);
-        if (!flight) return;
+    // Sub-Tabs Bar: Outbound -> Return -> Timeline
+    container.querySelectorAll('[data-tab]').forEach(tab => {
+      tab.addEventListener('click', () => {
+        const targetTab = tab.getAttribute('data-tab');
+        const targetPhase = tab.getAttribute('data-phase');
 
-        btn.disabled = true;
-        btn.textContent = '⏳';
+        activeTab = targetTab;
+        if (targetPhase) {
+          phaseFilter = targetPhase;
+        }
 
-        const updated = await refreshFlightStatus(flight);
-        await updateFlightStatus(tripId, flightId, updated.status);
-        emit(EVENTS.FLIGHT_UPDATED);
-        showToast(`${flight.flightNumber} status updated: ${updated.status}`, 'success');
         render();
       });
     });
 
-    // Delete flight
-    container.querySelectorAll('.flight-delete').forEach(btn => {
+    // View Mode Toggles (Compact vs Expanded)
+    container.querySelector('#btn-view-compact')?.addEventListener('click', () => {
+      viewMode = 'compact';
+      render();
+    });
+
+    container.querySelector('#btn-view-expanded')?.addEventListener('click', () => {
+      viewMode = 'expanded';
+      render();
+    });
+
+    // Expandable Compact Row Toggle
+    container.querySelectorAll('[data-expand-flight]').forEach(row => {
+      row.addEventListener('click', (e) => {
+        if (e.target.closest('button')) return;
+        const flightId = row.getAttribute('data-expand-flight');
+        if (expandedFlightIds.has(flightId)) {
+          expandedFlightIds.delete(flightId);
+        } else {
+          expandedFlightIds.add(flightId);
+        }
+        render();
+      });
+    });
+
+    // Flight Card Actions (Refresh status & Delete)
+    container.querySelectorAll('[data-refresh-flight]').forEach(btn => {
       btn.addEventListener('click', async (e) => {
         e.stopPropagation();
-        const flightId = btn.dataset.flightId;
-        const flight = currentTrip.flights.find(f => f.id === flightId);
-        if (!flight) return;
+        const flightId = btn.getAttribute('data-refresh-flight');
 
-        if (confirm(`Delete flight ${flight.flightNumber}?`)) {
+        btn.disabled = true;
+        btn.innerHTML = `<span style="display:inline-block; animation:spin 1s linear infinite;">⏳</span> Refreshing...`;
+
+        try {
+          const result = await updateFlightStatus(tripId, flightId);
+          if (result.success) {
+            showToast(`Flight status updated: ${result.status}`, 'success');
+          } else {
+            showToast(`Status refresh: ${result.error}`, 'info');
+          }
+        } catch (err) {
+          showToast('Failed to refresh status', 'error');
+        } finally {
+          render();
+        }
+      });
+    });
+
+    container.querySelectorAll('[data-delete-flight]').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const flightId = btn.getAttribute('data-delete-flight');
+
+        if (confirm('Are you sure you want to delete this flight?')) {
           await deleteFlight(tripId, flightId);
-          emit(EVENTS.FLIGHT_DELETED, flightId);
-          showToast(`${flight.flightNumber} deleted`, 'info');
+          showToast('Flight removed', 'info');
           render();
         }
       });
@@ -497,45 +489,34 @@ export async function renderDashboard(container, tripId) {
   render();
 }
 
-function renderFlightsList(flights, trip, viewMode = 'compact', expandedFlightIds = new Set()) {
-  if (flights.length === 0) {
+/**
+ * Render Flight List supporting both Compact (48px) and Expanded (Full Card) views
+ */
+function renderFlightsList(sortedFlights, trip, viewMode, expandedFlightIds) {
+  if (sortedFlights.length === 0) {
     return `
-      <div class="empty-state">
-        <div class="empty-state-icon">${getIcon('plane')}</div>
-        <h3>No Flights Found</h3>
-        <p>Add a flight to start tracking and coordinating your group travel.</p>
+      <div class="card text-center" style="padding: var(--space-2xl) var(--space-lg);">
+        <div style="font-size: 2.5rem; margin-bottom: var(--space-sm); opacity: 0.5;">🛫</div>
+        <h3 style="margin-bottom: var(--space-xs); font-weight: 700;">No Flights Match Filter</h3>
+        <p style="color: var(--color-text-secondary); font-size: var(--font-size-sm); margin-bottom: var(--space-lg);">
+          Try selecting another person or phase filter, or add a new flight.
+        </p>
       </div>
     `;
   }
 
-  return flights.map(flight => {
-    const isExpanded = viewMode === 'expanded' || expandedFlightIds.has(flight.id);
-    if (isExpanded) {
-      return renderFlightCard(flight, trip.participants, viewMode === 'compact');
-    } else {
-      return renderCompactFlightRow(flight, trip.participants);
-    }
-  }).join('');
-}
+  if (viewMode === 'compact') {
+    return `
+      <div class="compact-flight-list" style="display:flex; flex-direction:column;">
+        ${sortedFlights.map(flight => {
+      const isExpanded = expandedFlightIds.has(flight.id);
+      return renderCompactFlightRow(flight, trip.participants || [], isExpanded);
+    }).join('')}
+      </div>
+    `;
+  }
 
-function isOutboundFlight(flight, trip) {
-  if (!trip.destinationAirport) return true;
-  const dests = trip.destinationAirport.split(',').map(s => s.trim().toUpperCase());
-  const arrCode = (flight.arrival?.code || '').toUpperCase();
-  return dests.includes(arrCode);
-}
-
-function isReturnFlight(flight, trip) {
-  if (!trip.destinationAirport) return false;
-  return !isOutboundFlight(flight, trip);
-}
-
-function formatDateRange(start, end) {
-  if (!start) return '';
-  const opts = { month: 'short', day: 'numeric', year: 'numeric' };
-  const s = new Date(start + 'T00:00:00').toLocaleDateString('en-US', opts);
-  const e = end ? new Date(end + 'T00:00:00').toLocaleDateString('en-US', opts) : '';
-  return e ? `${s} — ${e}` : s;
+  return sortedFlights.map(flight => renderFlightCard(flight, trip.participants || [])).join('');
 }
 
 function escapeHtml(str) {
