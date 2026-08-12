@@ -1,5 +1,5 @@
 /* ============================================
-   PPC: Delay No More — Commercial SaaS Dashboard (Hero Embedded Insights Flow)
+   PPC: Delay No More — Commercial SaaS Dashboard (Hero Embedded Insights + Avatar Popover)
    ============================================ */
 
 import { getTrip, getUserNickname, deleteFlight, restoreFlight, deleteTrip, exportTripSummary, deleteParticipant } from '../data/dataAdapter.js';
@@ -157,7 +157,7 @@ export async function renderDashboard(container, tripId) {
             </p>
           </div>
 
-          <!-- Hero Embedded Insights Card Banner -->
+          <!-- Hero Embedded Insights Card Banner with Interactive Avatar Popover -->
           <div class="hero-insights-card">
             <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
               <div>
@@ -180,20 +180,40 @@ export async function renderDashboard(container, tripId) {
                 </div>
               </div>
               
-              <!-- Overlapping Avatar Group -->
-              <div style="display:flex; align-items:center; gap: 8px;">
-                <span style="font-size: var(--font-size-xs); color: var(--color-text-tertiary); font-family: var(--font-family-mono);">
-                  ${participantsList.length} Members
-                </span>
-                <div class="avatar-group" title="${participantsList.map(p => p.name).join(', ')}">
-                  ${visibleParticipants.map((p, i) => `
-                    <span class="avatar-ring" style="background:${PERSON_COLORS_HEX[i % 6]};">
-                      ${(p.name || '?').charAt(0).toUpperCase()}
-                    </span>
-                  `).join('')}
-                  ${extraParticipantCount > 0 ? `
-                    <span class="avatar-ring avatar-count-ring">+${extraParticipantCount}</span>
-                  ` : ''}
+              <!-- Overlapping Avatar Group Wrapper with Popover Dropdown -->
+              <div class="avatar-group-wrapper" id="avatar-group-wrapper">
+                <div style="display:flex; align-items:center; gap: 8px;">
+                  <span style="font-size: var(--font-size-xs); color: var(--color-text-tertiary); font-family: var(--font-family-mono);">
+                    ${participantsList.length} Members
+                  </span>
+                  <div class="avatar-group" id="avatar-group-trigger">
+                    ${visibleParticipants.map((p, i) => `
+                      <span class="avatar-ring" style="background:${PERSON_COLORS_HEX[i % 6]};">
+                        ${(p.name || '?').charAt(0).toUpperCase()}
+                      </span>
+                    `).join('')}
+                    ${extraParticipantCount > 0 ? `
+                      <span class="avatar-ring avatar-count-ring">+${extraParticipantCount}</span>
+                    ` : ''}
+                  </div>
+                </div>
+
+                <!-- Interactive Popover Dropdown -->
+                <div class="avatar-popover hidden" id="avatar-popover">
+                  <div class="avatar-popover-header">All Group Members (${participantsList.length})</div>
+                  <div class="avatar-popover-list">
+                    ${participantsList.map((p, i) => `
+                      <div class="avatar-popover-item" data-popover-person="${escapeHtml(p.name)}">
+                        <span class="avatar-ring" style="background:${PERSON_COLORS_HEX[i % 6]}; width:22px; height:22px; font-size:9px; margin:0;">
+                          ${(p.name || '?').charAt(0).toUpperCase()}
+                        </span>
+                        <span style="font-weight:600; color:var(--color-text-primary); font-size:12px;">${escapeHtml(p.name)}</span>
+                        <span style="font-size:10px; color:var(--color-text-tertiary); font-family:var(--font-family-mono); margin-left:auto;">
+                          ${currentTrip.flights.filter(f => f.addedBy === p.name).length} flights
+                        </span>
+                      </div>
+                    `).join('')}
+                  </div>
                 </div>
               </div>
             </div>
@@ -282,6 +302,38 @@ export async function renderDashboard(container, tripId) {
     if (activeMainTab === 'tracking' && activeTab === 'timeline') {
       const timelineContainer = container.querySelector('#tab-content');
       renderTimeline(timelineContainer, currentTrip.flights, currentTrip.participants);
+    }
+
+    // Avatar Popover Interactivity
+    const wrapper = container.querySelector('#avatar-group-wrapper');
+    const trigger = container.querySelector('#avatar-group-trigger');
+    const popover = container.querySelector('#avatar-popover');
+
+    if (wrapper && trigger && popover) {
+      const togglePopover = (e) => {
+        e.stopPropagation();
+        popover.classList.toggle('hidden');
+      };
+
+      trigger.addEventListener('click', togglePopover);
+
+      // Close popover when clicking outside
+      const handleOutsideClick = (e) => {
+        if (!wrapper.contains(e.target)) {
+          popover.classList.add('hidden');
+        }
+      };
+      document.addEventListener('click', handleOutsideClick);
+
+      // Handle item click in popover to filter person
+      container.querySelectorAll('.avatar-popover-item').forEach(item => {
+        item.addEventListener('click', (e) => {
+          e.stopPropagation();
+          filterPerson = item.dataset.popoverPerson;
+          popover.classList.add('hidden');
+          render();
+        });
+      });
     }
 
     // View mode toggle handlers
