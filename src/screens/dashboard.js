@@ -1,5 +1,5 @@
 /* ============================================
-   PPC: Delay No More — Commercial SaaS Dashboard (Single Column Flow)
+   PPC: Delay No More — Commercial SaaS Dashboard (Hero Embedded Insights Flow)
    ============================================ */
 
 import { getTrip, getUserNickname, deleteFlight, restoreFlight, deleteTrip, exportTripSummary, deleteParticipant } from '../data/dataAdapter.js';
@@ -17,6 +17,11 @@ import { getIcon } from '../components/icons.js';
 const PERSON_COLORS = [
   'var(--person-1)', 'var(--person-2)', 'var(--person-3)',
   'var(--person-4)', 'var(--person-5)', 'var(--person-6)'
+];
+
+const PERSON_COLORS_HEX = [
+  '#0A84FF', '#34C759', '#F59E0B',
+  '#A855F7', '#EC4899', '#38BDF8'
 ];
 
 let activeDashboardUnsubscribe = null;
@@ -79,6 +84,9 @@ export async function renderDashboard(container, tripId) {
       filteredFlights = filteredFlights.filter(f => f.addedBy === filterPerson);
     }
 
+    const totalOutbound = currentTrip.flights.filter(f => getFlightPhase(f) === 'outbound').length;
+    const totalReturn = currentTrip.flights.filter(f => getFlightPhase(f) === 'return').length;
+
     const filteredOutbound = filteredFlights.filter(f => getFlightPhase(f) === 'outbound').length;
     const filteredReturn = filteredFlights.filter(f => getFlightPhase(f) === 'return').length;
 
@@ -93,6 +101,12 @@ export async function renderDashboard(container, tripId) {
     });
 
     const alertsActive = isPolling(tripId);
+
+    // Prepare Overlapping Avatar Ring Data
+    const participantsList = currentTrip.participants || [];
+    const maxVisibleAvatars = 4;
+    const visibleParticipants = participantsList.slice(0, maxVisibleAvatars);
+    const extraParticipantCount = Math.max(0, participantsList.length - maxVisibleAvatars);
 
     container.innerHTML = `
       <div class="screen">
@@ -124,11 +138,11 @@ export async function renderDashboard(container, tripId) {
           </div>
         </div>
 
-        <!-- Pure Linear Single-Column Stream -->
+        <!-- Pure Linear Stream with Embedded Hero Insights Card -->
         <div class="mb-xl">
           
           <!-- Hero Trip Title with Embedded PIN Badge -->
-          <div style="margin-bottom: var(--space-lg);">
+          <div style="margin-bottom: var(--space-md);">
             <div style="display:flex; align-items:center; gap: 12px; flex-wrap: wrap;">
               <h1 style="font-size: 2.4rem; font-weight: 800; letter-spacing: -0.03em;">${escapeHtml(currentTrip.name)}</h1>
               <div class="hero-pin-pill">
@@ -140,8 +154,49 @@ export async function renderDashboard(container, tripId) {
             <p style="font-size: var(--font-size-xs); color: var(--color-text-tertiary); margin-top: 4px; font-family: var(--font-family-mono);">
               📅 ${formatDateRange(currentTrip.startDate, currentTrip.endDate)}
               ${currentTrip.destinationAirport ? ` · Dest: ${escapeHtml(currentTrip.destinationAirport)}` : ''}
-              · ${currentTrip.participants.length} Travelers
             </p>
+          </div>
+
+          <!-- Hero Embedded Insights Card Banner -->
+          <div class="hero-insights-card">
+            <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
+              <div>
+                <div style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--color-text-tertiary);">
+                  Trip Insights Overview
+                </div>
+                <div style="display:flex; align-items:center; gap: var(--space-md); margin-top: 6px; flex-wrap: wrap;">
+                  <span style="font-size: var(--font-size-sm); font-weight: 700; color: var(--color-text-primary); font-family: var(--font-family-mono);">
+                    📊 ${currentTrip.flights.length} Flights Total
+                  </span>
+                  <span style="font-size: var(--font-size-sm); color: #34D399; font-family: var(--font-family-mono);">
+                    🛫 ${totalOutbound} Outbound
+                  </span>
+                  <span style="font-size: var(--font-size-sm); color: #60A5FA; font-family: var(--font-family-mono);">
+                    🛬 ${totalReturn} Return
+                  </span>
+                  <span style="font-size: var(--font-size-xs); color: #34D399; font-family: var(--font-family-mono); display:inline-flex; align-items:center;">
+                    <span class="live-dot" style="margin-right:4px;"></span> Live Sync Active
+                  </span>
+                </div>
+              </div>
+              
+              <!-- Overlapping Avatar Group -->
+              <div style="display:flex; align-items:center; gap: 8px;">
+                <span style="font-size: var(--font-size-xs); color: var(--color-text-tertiary); font-family: var(--font-family-mono);">
+                  ${participantsList.length} Members
+                </span>
+                <div class="avatar-group" title="${participantsList.map(p => p.name).join(', ')}">
+                  ${visibleParticipants.map((p, i) => `
+                    <span class="avatar-ring" style="background:${PERSON_COLORS_HEX[i % 6]};">
+                      ${(p.name || '?').charAt(0).toUpperCase()}
+                    </span>
+                  `).join('')}
+                  ${extraParticipantCount > 0 ? `
+                    <span class="avatar-ring avatar-count-ring">+${extraParticipantCount}</span>
+                  ` : ''}
+                </div>
+              </div>
+            </div>
           </div>
 
           <!-- Main Navigation Tabs -->
