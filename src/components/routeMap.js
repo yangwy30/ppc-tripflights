@@ -162,10 +162,13 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
       airportMap.get(depCode).departures.push({ name: f.addedBy, color, flight: f });
       airportMap.get(arrCode).arrivals.push({ name: f.addedBy, color, flight: f });
 
-      // Algorithmic Arc Fan-out Formula
-      const isReversed = depCode > arrCode;
-      const fanOffset = totalInCorridor > 1 ? (idxInCorridor - (totalInCorridor - 1) / 2) * 0.16 : 0.12;
-      const arcHeightFactor = (isReversed ? -1 : 1) * fanOffset;
+      // Natural Geodesic Arc Curvature Formula
+      const dLon = endCoords[1] - startCoords[1];
+      const dLat = endCoords[2] - startCoords[0];
+      const isWestbound = dLon < 0;
+      const fanShift = totalInCorridor > 1 ? (idxInCorridor - (totalInCorridor - 1) / 2) * 0.08 : 0;
+      const baseCurvature = 0.12;
+      const arcHeightFactor = (isWestbound ? 1 : -1) * (baseCurvature + fanShift);
 
       const arcPoints = getGreatCircleArcOffset(startCoords, endCoords, 100, arcHeightFactor);
 
@@ -332,16 +335,16 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
     `, { sticky: true, className: 'leaflet-dark-tooltip' });
   });
 
-  // CONSTANT VELOCITY SMOOTH ARROW MARKERS WITH DOM REFERENCE CACHING (HIGH PERFORMANCE 60 FPS LOOP)
+  // CONSTANT VELOCITY SMOOTH SVG PLANE MARKERS (HIGH PERFORMANCE 60 FPS LOOP)
   if (phaseName !== 'all' && activeCorridors.length > 0) {
     const flowMarkers = [];
     activeCorridors.forEach(corridor => {
       const icon = L.divIcon({
-        className: 'flow-arrow-marker',
+        className: 'flow-plane-marker',
         html: `
-          <div class="arrow-wrapper" style="position:relative; width:16px; height:16px; display:flex; align-items:center; justify-content:center; opacity:0; transition: opacity 0.15s ease-out;">
-            <span class="arrow-inner" style="display:inline-block; color:${corridor.color}; font-size:11px; font-weight:900; line-height:1; filter:drop-shadow(0 0 6px ${corridor.color}); transform-origin: center center;">
-              ▶
+          <div class="arrow-wrapper" style="position:relative; width:18px; height:18px; display:flex; align-items:center; justify-content:center; opacity:0; transition: opacity 0.15s ease-out; transform: translate(-50%, -50%);">
+            <span class="arrow-inner" style="display:inline-flex; width:14px; height:14px; color:${corridor.color}; filter:drop-shadow(0 0 6px ${corridor.color}); transform-origin: center center;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/></svg>
             </span>
           </div>
         `,
@@ -350,7 +353,6 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
 
       const flowMarker = L.marker(corridor.points[0], { icon }).addTo(map);
       
-      // Cache DOM references inside flowMarkers upon creation! (Eliminates querySelector inside 60 FPS loop!)
       const el = flowMarker.getElement();
       flowMarkers.push({
         marker: flowMarker,
@@ -372,7 +374,7 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
         if (!pts || pts.length < 2) return;
 
         const totalPts = pts.length;
-        const travelRate = 400; // km/sec
+        const travelRate = 450; // km/sec
         const cycleDuration = Math.max(2.5, item.distKm / travelRate);
         const offsetProgress = ((globalTime / cycleDuration) + (idx * 0.35)) % 1;
 
@@ -391,10 +393,18 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
 
         item.marker.setLatLng([currentLat, currentLon]);
 
-        // Compute Tangent Vector Angle
-        const pt1 = map.latLngToContainerPoint(pts[i1]);
-        const pt2 = map.latLngToContainerPoint(pts[i2]);
-        const angle = Math.atan2(pt2.y - pt1.y, pt2.x - pt1.x) * (180 / Math.PI);
+        // Wide-step stable tangent vector angle calculation to eliminate mobile trembling
+        const step = 4;
+        const iPrev = Math.max(0, i1 - step);
+        const iNext = Math.min(totalPts - 1, i1 + step);
+        
+        const pt1 = map.latLngToContainerPoint(pts[iPrev]);
+        const pt2 = map.latLngToContainerPoint(pts[iNext]);
+        const dx = pt2.x - pt1.x;
+        const dy = pt2.y - pt1.y;
+        
+        // SVG plane icon naturally points North (up), add 90 deg offset
+        let angle = Math.atan2(dy, dx) * (180 / Math.PI) + 90;
 
         // Smooth Alpha Fade near endpoints (Fade-in on takeoff <0.08, Fade-out on landing >0.92)
         let alpha = 1.0;
@@ -404,7 +414,6 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
           alpha = (1.0 - offsetProgress) / 0.08;
         }
 
-        // Direct cached DOM reference manipulation (0 querySelector calls in animation loop!)
         if (item.wrapperEl) {
           item.wrapperEl.style.opacity = alpha.toFixed(2);
         } else {
@@ -413,7 +422,7 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
         }
 
         if (item.innerEl) {
-          item.innerEl.style.transform = `rotate(${angle}deg)`;
+          item.innerEl.style.transform = `rotate(${angle.toFixed(1)}deg)`;
         } else {
           const el = item.marker.getElement();
           if (el) item.innerEl = el.querySelector('.arrow-inner');
