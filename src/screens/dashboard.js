@@ -1,5 +1,5 @@
 /* ============================================
-   PPC: Delay No More — Commercial SaaS Dashboard (Hero Embedded Insights + Avatar Popover)
+   PPC: Delay No More — Commercial SaaS Dashboard (Hero Embedded Insights + Avatar Popover + Route Map)
    ============================================ */
 
 import { getTrip, getUserNickname, deleteFlight, restoreFlight, deleteTrip, exportTripSummary, deleteParticipant } from '../data/dataAdapter.js';
@@ -11,6 +11,7 @@ import { updateFlightStatus } from '../data/dataAdapter.js';
 import { renderTimeline } from '../components/timeline.js';
 import { renderFlightCard, renderCompactFlightRow } from '../components/flightCard.js';
 import { renderCoordinationTab } from '../components/coordinationTab.js';
+import { renderRouteMap } from '../components/routeMap.js';
 import { startPolling, stopPolling, isPolling, setAutoRefreshPref, getAutoRefreshPref } from '../data/alertService.js';
 import { getIcon } from '../components/icons.js';
 
@@ -24,219 +25,200 @@ const PERSON_COLORS_HEX = [
   '#A855F7', '#EC4899', '#38BDF8'
 ];
 
-let activeDashboardUnsubscribe = null;
-
 export async function renderDashboard(container, tripId) {
+  let filterPerson = 'all';
+  let phaseFilter = 'all'; // 'all', 'outbound', 'return'
+  let activeTab = 'flights'; // 'flights', 'timeline', 'map'
+  let activeMainTab = 'tracking'; // 'tracking', 'coordination'
+  let viewMode = 'compact'; // 'compact' vs 'expanded'
+  let expandedFlightIds = new Set(); // Track expanded rows in compact mode
+
   const trip = await getTrip(tripId);
   if (!trip) {
+    showToast('Trip not found', 'error');
     navigate('');
     return;
   }
 
-  const nickname = getUserNickname(tripId);
-  let activeMainTab = 'tracking';
-  let activeTab = 'flights';
-  let phaseFilter = 'all'; // 'all' | 'outbound' | 'return'
-  let viewMode = 'compact'; // 'compact' | 'expanded'
-  let filterPerson = 'all';
-  const expandedFlightIds = new Set();
-
-  if (getAutoRefreshPref(tripId)) {
-    startPolling(tripId);
-  }
-
-  if (activeDashboardUnsubscribe) {
-    activeDashboardUnsubscribe();
-    activeDashboardUnsubscribe = null;
-  }
-
-  const unsubscribe = subscribe(EVENTS.FLIGHT_STATUS_CHANGED, (data) => {
-    if (data.tripId === tripId) {
-      showToast(`${data.flightId ? getIcon('plane') : ''} Flight status updated to ${data.newStatus}`, 'flight');
+  // Handle trip deleted / changed events
+  const unsubscribe = subscribe((event, data) => {
+    if (event === EVENTS.TRIP_DELETED && data === tripId) {
+      stopPolling(tripId);
+      showToast('Trip was deleted', 'info');
+      navigate('');
+    } else if (event === EVENTS.FLIGHT_ADDED || event === EVENTS.FLIGHT_DELETED || event === EVENTS.FLIGHT_UPDATED || event === EVENTS.PARTICIPANT_ADDED || event === EVENTS.PARTICIPANT_DELETED) {
       render();
     }
   });
-  activeDashboardUnsubscribe = unsubscribe;
+
+  // Start auto-refresh polling if preferred
+  if (getAutoRefreshPref(tripId)) {
+    startPolling(tripId);
+  }
 
   async function render() {
     const currentTrip = await getTrip(tripId);
     if (!currentTrip) return;
 
-    // Helper to determine flight phase
-    const getFlightPhase = (flight) => {
-      const pIdx = currentTrip.participants.findIndex(p => p.name === flight.addedBy);
-      const participant = currentTrip.participants[pIdx];
-      const destIata = (participant?.destinationAirport || currentTrip.destinationAirport || '').toUpperCase().trim();
-      const retIata = (participant?.destinationAirport || currentTrip.returnAirport || '').toUpperCase().trim();
+    const nickname = getUserNickname(tripId);
 
-      const arrCode = (flight.arrival?.code || '').toUpperCase().trim();
-      const depCode = (flight.departure?.code || '').toUpperCase().trim();
-
-      if (destIata && arrCode === destIata) return 'outbound';
-      if (destIata && depCode === destIata) return 'return';
-      if (retIata && depCode === retIata) return 'return';
-      return 'outbound';
-    };
-
-    let filteredFlights = currentTrip.flights;
-
+    // Filter flights by person and phase
+    let filteredFlights = currentTrip.flights || [];
     if (filterPerson !== 'all') {
       filteredFlights = filteredFlights.filter(f => f.addedBy === filterPerson);
     }
-
-    const totalOutbound = currentTrip.flights.filter(f => getFlightPhase(f) === 'outbound').length;
-    const totalReturn = currentTrip.flights.filter(f => getFlightPhase(f) === 'return').length;
-
-    const filteredOutbound = filteredFlights.filter(f => getFlightPhase(f) === 'outbound').length;
-    const filteredReturn = filteredFlights.filter(f => getFlightPhase(f) === 'return').length;
-
-    if (activeTab === 'flights' && phaseFilter !== 'all') {
-      filteredFlights = filteredFlights.filter(f => getFlightPhase(f) === phaseFilter);
+    if (phaseFilter === 'outbound') {
+      filteredFlights = filteredFlights.filter(f => isOutboundFlight(f, currentTrip));
+    } else if (phaseFilter === 'return') {
+      filteredFlights = filteredFlights.filter(f => isReturnFlight(f, currentTrip));
     }
 
+    // Sort by date and departure time
     const sortedFlights = [...filteredFlights].sort((a, b) => {
-      const dateCompare = (a.date || '').localeCompare(b.date || '');
-      if (dateCompare !== 0) return dateCompare;
-      return (a.departure?.time || '').localeCompare(b.departure?.time || '');
+      const da = (a.date || '') + (a.departure?.time || '');
+      const db = (b.date || '') + (b.departure?.time || '');
+      return da.localeCompare(db);
     });
 
-    const alertsActive = isPolling(tripId);
+    const isAutoRefreshing = isPolling(tripId);
 
-    // Prepare Overlapping Avatar Ring Data
+    // Filter counts for badges
+    const totalOutbound = (currentTrip.flights || []).filter(f => isOutboundFlight(f, currentTrip)).length;
+    const totalReturn = (currentTrip.flights || []).filter(f => isReturnFlight(f, currentTrip)).length;
+    const filteredOutbound = filterPerson === 'all'
+      ? totalOutbound
+      : (currentTrip.flights || []).filter(f => f.addedBy === filterPerson && isOutboundFlight(f, currentTrip)).length;
+    const filteredReturn = filterPerson === 'all'
+      ? totalReturn
+      : (currentTrip.flights || []).filter(f => f.addedBy === filterPerson && isReturnFlight(f, currentTrip)).length;
+
+    // Avatar ring data for Hero Insights Banner
     const participantsList = currentTrip.participants || [];
-    const maxVisibleAvatars = 4;
-    const visibleParticipants = participantsList.slice(0, maxVisibleAvatars);
-    const extraParticipantCount = Math.max(0, participantsList.length - maxVisibleAvatars);
+    const visibleAvatars = participantsList.slice(0, 4);
+    const overflowCount = Math.max(0, participantsList.length - 4);
 
     container.innerHTML = `
       <div class="screen">
-        <!-- Topbar Header -->
+        <!-- Top Bar -->
         <div class="topbar">
           <button class="topbar-back" id="btn-back">
-            <span style="display:flex;">${getIcon('arrowLeft')}</span> Trips
+            <span style="display:flex;">${getIcon('arrowLeft')}</span> All Trips
           </button>
-          <div style="display: flex; gap: var(--space-xs); align-items: center; flex-wrap: wrap;">
-            <button class="btn btn-sm btn-ghost" id="btn-toggle-refresh" style="font-size: var(--font-size-xs); color: ${alertsActive ? 'var(--color-success)' : 'var(--color-text-tertiary)'};">
-              <span class="live-dot" style="background:${alertsActive ? 'var(--color-success)' : 'var(--color-text-tertiary)'}; margin-right:4px;"></span>
-              ${alertsActive ? 'Live Sync' : 'Offline'}
+          <div style="display:flex; gap: var(--space-xs); align-items:center;">
+            <button class="btn btn-ghost btn-sm" id="btn-toggle-refresh" title="${isAutoRefreshing ? 'Auto-refresh Active (Every 60s)' : 'Click to enable Auto-refresh'}">
+              <span class="live-dot" style="background:${isAutoRefreshing ? 'var(--color-success)' : 'var(--color-text-tertiary)'};"></span>
+              ${isAutoRefreshing ? 'Live' : 'Off'}
             </button>
-            <button class="btn btn-sm btn-ghost" id="btn-subscribe" title="Add to Calendar">
-              <span style="display:flex;">${getIcon('calendar')}</span> <span class="hide-mobile">Subscribe</span>
+            <button class="btn btn-secondary btn-sm" id="btn-notes">
+              <span style="display:flex;">${getIcon('notes')}</span> Notes
             </button>
-            <button class="btn btn-sm btn-ghost" id="btn-notes" title="Notes">
-              <span style="display:flex;">${getIcon('notes')}</span> <span class="hide-mobile">Notes</span>
+            <button class="btn btn-secondary btn-sm" id="btn-subscribe" title="Add to Apple/Google Calendar">
+              <span style="display:flex;">${getIcon('calendar')}</span> Calendar
             </button>
-            <button class="btn btn-sm btn-ghost" id="btn-share" title="Share Summary">
-              <span style="display:flex;">${getIcon('share')}</span> <span class="hide-mobile">Share</span>
-            </button>
-            <button class="btn btn-sm btn-primary" id="btn-add-flight-top" style="padding: 0.4rem 0.8rem; font-size: var(--font-size-xs);">
+            <button class="btn btn-primary btn-sm" id="btn-add-flight-top">
               <span style="display:flex;">${getIcon('plus')}</span> Add Flight
-            </button>
-            <button class="btn btn-sm btn-ghost" id="btn-delete-trip" title="Delete Trip" style="color: var(--color-danger);">
-              <span style="display:flex;">${getIcon('trash')}</span>
             </button>
           </div>
         </div>
 
-        <!-- Pure Linear Stream with Embedded Hero Insights Card -->
-        <div class="mb-xl">
-          
-          <!-- Hero Trip Title with Embedded PIN Badge -->
-          <div style="margin-bottom: var(--space-md);">
-            <div style="display:flex; align-items:center; gap: 12px; flex-wrap: wrap;">
-              <h1 style="font-size: 2.4rem; font-weight: 800; letter-spacing: -0.03em;">${escapeHtml(currentTrip.name)}</h1>
-              <div class="hero-pin-pill">
-                <span class="hero-pin-label">PIN</span>
-                <span class="hero-pin-code">${currentTrip.pin}</span>
-                <button class="hero-pin-copy" id="btn-copy-pin" title="Copy PIN">${getIcon('copy')}</button>
+        <!-- Hero Title Header with Embedded PIN Badge -->
+        <div class="screen-header" style="margin-bottom: var(--space-md);">
+          <div style="display:flex; align-items:center; gap: var(--space-md); flex-wrap:wrap;">
+            <h1 style="font-size: var(--font-size-3xl); margin:0;">${escapeHtml(currentTrip.name)}</h1>
+            <div class="hero-pin-pill" title="Click to copy 6-digit PIN code">
+              <span class="hero-pin-label">PIN</span>
+              <span class="hero-pin-code">${currentTrip.pin}</span>
+              <button class="hero-pin-copy" id="btn-copy-pin" title="Copy PIN">
+                <span style="display:flex;">${getIcon('copy')}</span>
+              </button>
+            </div>
+          </div>
+          <p style="margin-top: 4px; font-family: var(--font-family-mono); font-size: var(--font-size-sm); color: var(--color-text-tertiary);">
+            ${formatDateRange(currentTrip.startDate, currentTrip.endDate)}
+          </p>
+        </div>
+
+        <!-- Hero Embedded Insights Card (Avatar Popover Interactivity) -->
+        <div class="hero-insights-card">
+          <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap: var(--space-sm);">
+            <div>
+              <div style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; color: var(--color-text-tertiary);">
+                Trip Insights & Group Overview
+              </div>
+              <div style="font-size: var(--font-size-md); font-weight: var(--font-weight-semibold); color: var(--color-text-primary); margin-top: 2px;">
+                Destination: <strong style="font-family: var(--font-family-mono);">${currentTrip.destinationAirport || 'Not set'}</strong>
+                ${currentTrip.returnAirport ? ` · Return: <strong style="font-family: var(--font-family-mono);">${currentTrip.returnAirport}</strong>` : ''}
               </div>
             </div>
-            <p style="font-size: var(--font-size-xs); color: var(--color-text-tertiary); margin-top: 4px; font-family: var(--font-family-mono);">
-              📅 ${formatDateRange(currentTrip.startDate, currentTrip.endDate)}
-              ${currentTrip.destinationAirport ? ` · Dest: ${escapeHtml(currentTrip.destinationAirport)}` : ''}
-            </p>
-          </div>
 
-          <!-- Hero Embedded Insights Card Banner with Interactive Avatar Popover -->
-          <div class="hero-insights-card">
-            <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
-              <div>
-                <div style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--color-text-tertiary);">
-                  Trip Insights Overview
-                </div>
-                <div style="display:flex; align-items:center; gap: var(--space-md); margin-top: 6px; flex-wrap: wrap;">
-                  <span style="font-size: var(--font-size-sm); font-weight: 700; color: var(--color-text-primary); font-family: var(--font-family-mono);">
-                    📊 ${currentTrip.flights.length} Flights Total
-                  </span>
-                  <span style="font-size: var(--font-size-sm); color: #34D399; font-family: var(--font-family-mono);">
-                    🛫 ${totalOutbound} Outbound
-                  </span>
-                  <span style="font-size: var(--font-size-sm); color: #60A5FA; font-family: var(--font-family-mono);">
-                    🛬 ${totalReturn} Return
-                  </span>
-                  <span style="font-size: var(--font-size-xs); color: #34D399; font-family: var(--font-family-mono); display:inline-flex; align-items:center;">
-                    <span class="live-dot" style="margin-right:4px;"></span> Live Sync Active
-                  </span>
+            <!-- Overlapping Avatar Ring with Interactive Popover -->
+            <div class="avatar-group-wrapper" id="avatar-group-wrapper">
+              <div style="display:flex; align-items:center; gap: 8px;">
+                <span style="font-size: var(--font-size-xs); color: var(--color-text-tertiary); font-weight: 500;">
+                  ${participantsList.length} Members
+                </span>
+                <div class="avatar-group" id="avatar-group-trigger" title="Click to see all members">
+                  ${visibleAvatars.map((p, i) => `
+                    <div class="avatar-ring" style="background:${PERSON_COLORS_HEX[i % 6]};">
+                      ${escapeHtml(p.name.charAt(0).toUpperCase())}
+                    </div>
+                  `).join('')}
+                  ${overflowCount > 0 ? `
+                    <div class="avatar-ring avatar-count-ring">
+                      +${overflowCount}
+                    </div>
+                  ` : ''}
                 </div>
               </div>
-              
-              <!-- Overlapping Avatar Group Wrapper with Popover Dropdown -->
-              <div class="avatar-group-wrapper" id="avatar-group-wrapper">
-                <div style="display:flex; align-items:center; gap: 8px;">
-                  <span style="font-size: var(--font-size-xs); color: var(--color-text-tertiary); font-family: var(--font-family-mono);">
-                    ${participantsList.length} Members
-                  </span>
-                  <div class="avatar-group" id="avatar-group-trigger">
-                    ${visibleParticipants.map((p, i) => `
-                      <span class="avatar-ring" style="background:${PERSON_COLORS_HEX[i % 6]};">
-                        ${(p.name || '?').charAt(0).toUpperCase()}
-                      </span>
-                    `).join('')}
-                    ${extraParticipantCount > 0 ? `
-                      <span class="avatar-ring avatar-count-ring">+${extraParticipantCount}</span>
-                    ` : ''}
-                  </div>
-                </div>
 
-                <!-- Interactive Popover Dropdown -->
-                <div class="avatar-popover hidden" id="avatar-popover">
-                  <div class="avatar-popover-header">All Group Members (${participantsList.length})</div>
-                  <div class="avatar-popover-list">
-                    ${participantsList.map((p, i) => `
+              <!-- Interactive Popover Panel -->
+              <div class="avatar-popover hidden" id="avatar-popover">
+                <div class="avatar-popover-header">
+                  All Group Members (${participantsList.length})
+                </div>
+                <div class="avatar-popover-list">
+                  ${participantsList.map((p, i) => {
+                    const flightCount = (currentTrip.flights || []).filter(f => f.addedBy === p.name).length;
+                    return `
                       <div class="avatar-popover-item" data-popover-person="${escapeHtml(p.name)}">
-                        <span class="avatar-ring" style="background:${PERSON_COLORS_HEX[i % 6]}; width:22px; height:22px; font-size:9px; margin:0;">
-                          ${(p.name || '?').charAt(0).toUpperCase()}
-                        </span>
-                        <span style="font-weight:600; color:var(--color-text-primary); font-size:12px;">${escapeHtml(p.name)}</span>
-                        <span style="font-size:10px; color:var(--color-text-tertiary); font-family:var(--font-family-mono); margin-left:auto;">
-                          ${currentTrip.flights.filter(f => f.addedBy === p.name).length} flights
-                        </span>
+                        <div class="avatar-ring" style="background:${PERSON_COLORS_HEX[i % 6]}; width:22px; height:22px; font-size:9px; margin-left:0;">
+                          ${escapeHtml(p.name.charAt(0).toUpperCase())}
+                        </div>
+                        <span style="font-size: var(--font-size-sm); font-weight: var(--font-weight-medium); flex:1;">${escapeHtml(p.name)}</span>
+                        <span style="font-size: var(--font-size-xs); color: var(--color-text-tertiary); font-family: var(--font-family-mono);">${flightCount} flights</span>
                       </div>
-                    `).join('')}
-                  </div>
+                    `;
+                  }).join('')}
                 </div>
               </div>
             </div>
           </div>
+        </div>
 
-          <!-- Main Navigation Tabs -->
-          <div class="tab-container mb-base">
-            <button class="tab-btn ${activeMainTab === 'tracking' ? 'active' : ''}" data-maintab="tracking">
-              <span style="display:flex;">${getIcon('plane')}</span> Tracking
-            </button>
-            <button class="tab-btn ${activeMainTab === 'coordination' ? 'active' : ''}" data-maintab="coordination">
-              <span style="display:flex;">${getIcon('sparkles')}</span> Coordination
-            </button>
-          </div>
+        <!-- Main Workspace Tab Bar: Tracking vs Flight Coordination Engine -->
+        <div class="tab-container mb-lg">
+          <button class="tab-btn ${activeMainTab === 'tracking' ? 'active' : ''}" data-maintab="tracking">
+            <span style="display:flex;">${getIcon('plane')}</span> Flight Tracking (${currentTrip.flights?.length || 0})
+          </button>
+          <button class="tab-btn ${activeMainTab === 'coordination' ? 'active' : ''}" data-maintab="coordination">
+            <span style="display:flex;">${getIcon('sparkles')}</span> Coordination Engine
+          </button>
+        </div>
 
-          <!-- Tracking Tab -->
-          <div id="tracking-tab-content" class="${activeMainTab === 'tracking' ? '' : 'hidden-tab'}">
-            <!-- Traveler Filter Chips -->
-            <div class="chip-group mb-base">
-              <button class="chip ${filterPerson === 'all' ? 'active' : ''}" data-person="all">All Travelers (${currentTrip.participants.length})</button>
+        <!-- Workspace Section -->
+        <div id="main-tab-workspace">
+          
+          <!-- Flight Tracking Workspace -->
+          <div id="tracking-workspace" class="${activeMainTab === 'tracking' ? '' : 'hidden-tab'}">
+            
+            <!-- Person Filter Bar -->
+            <div class="chip-group mb-base" style="flex-wrap: wrap;">
+              <div class="chip ${filterPerson === 'all' ? 'active' : ''}" data-person="all">
+                All Travelers (${currentTrip.participants.length})
+              </div>
               ${currentTrip.participants.map((p, i) => `
                 <div class="chip ${filterPerson === p.name ? 'active' : ''}" data-person="${escapeHtml(p.name)}">
-                  <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${PERSON_COLORS[i % 6]};margin-right:4px;"></span>
+                  <span style="width:6px; height:6px; border-radius:50%; background:${PERSON_COLORS[i % 6]}; display:inline-block; margin-right:4px;"></span>
                   ${escapeHtml(p.name)}
                   <button class="chip-delete-btn" data-person-del="${escapeHtml(p.name)}" style="all:unset; cursor:pointer; font-size:12px; opacity:0.4; margin-left:4px;" title="Remove Profile">×</button>
                 </div>
@@ -244,7 +226,7 @@ export async function renderDashboard(container, tripId) {
             </div>
 
             <!-- Phase & View Sub-Tabs + View Mode Toggle -->
-            <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:var(--space-sm);" class="mb-base">
+            <div style="display:flex; align-items:center; justify-space-between; flex-wrap:wrap; gap:var(--space-sm);" class="mb-base">
               <div class="tabs">
                 <button class="tab ${activeTab === 'flights' && phaseFilter === 'all' ? 'active' : ''}" data-tab="flights" data-phase="all">All (${currentTrip.flights.length})</button>
                 <button class="tab ${activeTab === 'flights' && phaseFilter === 'outbound' ? 'active' : ''}" data-tab="flights" data-phase="outbound">
@@ -255,6 +237,9 @@ export async function renderDashboard(container, tripId) {
                 </button>
                 <button class="tab ${activeTab === 'timeline' ? 'active' : ''}" data-tab="timeline">
                   <span style="display:flex;">${getIcon('timeline')}</span> Timeline
+                </button>
+                <button class="tab ${activeTab === 'map' ? 'active' : ''}" data-tab="map">
+                  <span style="display:flex;">${getIcon('plane')}</span> Route Map
                 </button>
               </div>
 
@@ -302,6 +287,9 @@ export async function renderDashboard(container, tripId) {
     if (activeMainTab === 'tracking' && activeTab === 'timeline') {
       const timelineContainer = container.querySelector('#tab-content');
       renderTimeline(timelineContainer, currentTrip.flights, currentTrip.participants);
+    } else if (activeMainTab === 'tracking' && activeTab === 'map') {
+      const mapContainer = container.querySelector('#tab-content');
+      renderRouteMap(mapContainer, sortedFlights, currentTrip.participants, currentTrip, filterPerson);
     }
 
     // Avatar Popover Interactivity
@@ -451,73 +439,68 @@ export async function renderDashboard(container, tripId) {
       });
     });
 
-    container.querySelectorAll('.tab[data-tab="timeline"]').forEach(tab => {
+    container.querySelectorAll('.tab[data-tab]').forEach(tab => {
       tab.addEventListener('click', () => {
-        activeTab = 'timeline';
+        activeTab = tab.dataset.tab;
         render();
       });
     });
 
-    container.querySelectorAll('.chip').forEach(chip => {
+    container.querySelectorAll('.chip[data-person]').forEach(chip => {
       chip.addEventListener('click', (e) => {
-        if (e.target.closest('.chip-delete-btn')) return;
+        if (e.target.classList.contains('chip-delete-btn')) return;
         filterPerson = chip.dataset.person;
         render();
       });
     });
 
+    // Handle profile deletion from chip
     container.querySelectorAll('.chip-delete-btn').forEach(btn => {
       btn.addEventListener('click', async (e) => {
         e.stopPropagation();
-        const personToDel = btn.dataset.personDel;
-        if (confirm(`Remove ${personToDel} and all their flights from this trip?`)) {
-          btn.disabled = true;
-          await deleteParticipant(tripId, personToDel);
-          if (filterPerson === personToDel) filterPerson = 'all';
-          showToast(`Removed ${personToDel}`, 'info');
-          
-          if (personToDel === nickname) {
-            stopPolling(tripId);
-            unsubscribe();
-            navigate('');
-          } else {
-            render();
-          }
+        const pName = btn.dataset.personDel;
+        if (confirm(`Remove ${pName}'s profile from this trip?`)) {
+          await deleteParticipant(tripId, pName);
+          if (filterPerson === pName) filterPerson = 'all';
+          showToast(`Profile ${pName} removed`, 'info');
+          render();
         }
       });
     });
 
-    container.querySelectorAll('.flight-delete').forEach(btn => {
-      btn.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        const flightId = btn.dataset.flightId;
-        const removedFlight = currentTrip.flights.find(f => f.id === flightId);
-        await deleteFlight(tripId, flightId);
-        render();
-        showToast('Flight removed', 'info', 5000, {
-          label: 'Undo',
-          onClick: async () => {
-            if (removedFlight) {
-              await restoreFlight(tripId, removedFlight);
-              showToast('Flight restored!', 'success');
-              render();
-            }
-          }
-        });
-      });
-    });
-
+    // Refresh flight status
     container.querySelectorAll('.flight-refresh').forEach(btn => {
       btn.addEventListener('click', async (e) => {
         e.stopPropagation();
         const flightId = btn.dataset.flightId;
-        const flightNum = btn.dataset.flightNumber;
-        const flightDate = btn.dataset.flightDate || undefined;
+        const flight = currentTrip.flights.find(f => f.id === flightId);
+        if (!flight) return;
+
+        btn.disabled = true;
         btn.textContent = '⏳';
-        const newStatus = await refreshFlightStatus(flightNum, flightDate);
-        await updateFlightStatus(tripId, flightId, newStatus);
-        showToast(`${flightNum}: ${formatStatus(newStatus)}`, 'flight');
+
+        const updated = await refreshFlightStatus(flight);
+        await updateFlightStatus(tripId, flightId, updated.status);
+        emit(EVENTS.FLIGHT_UPDATED);
+        showToast(`${flight.flightNumber} status updated: ${updated.status}`, 'success');
         render();
+      });
+    });
+
+    // Delete flight
+    container.querySelectorAll('.flight-delete').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const flightId = btn.dataset.flightId;
+        const flight = currentTrip.flights.find(f => f.id === flightId);
+        if (!flight) return;
+
+        if (confirm(`Delete flight ${flight.flightNumber}?`)) {
+          await deleteFlight(tripId, flightId);
+          emit(EVENTS.FLIGHT_DELETED, flightId);
+          showToast(`${flight.flightNumber} deleted`, 'info');
+          render();
+        }
       });
     });
   }
@@ -525,37 +508,45 @@ export async function renderDashboard(container, tripId) {
   render();
 }
 
-function renderFlightsList(flights, trip, viewMode, expandedFlightIds) {
+function renderFlightsList(flights, trip, viewMode = 'compact', expandedFlightIds = new Set()) {
   if (flights.length === 0) {
     return `
       <div class="empty-state">
-        <div class="empty-state-icon" style="display:flex; justify-content:center;">${getIcon('plane')}</div>
-        <h3>No flights in this view</h3>
-        <p>Try selecting "All" or adding flights to this trip</p>
+        <div class="empty-state-icon">${getIcon('plane')}</div>
+        <h3>No Flights Found</h3>
+        <p>Add a flight to start tracking and coordinating your group travel.</p>
       </div>
     `;
   }
 
-  return flights.map((flight, i) => {
-    if (viewMode === 'compact' && !expandedFlightIds.has(flight.id)) {
-      return renderCompactFlightRow(flight, trip.participants, i, trip);
+  return flights.map(flight => {
+    const isExpanded = viewMode === 'expanded' || expandedFlightIds.has(flight.id);
+    if (isExpanded) {
+      return renderFlightCard(flight, trip.participants, viewMode === 'compact');
     } else {
-      return renderFlightCard(flight, trip.participants, i, trip, viewMode === 'compact' && expandedFlightIds.has(flight.id));
+      return renderCompactFlightRow(flight, trip.participants);
     }
   }).join('');
 }
 
+function isOutboundFlight(flight, trip) {
+  if (!trip.destinationAirport) return true;
+  const dests = trip.destinationAirport.split(',').map(s => s.trim().toUpperCase());
+  const arrCode = (flight.arrival?.code || '').toUpperCase();
+  return dests.includes(arrCode);
+}
+
+function isReturnFlight(flight, trip) {
+  if (!trip.destinationAirport) return false;
+  return !isOutboundFlight(flight, trip);
+}
+
 function formatDateRange(start, end) {
   if (!start) return '';
-  const opts = { month: 'short', day: 'numeric' };
+  const opts = { month: 'short', day: 'numeric', year: 'numeric' };
   const s = new Date(start + 'T00:00:00').toLocaleDateString('en-US', opts);
   const e = end ? new Date(end + 'T00:00:00').toLocaleDateString('en-US', opts) : '';
   return e ? `${s} — ${e}` : s;
-}
-
-function formatStatus(status) {
-  const map = { 'on-time': 'On Time ✅', 'delayed': 'Delayed ⚠️', 'cancelled': 'Cancelled ❌', 'landed': 'Landed 🛬', 'scheduled': 'Scheduled' };
-  return map[status] || status;
 }
 
 function escapeHtml(str) {
