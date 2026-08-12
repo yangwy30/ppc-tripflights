@@ -1,5 +1,5 @@
 /* ============================================
-   PPC: Delay No More — Service Worker
+   Service Worker
    Listens for Web Push Notifications from Supabase Edge Functions
    ============================================ */
 

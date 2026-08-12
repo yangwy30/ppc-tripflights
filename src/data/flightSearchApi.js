@@ -1,5 +1,5 @@
 /* ============================================
-   PPC: Delay No More — Flight Search API
+   Flight Search API
    Priority: SerpAPI (Google Flights) → Amadeus → Mock
    ============================================ */
 

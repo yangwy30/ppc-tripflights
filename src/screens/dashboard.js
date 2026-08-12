@@ -1,5 +1,5 @@
 /* ============================================
-   PPC: Delay No More — Commercial Dashboard Screen
+   Dashboard screen
    Features: Hero Route Map, Three-Segment Tab Stream [Outbound ➔ Return ➔ Timeline]
    ============================================ */
 
@@ -25,7 +25,7 @@ const PERSON_COLORS_HEX = [
 ];
 
 /**
- * Universal Flight Phase Resolver (Outbound vs Return)
+ * Classifies a flight as outbound or return based on trip airports
  */
 function getFlightPhase(flight, trip) {
   if (flight.phase) return flight.phase;

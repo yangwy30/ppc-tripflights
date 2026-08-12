@@ -1,5 +1,5 @@
 /* ============================================
-   PPC: Delay No More — Toast Notification System
+   Toast Notification System
    ============================================ */
 
 const STATUS_ICONS = {

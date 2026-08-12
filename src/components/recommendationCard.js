@@ -1,5 +1,5 @@
 /* ============================================
-   PPC: Delay No More — Recommendation Card
+   Recommendation Card
    Renders a beautiful grouped flight option
    ============================================ */
 

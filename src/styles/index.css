@@ -1,5 +1,5 @@
 /* ============================================
-   PPC: Delay No More — Aero Precision SaaS Design System
+   Base design tokens
    Commercial Dark Slate Theme (#090A0F / #0F172A)
    ============================================ */
 
@@ -44,7 +44,7 @@
   --person-5: #EC4899;
   --person-6: #38BDF8;
 
-  /* Typography - iOS Native Flighty SF Pro Stack */
+  /* Typography - Stack */
   --font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", "Inter", sans-serif;
   --font-family-mono: "DIN Alternate", -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Mono", sans-serif;
   --font-size-xs: 0.6875rem;   /* 11px */
@@ -73,14 +73,14 @@
   --space-xl: 2rem;
   --space-2xl: 3rem;
 
-  /* Radii — Precision Crisp Radii */
+  /* Radii — Radii */
   --radius-sm: 6px;
   --radius-md: 8px;
   --radius-lg: 12px;
   --radius-xl: 16px;
   --radius-full: 9999px;
 
-  /* Glassmorphism & Shadows */
+  /* Shadows */
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.4);
   --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.6);

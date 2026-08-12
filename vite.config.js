@@ -13,7 +13,7 @@ export default defineConfig({
             },
             includeAssets: ['favicon.svg', 'icons/*.png'],
             manifest: {
-                name: 'PPC: Delay No More — Group Flight Tracker',
+                name: 'Group Flight Tracker',
                 short_name: 'PPC: Delay No More',
                 description: 'Track group flights together',
                 theme_color: '#0A84FF',

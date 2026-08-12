@@ -1,5 +1,5 @@
 /* ============================================
-   PPC: Delay No More — Apple Flighty Slate Timeline Engine
+   Timeline Engine
    Fixed: Elimination of outer row container box ("box-in-a-box" artifact) + Unified Flight Card
    ============================================ */
 
@@ -79,7 +79,7 @@ export function renderTimeline(container, tripOrFlights, participantsOrFilter, f
 
   let html = '<div class="tl-wrapper" style="background: #090A0F; border-radius: 16px; padding: 16px; border: 1px solid rgba(255, 255, 255, 0.08); box-shadow: 0 20px 40px rgba(0,0,0,0.6);">';
 
-  // SOTA Legend Header
+  // Legend Header
   html += '<div class="tl-legend" style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.06);">';
   html += '<div style="display:flex; align-items:center; gap: 12px; flex-wrap:wrap;">';
   participants.forEach((p, i) => {

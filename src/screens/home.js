@@ -1,5 +1,5 @@
 /* ============================================
-   PPC: Delay No More — Home Screen (iOS Native Flighty Style)
+   Home screen
    ============================================ */
 
 import { getAllTrips } from '../data/dataAdapter.js';

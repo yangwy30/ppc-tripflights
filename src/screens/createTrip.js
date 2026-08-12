@@ -1,5 +1,5 @@
 /* ============================================
-   PPC: Delay No More — Create Trip Screen (iOS SF Pro Style)
+   Create Trip screen
    ============================================ */
 
 import { createTrip } from '../data/dataAdapter.js';

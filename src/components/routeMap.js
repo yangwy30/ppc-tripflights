@@ -1,6 +1,6 @@
 /* ============================================
-   PPC: Delay No More — Professional Clean Route Map Engine
-   SOTA Fix: DOM Cache in 60fps Animation Loop + Clean Map Destroy Hook
+   Route Map Engine
+   Fix: DOM Cache in 60fps Animation Loop + Clean Map Destroy Hook
    ============================================ */
 
 import L from 'leaflet';

@@ -1,5 +1,5 @@
 /* ============================================
-   PPC: Delay No More — Join Trip Screen (iOS SF Pro Style)
+   Join Trip screen
    ============================================ */
 
 import { joinTrip, updateParticipantDestination } from '../data/dataAdapter.js';

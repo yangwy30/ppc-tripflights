@@ -1,5 +1,5 @@
 /* ============================================
-   PPC: Delay No More — Commercial Notes Screen
+   Notes screen
    Features: Real-time Pub/Sub Event Subscription
    ============================================ */
 

@@ -1,5 +1,5 @@
 /* ============================================
-   PPC: Delay No More — Data Adapter (Supabase)
+   Data Adapter (Supabase)
    
    Multi-user backend replacing localStorage.
    Same exported interface as the original — all

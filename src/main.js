@@ -1,5 +1,5 @@
 /* ============================================
-   PPC: Delay No More — Main Entry Point
+   Main entry point
    ============================================ */
 
 import './styles/index.css';

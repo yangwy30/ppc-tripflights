@@ -1,5 +1,5 @@
 /* ============================================
-   PPC: Delay No More — Alert Service
+   Alert Service
    
    Auto-refreshes flight status every 15 minutes
    and sends browser notifications for delays.

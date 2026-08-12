@@ -1,5 +1,5 @@
 /* ============================================
-   PPC: Delay No More — Commercial Flight Card Component
+   Flight Card Component
    Dynamic Time-Based Flight Status Resolver (Landed / In-Air / Scheduled / Delayed)
    ============================================ */
 
@@ -31,7 +31,7 @@ const AIRPORT_TIMEZONES = {
 };
 
 /**
- * Universal Time-Based Dynamic Flight Status Resolver
+ * Returns computed flight status based on current time vs departure/arrival
  */
 export function getComputedFlightStatus(flight) {
   if (flight.status && flight.status !== 'scheduled') {

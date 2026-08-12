@@ -1,5 +1,5 @@
 /* ============================================
-   PPC: Delay No More — AI Concierge Service
+   AI Concierge Service
    Uses Gemini API to summarize grouped flight
    options for group travel coordination.
    ============================================ */

@@ -1,5 +1,5 @@
 /* ============================================
-   PPC: Delay No More — Supabase Client
+   Supabase Client
    
    Reads credentials from Vite environment vars.
    ============================================ */

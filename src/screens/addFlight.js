@@ -1,5 +1,5 @@
 /* ============================================
-   PPC: Delay No More — Add Flight Screen (iOS SF Pro Style)
+   Add Flight screen
    ============================================ */
 
 import { addFlight, getTrip, getUserNickname, addParticipant } from '../data/dataAdapter.js';

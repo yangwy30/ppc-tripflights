@@ -1,5 +1,5 @@
 /* ============================================
-   PPC: Delay No More — Commercial SVG Icon Library
+   SVG Icon Library
    ============================================ */
 
 export const ICONS = {
