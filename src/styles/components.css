@@ -8,6 +8,8 @@
     padding: var(--space-lg) 0;
     padding-bottom: calc(var(--space-3xl) + var(--safe-area-bottom));
     animation: fadeSlideIn var(--transition-base) ease-out;
+    max-width: 840px;
+    margin: 0 auto;
 }
 
 .screen-header {
@@ -87,64 +89,6 @@
 
 .hero-pin-copy:hover {
     color: var(--color-text-primary);
-}
-
-/* --- Overlapping Avatar Group --- */
-.avatar-group {
-    display: flex;
-    align-items: center;
-}
-
-.avatar-ring {
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    border: 2px solid #0F172A;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 11px;
-    font-weight: 700;
-    color: #ffffff;
-    margin-left: -8px;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
-}
-
-.avatar-ring:first-child {
-    margin-left: 0;
-}
-
-.avatar-count-ring {
-    background: rgba(30, 41, 59, 0.9);
-    border-color: var(--color-border);
-    color: var(--color-text-secondary);
-    font-family: var(--font-family-mono);
-    font-size: 10px;
-}
-
-/* --- Trip Insights Stat Rows --- */
-.stat-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 8px 0;
-    border-bottom: 1px solid var(--color-border-light);
-    font-size: var(--font-size-xs);
-}
-
-.stat-row:last-child {
-    border-bottom: none;
-}
-
-.stat-label {
-    color: var(--color-text-tertiary);
-    font-weight: var(--font-weight-medium);
-}
-
-.stat-value {
-    color: var(--color-text-primary);
-    font-family: var(--font-family-mono);
-    font-weight: var(--font-weight-semibold);
 }
 
 /* --- Button --- */
@@ -408,42 +352,6 @@
     font-weight: var(--font-weight-semibold);
     border-color: rgba(255, 255, 255, 0.18);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
-}
-
-/* --- Dashboard Responsive Split Grid --- */
-.dashboard-grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: var(--space-lg);
-}
-
-@media (min-width: 840px) {
-    .dashboard-grid {
-        grid-template-columns: 1.4fr 1fr;
-    }
-}
-
-.side-card-stack {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-md);
-}
-
-.side-card {
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-    padding: 14px 18px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    backdrop-filter: blur(16px);
-    transition: all var(--transition-fast);
-}
-
-.side-card:hover {
-    border-color: rgba(255, 255, 255, 0.2);
-    transform: translateY(-1px);
 }
 
 /* --- Commercial Flight Card (Expanded) --- */
