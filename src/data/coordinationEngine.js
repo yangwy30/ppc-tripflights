@@ -41,37 +41,37 @@ export async function generateGroupOptions(trip, currentUserName) {
 
     if (!destIata) return [];
 
-    // Fall back homeAirport to common hub or destination if missing
-    const preparedParticipants = participants.map(p => {
-        const hasBooked = existingFlights.some(f => f.addedBy === p.name);
+    // Safely normalize participants (handling both string array and object array forms)
+    const rawParticipants = (participants && participants.length > 0) ? participants : [{ name: currentUserName || 'Traveler', homeAirport: 'JFK' }];
+    
+    const preparedParticipants = rawParticipants.map(p => {
+        const name = typeof p === 'string' ? p : p.name || 'Traveler';
+        const home = typeof p === 'object' && p ? p.homeAirport : null;
+        const normName = name.trim().toLowerCase();
+        const hasBooked = existingFlights.some(f => (f.addedBy || '').trim().toLowerCase() === normName);
+        const bookedDepCode = existingFlights.find(f => (f.addedBy || '').trim().toLowerCase() === normName)?.departure?.code;
         return {
-            ...p,
-            homeAirport: p.homeAirport || (hasBooked ? (existingFlights.find(f => f.addedBy === p.name)?.departure?.code) : 'JFK')
+            name,
+            homeAirport: home || bookedDepCode || 'JFK',
+            destinationAirport: typeof p === 'object' && p ? p.destinationAirport : null
         };
     });
 
-    // Filter relevant participants (those who booked OR current user OR participants with home airports)
-    const relevantParticipants = preparedParticipants.filter(p => {
-        const hasBooked = existingFlights.some(f => f.addedBy === p.name);
-        const isCurrentUser = p.name === currentUserName;
-        return hasBooked || isCurrentUser || p.homeAirport;
-    });
-
+    const relevantParticipants = preparedParticipants;
     if (relevantParticipants.length === 0) return [];
 
     console.log(`[CoordinationEngine] Finding options for ${relevantParticipants.map(p => `${p.name}(${p.homeAirport})`).join(', ')} -> ${destIata} (Return from ${returnIata})`);
 
-
     // 2. Fetch flights for each participant
     const flightPromises = relevantParticipants.map(async participant => {
-        const primaryOrigin = _extractPrimaryIata(participant.homeAirport);
+        const primaryOrigin = _extractPrimaryIata(participant.homeAirport) || 'JFK';
 
         // Per-person destination override: use participant's preferred airport if set
         const personDest = _extractPrimaryIata(participant.destinationAirport) || destIata;
         const personReturnIata = _extractPrimaryIata(participant.destinationAirport) || returnIata;
 
-        // Find existing outbound and return flights for this person
-        const personFlights = existingFlights.filter(f => f.addedBy === participant.name);
+        // Find existing outbound and return flights for this person (case-insensitive name comparison)
+        const personFlights = existingFlights.filter(f => (f.addedBy || '').trim().toLowerCase() === participant.name.trim().toLowerCase());
         const bookedOutbound = personFlights.find(f => (f.arrival?.code || '').toUpperCase() === personDest);
         const bookedReturn = personFlights.find(f => (f.departure?.code || '').toUpperCase() === personReturnIata);
 
@@ -210,8 +210,9 @@ export async function generateGroupOptions(trip, currentUserName) {
             // Re-map per participant so UI can render them cleanly: { passengerName, outbound, return }
             const flightsPerPerson = [];
             for (const p of relevantParticipants) {
-                const pOut = outCombo.find(f => f.passengerName === p.name);
-                const pIn = inCombo.find(f => f.passengerName === p.name);
+                const normName = (p.name || '').trim().toLowerCase();
+                const pOut = outCombo.find(f => (f.passengerName || '').trim().toLowerCase() === normName);
+                const pIn = inCombo.find(f => (f.passengerName || '').trim().toLowerCase() === normName);
                 if (pOut) {
                     flightsPerPerson.push({
                         passengerName: p.name,
