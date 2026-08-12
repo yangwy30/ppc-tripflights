@@ -1,5 +1,6 @@
 /* ============================================
    PPC: Delay No More — Commercial Flight Card Component
+   Dynamic Time-Based Flight Status Resolver (Landed / In-Air / Scheduled / Delayed)
    ============================================ */
 
 import { getIcon } from './icons.js';
@@ -15,7 +16,8 @@ const STATUS_MAP = {
   'delayed': { label: 'Delayed', class: 'badge-warning' },
   'cancelled': { label: 'Cancelled', class: 'badge-danger' },
   'landed': { label: 'Landed', class: 'badge-success' },
-  'boarding': { label: 'Boarding', class: 'badge-accent' }
+  'boarding': { label: 'Boarding', class: 'badge-accent' },
+  'in-air': { label: 'In Air', class: 'badge-accent' }
 };
 
 const AIRPORT_TIMEZONES = {
@@ -27,6 +29,41 @@ const AIRPORT_TIMEZONES = {
   DXB: 'GST', SIN: 'SGT', HND: 'JST', NRT: 'JST', ICN: 'KST', HKG: 'HKT', PEK: 'CST', PVG: 'CST',
   SYD: 'AEST', MEL: 'AEST'
 };
+
+/**
+ * Universal Time-Based Dynamic Flight Status Resolver
+ */
+export function getComputedFlightStatus(flight) {
+  if (flight.status && flight.status !== 'scheduled') {
+    return flight.status;
+  }
+
+  if (!flight.date) return flight.status || 'scheduled';
+
+  const now = new Date();
+
+  try {
+    const depTime = flight.departure?.time || '00:00';
+    const arrTime = flight.arrival?.time || '23:59';
+
+    const depDateTime = new Date(`${flight.date}T${depTime}:00`);
+    let arrDateTime = new Date(`${flight.date}T${arrTime}:00`);
+
+    if (arrDateTime < depDateTime) {
+      arrDateTime.setDate(arrDateTime.getDate() + 1);
+    }
+
+    if (now > arrDateTime) {
+      return 'landed'; // Flight has already arrived!
+    } else if (now >= depDateTime && now <= arrDateTime) {
+      return 'in-air'; // Currently in flight!
+    } else {
+      return 'scheduled'; // Future flight
+    }
+  } catch (e) {
+    return flight.status || 'scheduled';
+  }
+}
 
 function getTimezoneBadge(iataCode) {
   if (!iataCode) return '';
@@ -51,7 +88,9 @@ function formatTimeWithBadge(timeStr) {
 export function renderFlightCard(flight, participants, index, trip, isExpandedInCompactMode = false) {
   const personIndex = participants.findIndex(p => p.name === flight.addedBy);
   const personColor = PERSON_COLORS[personIndex >= 0 ? personIndex % 6 : 0];
-  const statusInfo = STATUS_MAP[flight.status] || STATUS_MAP.scheduled;
+
+  const computedStatus = getComputedFlightStatus(flight);
+  const statusInfo = STATUS_MAP[computedStatus] || STATUS_MAP.scheduled;
 
   let directionBadge = '';
   if (trip) {
@@ -99,69 +138,54 @@ export function renderFlightCard(flight, participants, index, trip, isExpandedIn
         <div class="flight-airport">
           <div class="flight-airport-code">${escapeHtml(depCode)}${getTimezoneBadge(depCode)}</div>
           <div class="flight-airport-city">${escapeHtml(flight.departure?.city || '')}</div>
-          <div class="flight-airport-time">${formatTimeWithBadge(flight.departure?.time || '')}</div>
+          <div class="flight-time">${formatTimeWithBadge(flight.departure?.time)}</div>
+          ${flight.departure?.terminal ? `<div class="flight-terminal">Term ${escapeHtml(flight.departure.terminal)}</div>` : ''}
         </div>
-        <div class="flight-path">
-          <div class="flight-path-icon" style="color: var(--color-accent);">${getIcon('plane')}</div>
-          <div class="flight-path-line"></div>
-          <div class="flight-path-duration">${escapeHtml(flight.duration || '')}</div>
+
+        <div class="flight-arrow" style="flex:1; text-align:center;">
+          <div style="font-size: var(--font-size-xs); color: var(--color-text-tertiary); font-family: var(--font-family-mono); font-weight:700;">${escapeHtml(flight.duration || '')}</div>
+          <div style="color: var(--color-accent); margin: 2px 0;">➔</div>
+          <div style="font-size: 10px; color: var(--color-text-tertiary);">${escapeHtml(flight.date || '')}</div>
         </div>
-        <div class="flight-airport arrival">
+
+        <div class="flight-airport" style="text-align: right;">
           <div class="flight-airport-code">${escapeHtml(arrCode)}${getTimezoneBadge(arrCode)}</div>
           <div class="flight-airport-city">${escapeHtml(flight.arrival?.city || '')}</div>
-          <div class="flight-airport-time">${formatTimeWithBadge(flight.arrival?.time || '')}</div>
+          <div class="flight-time">${formatTimeWithBadge(flight.arrival?.time)}</div>
+          ${flight.arrival?.terminal ? `<div class="flight-terminal">Term ${escapeHtml(flight.arrival.terminal)}</div>` : ''}
         </div>
       </div>
 
-      ${flight.departure?.terminal || flight.arrival?.terminal ? `
-        <div style="display:flex; gap: var(--space-lg); font-size: var(--font-size-xs); color: var(--color-text-tertiary); margin-top: var(--space-xs); font-family: var(--font-family-mono);">
-          ${flight.departure?.terminal ? `<span>Dep Terminal: ${escapeHtml(flight.departure.terminal)}</span>` : ''}
-          ${flight.arrival?.terminal ? `<span>Arr Terminal: ${escapeHtml(flight.arrival.terminal)}</span>` : ''}
-        </div>
-      ` : ''}
-
-      <div class="flight-meta" style="margin-top: var(--space-sm);">
+      <div class="flight-card-footer">
         <div class="flight-person">
-          <span class="flight-person-dot" style="background: ${personColor}"></span>
-          ${escapeHtml(flight.addedBy || 'Unknown')}
+          <span class="flight-person-dot" style="background: ${personColor};"></span>
+          <span>${escapeHtml(flight.addedBy || 'Unknown')}</span>
         </div>
-        <div style="display:flex; align-items:center; gap: var(--space-sm);">
-          <span class="flight-date" style="font-family: var(--font-family-mono); font-size: var(--font-size-xs); color: var(--color-text-tertiary);">${flight.date || ''}</span>
-          <button class="btn btn-icon btn-ghost flight-delete" data-flight-id="${flight.id}" title="Remove flight" style="width:24px;height:24px;color:var(--color-danger);">${getIcon('trash')}</button>
+        <div class="flight-actions">
+          <button class="btn btn-icon btn-ghost flight-delete" data-flight-id="${flight.id}" title="Remove flight">${getIcon('trash')}</button>
         </div>
       </div>
     </div>
   `;
 }
 
-export function renderCompactFlightRow(flight, participants, index, trip) {
+export function renderCompactFlightRow(flight, participants, isExpanded = false) {
   const personIndex = participants.findIndex(p => p.name === flight.addedBy);
   const personColor = PERSON_COLORS[personIndex >= 0 ? personIndex % 6 : 0];
-  const statusInfo = STATUS_MAP[flight.status] || STATUS_MAP.scheduled;
 
-  let directionBadge = '';
-  if (trip) {
-    const participant = participants[personIndex];
-    const destIata = (participant?.destinationAirport || trip.destinationAirport || '').toUpperCase().trim();
-    const retIata = (participant?.destinationAirport || trip.returnAirport || '').toUpperCase().trim();
+  const computedStatus = getComputedFlightStatus(flight);
+  const statusInfo = STATUS_MAP[computedStatus] || STATUS_MAP.scheduled;
 
-    const arrCode = (flight.arrival?.code || '').toUpperCase().trim();
-    const depCode = (flight.departure?.code || '').toUpperCase().trim();
-
-    if (destIata && arrCode === destIata) {
-      directionBadge = `<span class="badge-outbound" style="font-size: 9px; padding: 1px 6px;">Outbound</span>`;
-    } else if (destIata && depCode === destIata) {
-      directionBadge = `<span class="badge-return" style="font-size: 9px; padding: 1px 6px;">Return</span>`;
-    } else if (retIata && depCode === retIata) {
-      directionBadge = `<span class="badge-return" style="font-size: 9px; padding: 1px 6px;">Return</span>`;
-    }
+  if (isExpanded) {
+    return renderFlightCard(flight, participants, 0, null, true);
   }
 
+  let directionBadge = '';
   const depCode = flight.departure?.code || '???';
   const arrCode = flight.arrival?.code || '???';
 
   return `
-    <div class="flight-row-compact" data-flight-toggle-id="${flight.id}" style="--flight-person-color: ${personColor}; cursor: pointer;">
+    <div class="flight-row-compact" data-expand-flight="${flight.id}" style="--flight-person-color: ${personColor}; cursor: pointer;">
       <div class="flight-row-compact-inner">
         <span class="badge ${statusInfo.class}" style="font-size:10px; padding: 2px 6px;"><span class="live-dot"></span>${statusInfo.label}</span>
         
@@ -184,8 +208,8 @@ export function renderCompactFlightRow(flight, participants, index, trip) {
         </div>
 
         <div style="display:flex; align-items:center; gap: 2px; margin-left: 6px; flex-shrink: 0;">
-          <button class="btn btn-icon btn-ghost flight-refresh" data-flight-id="${flight.id}" data-flight-number="${flight.flightNumber}" data-flight-date="${flight.date || ''}" title="Refresh status" style="width:22px;height:22px;font-size:10px;padding:0;">${getIcon('refresh')}</button>
-          <button class="btn btn-icon btn-ghost flight-delete" data-flight-id="${flight.id}" title="Remove flight" style="width:22px;height:22px;color:var(--color-danger);font-size:10px;padding:0;">${getIcon('trash')}</button>
+          <button class="btn btn-icon btn-ghost flight-refresh" data-refresh-flight="${flight.id}" title="Refresh status" style="width:22px;height:22px;font-size:10px;padding:0;">${getIcon('refresh')}</button>
+          <button class="btn btn-icon btn-ghost flight-delete" data-delete-flight="${flight.id}" title="Remove flight" style="width:22px;height:22px;color:var(--color-danger);font-size:10px;padding:0;">${getIcon('trash')}</button>
         </div>
       </div>
     </div>
