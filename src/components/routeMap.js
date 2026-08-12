@@ -84,28 +84,26 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
 
   container.innerHTML = `
     <div class="route-map-hero-card">
-      <div id="hero-leaflet-map" style="width:100%; height:380px; border-radius: var(--radius-md); overflow:hidden; border: 1px solid var(--color-border); z-index:1; background:#090A0F; position:relative;"></div>
+      <div id="hero-leaflet-map" style="width:100%; height: var(--map-height, 340px); border-radius: var(--radius-md); overflow:hidden; border: 1px solid var(--color-border); z-index:1; background:#090A0F; position:relative;"></div>
     </div>
   `;
 
   const mapEl = container.querySelector('#hero-leaflet-map');
   if (!mapEl) return;
 
-  // Initialize Leaflet Map
+  // Set responsive map height variable
+  if (window.innerWidth < 640) {
+    mapEl.style.height = '260px';
+  } else {
+    mapEl.style.height = '360px';
+  }
+
+  // Initialize Leaflet Map with NO zoom controls
   const map = L.map(mapEl, {
     zoomControl: false,
-    attributionControl: false
+    attributionControl: false,
+    scrollWheelZoom: false
   }).setView([38, -96], 4);
-
-  activeLeafletMap = map;
-
-  // CartoDB Dark Matter @2x Retina Basemap
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}@2x.png', {
-    maxZoom: 19,
-    subdomains: 'abcd'
-  }).addTo(map);
-
-  L.control.zoom({ position: 'topright' }).addTo(map);
 
   const bounds = [];
   const airportMap = new Map();
@@ -199,7 +197,9 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
 
   if (bounds.length > 0) {
     try {
-      map.fitBounds(bounds, { padding: [50, 50], maxZoom: 7 });
+      const isMobile = window.innerWidth < 640;
+      const fitPadding = isMobile ? [24, 24] : [45, 45];
+      map.fitBounds(bounds, { padding: fitPadding, maxZoom: 6 });
     } catch (e) { }
   }
 
@@ -210,6 +210,10 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
   airportList.forEach((ap) => {
     pillOffsetsMap.set(ap.code, { dx: 0, dy: -20 });
   });
+
+  const isMobileScreen = window.innerWidth < 640;
+  const collisionThreshold = isMobileScreen ? 70 : 55;
+  const pushDistance = isMobileScreen ? 46 : 36;
 
   for (let i = 0; i < airportList.length; i++) {
     for (let j = i + 1; j < airportList.length; j++) {
@@ -223,9 +227,8 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
       const dy = ptB.y - ptA.y;
       const dist = Math.hypot(dx, dy);
 
-      if (dist < 50) {
+      if (dist < collisionThreshold) {
         const angle = Math.atan2(dy, dx);
-        const pushDistance = 32;
 
         pillOffsetsMap.set(apA.code, {
           dx: Math.round(-Math.cos(angle) * pushDistance),

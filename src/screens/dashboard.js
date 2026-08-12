@@ -243,7 +243,7 @@ export async function renderDashboard(container, tripId) {
           <div id="tracking-workspace" class="${activeMainTab === 'tracking' ? '' : 'hidden-tab'}">
             
             <!-- Person Filter Bar -->
-            <div class="chip-group mb-base" style="flex-wrap: wrap;">
+            <div class="chip-group mb-base">
               <div class="chip ${filterPerson === 'all' ? 'active' : ''}" data-person="all">
                 All Travelers (${currentTrip.participants.length})
               </div>
