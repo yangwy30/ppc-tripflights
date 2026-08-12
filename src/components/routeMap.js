@@ -1,6 +1,6 @@
 /* ============================================
-   PPC: Delay No More — Group Multi-Origin Flight Route Map Engine
-   Aero Precision Commercial Dark Canvas Renderer (Flighty Aesthetic)
+   PPC: Delay No More — Leaflet Dark Matter Flight Route Map Engine
+   Flighty Aesthetic with Real CartoDB Dark Basemap Tiles
    ============================================ */
 
 const PERSON_COLORS_HEX = [
@@ -8,7 +8,6 @@ const PERSON_COLORS_HEX = [
   '#A855F7', '#EC4899', '#38BDF8'
 ];
 
-// Comprehensive airport coordinates database (lat, lon)
 const AIRPORT_COORDS = {
   JFK: [40.6413, -73.7781],
   EWR: [40.6895, -74.1745],
@@ -59,12 +58,15 @@ const AIRPORT_COORDS = {
   BNE: [-27.3842, 153.1175]
 };
 
-let animReqId = null;
+let activeLeafletMap = null;
 
 export function renderRouteMap(container, flights = [], participants = [], trip = {}, activePersonFilter = 'all') {
-  if (animReqId) {
-    cancelAnimationFrame(animReqId);
-    animReqId = null;
+  // Clean up previous Leaflet instance if present
+  if (activeLeafletMap) {
+    try {
+      activeLeafletMap.remove();
+    } catch (e) { }
+    activeLeafletMap = null;
   }
 
   container.innerHTML = `
@@ -72,21 +74,18 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
       <div class="route-map-header">
         <div>
           <div style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; color: var(--color-text-tertiary);">
-            Group Flight Network Map
+            Interactive Flight Network Map (CartoDB Dark Basemap)
           </div>
           <div style="font-size: var(--font-size-md); font-weight: 800; color: var(--color-text-primary); letter-spacing: -0.03em; margin-top:2px;">
             ${flights.length} Active Route Arcs Converging
           </div>
         </div>
         <div style="font-size: var(--font-size-xs); color: var(--color-text-tertiary); font-family: var(--font-family-mono);">
-          Hover/Tap Arcs for Details
+          Pinch/Scroll to Zoom · Drag to Pan
         </div>
       </div>
 
-      <div class="canvas-container" style="position:relative; width:100%; height:380px; background:#07090E; border-radius: var(--radius-lg); overflow:hidden; border: 1px solid var(--color-border);">
-        <canvas id="route-canvas" style="width:100%; height:100%; display:block;"></canvas>
-        <div id="map-tooltip" class="map-tooltip hidden"></div>
-      </div>
+      <div id="leaflet-map" style="width:100%; height:420px; border-radius: var(--radius-lg); overflow:hidden; border: 1px solid var(--color-border); z-index:1;"></div>
 
       <!-- Map Legend Drawer -->
       <div class="route-map-legend">
@@ -100,259 +99,103 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
     </div>
   `;
 
-  const canvas = container.querySelector('#route-canvas');
-  const tooltip = container.querySelector('#map-tooltip');
-  if (!canvas) return;
-
-  const ctx = canvas.getContext('2d');
-  let width = 800, height = 380;
-  const dpr = window.devicePixelRatio || 1;
-
-  function resizeCanvas() {
-    const rect = canvas.getBoundingClientRect();
-    const w = rect.width || container.clientWidth || 800;
-    const h = rect.height || 380;
-    width = w * dpr;
-    height = h * dpr;
-    canvas.width = width;
-    canvas.height = height;
+  const mapEl = container.querySelector('#leaflet-map');
+  if (!mapEl || typeof L === 'undefined') {
+    if (mapEl) mapEl.innerHTML = `<div style="padding:20px; text-align:center; color:#94A3B8;">Loading Map Tiles...</div>`;
+    return;
   }
 
-  resizeCanvas();
+  // Initialize Leaflet Map
+  const map = L.map(mapEl, {
+    zoomControl: false,
+    attributionControl: false
+  }).setView([38, -96], 4);
 
-  // Determine bounding box of airports
-  let minLat = 90, maxLat = -90, minLon = 180, maxLon = -180;
-  let validPointCount = 0;
+  activeLeafletMap = map;
 
+  // Add CartoDB Dark Matter Basemap Tiles
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    maxZoom: 19,
+    subdomains: 'abcd'
+  }).addTo(map);
+
+  // Add Zoom Control at top right
+  L.control.zoom({ position: 'topright' }).addTo(map);
+
+  const bounds = [];
+  const airportMap = new Map();
+
+  // Draw Great Circle Arcs for Flights
   flights.forEach(f => {
-    const depCode = (f.departure?.code || '').toUpperCase().trim();
-    const arrCode = (f.arrival?.code || '').toUpperCase().trim();
-
-    if (AIRPORT_COORDS[depCode]) {
-      const [lat, lon] = AIRPORT_COORDS[depCode];
-      minLat = Math.min(minLat, lat); maxLat = Math.max(maxLat, lat);
-      minLon = Math.min(minLon, lon); maxLon = Math.max(maxLon, lon);
-      validPointCount++;
-    }
-    if (AIRPORT_COORDS[arrCode]) {
-      const [lat, lon] = AIRPORT_COORDS[arrCode];
-      minLat = Math.min(minLat, lat); maxLat = Math.max(maxLat, lat);
-      minLon = Math.min(minLon, lon); maxLon = Math.max(maxLon, lon);
-      validPointCount++;
-    }
-  });
-
-  // Strict Fallback Bounds if missing or invalid
-  if (validPointCount < 2 || maxLat <= minLat || maxLon <= minLon) {
-    minLat = 20; maxLat = 55;
-    minLon = -125; maxLon = 10;
-  } else {
-    const latSpan = Math.max(15, maxLat - minLat);
-    const lonSpan = Math.max(25, maxLon - minLon);
-    minLat -= latSpan * 0.25;
-    maxLat += latSpan * 0.25;
-    minLon -= lonSpan * 0.25;
-    maxLon += lonSpan * 0.25;
-  }
-
-  function project(lat, lon) {
-    const x = ((lon - minLon) / (maxLon - minLon)) * width;
-    const y = ((maxLat - lat) / (maxLat - minLat)) * height;
-    return {
-      x: isNaN(x) ? width / 2 : x,
-      y: isNaN(y) ? height / 2 : y
-    };
-  }
-
-  let progress = 0;
-  let hoverFlight = null;
-
-  // Prepare Route Objects
-  const routesList = flights.map(f => {
     const depCode = (f.departure?.code || 'JFK').toUpperCase().trim();
     const arrCode = (f.arrival?.code || 'LAX').toUpperCase().trim();
     const pIndex = participants.findIndex(p => p.name === f.addedBy);
     const color = PERSON_COLORS_HEX[pIndex >= 0 ? pIndex % 6 : 0];
+    const isFilteredOut = activePersonFilter !== 'all' && activePersonFilter !== f.addedBy;
 
     const startCoords = AIRPORT_COORDS[depCode] || [40.6413, -73.7781];
     const endCoords = AIRPORT_COORDS[arrCode] || [33.9416, -118.4085];
 
-    const p1 = project(startCoords[0], startCoords[1]);
-    const p2 = project(endCoords[0], endCoords[1]);
+    bounds.push(startCoords);
+    bounds.push(endCoords);
 
-    const midX = (p1.x + p2.x) / 2;
-    const midY = (p1.y + p2.y) / 2;
-    const dx = p2.x - p1.x;
-    const dy = p2.y - p1.y;
-    const dist = Math.hypot(dx, dy);
-    
-    const controlX = midX - dy * 0.25;
-    const controlY = midY + dx * 0.25 - Math.min(60 * dpr, dist * 0.2);
+    if (!airportMap.has(depCode)) airportMap.set(depCode, { coords: startCoords, people: [] });
+    if (!airportMap.has(arrCode)) airportMap.set(arrCode, { coords: endCoords, people: [] });
+    airportMap.get(depCode).people.push(f.addedBy);
 
-    return {
-      flight: f,
-      depCode,
-      arrCode,
-      p1,
-      p2,
-      controlX,
-      controlY,
-      color,
-      dist,
-      personName: f.addedBy
-    };
+    // Compute Great Circle Arc Points
+    const arcPoints = getGreatCircleArc(startCoords, endCoords, 60);
+
+    // Polyline
+    const polyline = L.polyline(arcPoints, {
+      color: color,
+      weight: isFilteredOut ? 1.5 : 3.5,
+      opacity: isFilteredOut ? 0.2 : 0.85,
+      lineCap: 'round'
+    }).addTo(map);
+
+    // Bind Tooltip
+    polyline.bindTooltip(`
+      <div style="font-weight:800; font-family:var(--font-family-mono); font-size:12px; color:#fff;">
+        ${escapeHtml(f.flightNumber)} · ${escapeHtml(depCode)} ➔ ${escapeHtml(arrCode)}
+      </div>
+      <div style="font-size:11px; color:#94A3B8; margin-top:2px;">
+        Traveler: <strong style="color:${color}">${escapeHtml(f.addedBy)}</strong>
+      </div>
+      <div style="font-size:10px; color:#64748B; margin-top:2px; font-family:var(--font-family-mono);">
+        ${escapeHtml(f.departure?.time || '')} ➔ ${escapeHtml(f.arrival?.time || '')}
+      </div>
+    `, { sticky: true, className: 'leaflet-dark-tooltip' });
   });
 
-  function draw() {
-    ctx.clearRect(0, 0, width, height);
+  // Add Airport Beacons with Avatar Pills
+  airportMap.forEach((data, code) => {
+    const { coords, people } = data;
+    const isFiltered = activePersonFilter !== 'all' && !people.includes(activePersonFilter);
+    const label = people.length > 0 ? `(${people[0]})` : '';
 
-    // 1. Draw Grid Lines
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
-    ctx.lineWidth = 1 * dpr;
-
-    for (let x = 0; x < width; x += 40 * dpr) {
-      ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, height);
-      ctx.stroke();
-    }
-    for (let y = 0; y < height; y += 40 * dpr) {
-      ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(width, y);
-      ctx.stroke();
-    }
-
-    progress = (progress + 0.005) % 1;
-
-    // 2. Draw Flight Arcs
-    routesList.forEach(route => {
-      const isFilteredOut = activePersonFilter !== 'all' && activePersonFilter !== route.personName;
-      const isHovered = hoverFlight === route.flight;
-      const alpha = isFilteredOut ? 0.15 : isHovered ? 1.0 : 0.75;
-      const lineWidth = (isHovered ? 4 : 2) * dpr;
-
-      ctx.save();
-      ctx.beginPath();
-      ctx.moveTo(route.p1.x, route.p1.y);
-      ctx.quadraticCurveTo(route.controlX, route.controlY, route.p2.x, route.p2.y);
-      
-      ctx.strokeStyle = route.color;
-      ctx.globalAlpha = alpha;
-      ctx.lineWidth = lineWidth;
-      ctx.shadowColor = route.color;
-      ctx.shadowBlur = (isHovered ? 16 : 6) * dpr;
-      ctx.stroke();
-      ctx.restore();
-
-      // 3. Draw Particle Comet Flow
-      if (!isFilteredOut) {
-        const t = (progress + (route.dist % 100) / 100) % 1;
-        const u = 1 - t;
-        const px = u * u * route.p1.x + 2 * u * t * route.controlX + t * t * route.p2.x;
-        const py = u * u * route.p1.y + 2 * u * t * route.controlY + t * t * route.p2.y;
-
-        ctx.save();
-        ctx.beginPath();
-        ctx.arc(px, py, (isHovered ? 5 : 3.5) * dpr, 0, Math.PI * 2);
-        ctx.fillStyle = '#ffffff';
-        ctx.shadowColor = route.color;
-        ctx.shadowBlur = 10 * dpr;
-        ctx.fill();
-        ctx.restore();
-      }
+    const customIcon = L.divIcon({
+      className: 'airport-beacon-marker',
+      html: `
+        <div style="display:flex; align-items:center; gap:4px; transform: translate(-50%, -50%);">
+          <div style="width:10px; height:10px; border-radius:50%; background:#0A84FF; box-shadow:0 0 10px #0A84FF; border:2px solid #fff;"></div>
+          <div style="font-size:10px; font-weight:800; font-family:var(--font-family-mono); color:${isFiltered ? '#64748B' : '#ffffff'}; text-shadow:0 1px 4px #000; white-space:nowrap;">
+            ${code} <span style="font-size:9px; font-weight:500; color:#94A3B8;">${label}</span>
+          </div>
+        </div>
+      `,
+      iconSize: [0, 0]
     });
 
-    // 4. Draw Airport Beacons & Avatar Labels
-    const airportMap = new Map();
-    routesList.forEach(route => {
-      if (!airportMap.has(route.depCode)) airportMap.set(route.depCode, { pt: route.p1, people: [] });
-      if (!airportMap.has(route.arrCode)) airportMap.set(route.arrCode, { pt: route.p2, people: [] });
+    L.marker(coords, { icon: customIcon }).addTo(map);
+  });
 
-      airportMap.get(route.depCode).people.push(route.personName);
-    });
-
-    airportMap.forEach((data, code) => {
-      const { pt, people } = data;
-      const isFiltered = activePersonFilter !== 'all' && !people.includes(activePersonFilter);
-
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(pt.x, pt.y, (7 + Math.sin(progress * 10) * 2) * dpr, 0, Math.PI * 2);
-      ctx.fillStyle = isFiltered ? 'rgba(255, 255, 255, 0.05)' : 'rgba(10, 132, 255, 0.2)';
-      ctx.fill();
-
-      ctx.beginPath();
-      ctx.arc(pt.x, pt.y, 4 * dpr, 0, Math.PI * 2);
-      ctx.fillStyle = isFiltered ? '#64748B' : '#0A84FF';
-      ctx.shadowColor = '#0A84FF';
-      ctx.shadowBlur = 8 * dpr;
-      ctx.fill();
-      ctx.restore();
-
-      ctx.save();
-      ctx.font = `bold ${10 * dpr}px "DIN Alternate", -apple-system, sans-serif`;
-      ctx.fillStyle = isFiltered ? 'rgba(255, 255, 255, 0.3)' : '#ffffff';
-      ctx.fillText(code, pt.x + 8 * dpr, pt.y - 4 * dpr);
-
-      if (people.length > 0 && !isFiltered) {
-        ctx.font = `500 ${9 * dpr}px -apple-system, sans-serif`;
-        ctx.fillStyle = '#94A3B8';
-        ctx.fillText(`(${people[0]})`, pt.x + 8 * dpr, pt.y + 8 * dpr);
-      }
-      ctx.restore();
-    });
-
-    animReqId = requestAnimationFrame(draw);
+  // Fit bounds if valid points exist
+  if (bounds.length > 0) {
+    try {
+      map.fitBounds(bounds, { padding: [40, 40], maxZoom: 8 });
+    } catch (e) { }
   }
-
-  draw();
-
-  // Mousemove Listener for Tooltip
-  canvas.addEventListener('mousemove', (e) => {
-    const rect = canvas.getBoundingClientRect();
-    const mx = (e.clientX - rect.left) * dpr;
-    const my = (e.clientY - rect.top) * dpr;
-
-    let found = null;
-
-    for (const route of routesList) {
-      const midX = (route.p1.x + route.p2.x) / 2;
-      const midY = (route.p1.y + route.p2.y) / 2;
-      const distToMid = Math.hypot(mx - midX, my - midY);
-
-      if (distToMid < 50 * dpr) {
-        found = route;
-        break;
-      }
-    }
-
-    if (found) {
-      hoverFlight = found.flight;
-      tooltip.classList.remove('hidden');
-      tooltip.style.left = `${e.clientX - rect.left + 15}px`;
-      tooltip.style.top = `${e.clientY - rect.top - 10}px`;
-      tooltip.innerHTML = `
-        <div style="font-weight:800; font-family:var(--font-family-mono); font-size:12px; color:#fff;">
-          ${escapeHtml(found.flight.flightNumber)} · ${escapeHtml(found.depCode)} ➔ ${escapeHtml(found.arrCode)}
-        </div>
-        <div style="font-size:11px; color:#94A3B8; margin-top:2px;">
-          Traveler: <strong style="color:${found.color}">${escapeHtml(found.personName)}</strong>
-        </div>
-        <div style="font-size:10px; color:#64748B; margin-top:2px; font-family:var(--font-family-mono);">
-          ${escapeHtml(found.flight.departure?.time || '')} ➔ ${escapeHtml(found.flight.arrival?.time || '')}
-        </div>
-      `;
-    } else {
-      hoverFlight = null;
-      tooltip.classList.add('hidden');
-    }
-  });
-
-  canvas.addEventListener('mouseleave', () => {
-    hoverFlight = null;
-    tooltip.classList.add('hidden');
-  });
 
   // Legend Filter Click Listener
   container.querySelectorAll('.legend-chip').forEach(chip => {
@@ -362,6 +205,40 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
       if (chipBtn) chipBtn.click();
     });
   });
+}
+
+/**
+ * Great Circle Arc Geodesic Interpolation
+ */
+function getGreatCircleArc(start, end, numPoints = 50) {
+  const lat1 = start[0] * Math.PI / 180;
+  const lon1 = start[1] * Math.PI / 180;
+  const lat2 = end[0] * Math.PI / 180;
+  const lon2 = end[1] * Math.PI / 180;
+
+  const d = 2 * Math.asin(Math.sqrt(
+    Math.pow(Math.sin((lat1 - lat2) / 2), 2) +
+    Math.cos(lat1) * Math.cos(lat2) * Math.pow(Math.sin((lon1 - lon2) / 2), 2)
+  ));
+
+  if (d === 0) return [start, end];
+
+  const points = [];
+  for (let i = 0; i <= numPoints; i++) {
+    const f = i / numPoints;
+    const A = Math.sin((1 - f) * d) / Math.sin(d);
+    const B = Math.sin(f * d) / Math.sin(d);
+
+    const x = A * Math.cos(lat1) * Math.cos(lon1) + B * Math.cos(lat2) * Math.cos(lon2);
+    const y = A * Math.cos(lat1) * Math.sin(lon1) + B * Math.cos(lat2) * Math.sin(lon2);
+    const z = A * Math.sin(lat1) + B * Math.sin(lat2);
+
+    const lat = Math.atan2(z, Math.sqrt(x * x + y * y)) * 180 / Math.PI;
+    const lon = Math.atan2(y, x) * 180 / Math.PI;
+
+    points.push([lat, lon]);
+  }
+  return points;
 }
 
 function escapeHtml(str) {

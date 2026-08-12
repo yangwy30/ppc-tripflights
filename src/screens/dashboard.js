@@ -1,5 +1,5 @@
 /* ============================================
-   PPC: Delay No More — Commercial SaaS Dashboard (Hero Embedded Insights + Avatar Popover + Route Map)
+   PPC: Delay No More — Commercial SaaS Dashboard (Hero Embedded Insights + Avatar Popover + Integrated Leaflet Route Map)
    ============================================ */
 
 import { getTrip, getUserNickname, deleteFlight, restoreFlight, deleteTrip, exportTripSummary, deleteParticipant } from '../data/dataAdapter.js';
@@ -28,9 +28,9 @@ const PERSON_COLORS_HEX = [
 export async function renderDashboard(container, tripId) {
   let filterPerson = 'all';
   let phaseFilter = 'all'; // 'all', 'outbound', 'return'
-  let activeTab = 'flights'; // 'flights', 'timeline', 'map'
+  let activeTab = 'flights'; // 'flights', 'timeline'
   let activeMainTab = 'tracking'; // 'tracking', 'coordination'
-  let viewMode = 'compact'; // 'compact' vs 'expanded'
+  let viewMode = 'compact'; // 'compact', 'expanded', 'map'
   let expandedFlightIds = new Set(); // Track expanded rows in compact mode
 
   const trip = await getTrip(tripId);
@@ -225,7 +225,7 @@ export async function renderDashboard(container, tripId) {
               `).join('')}
             </div>
 
-            <!-- Phase & View Sub-Tabs + View Mode Toggle -->
+            <!-- Phase Sub-Tabs + View Mode Toggle -->
             <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:var(--space-sm);" class="mb-base">
               <div class="tabs">
                 <button class="tab ${activeTab === 'flights' && phaseFilter === 'all' ? 'active' : ''}" data-tab="flights" data-phase="all">All (${currentTrip.flights.length})</button>
@@ -238,30 +238,28 @@ export async function renderDashboard(container, tripId) {
                 <button class="tab ${activeTab === 'timeline' ? 'active' : ''}" data-tab="timeline">
                   <span style="display:flex;">${getIcon('timeline')}</span> Timeline
                 </button>
-                <button class="tab ${activeTab === 'map' ? 'active' : ''}" data-tab="map">
-                  <span style="display:flex;">${getIcon('plane')}</span> Route Map
-                </button>
               </div>
 
-              ${activeTab === 'flights' ? `
-                <div class="tabs" style="padding: 2px;">
-                  <button class="tab ${viewMode === 'compact' ? 'active' : ''}" id="btn-view-compact" title="Compact Ticket Rows" style="padding: 4px 10px; font-size: 11px;">
-                    ☰ Compact
-                  </button>
-                  <button class="tab ${viewMode === 'expanded' ? 'active' : ''}" id="btn-view-expanded" title="Full Flight Cards" style="padding: 4px 10px; font-size: 11px;">
-                    🎴 Cards
-                  </button>
-                </div>
-              ` : ''}
+              <div class="tabs" style="padding: 2px;">
+                <button class="tab ${viewMode === 'compact' ? 'active' : ''}" id="btn-view-compact" title="Compact Ticket Rows" style="padding: 4px 10px; font-size: 11px;">
+                  ☰ Compact
+                </button>
+                <button class="tab ${viewMode === 'expanded' ? 'active' : ''}" id="btn-view-expanded" title="Full Flight Cards" style="padding: 4px 10px; font-size: 11px;">
+                  🎴 Cards
+                </button>
+                <button class="tab ${viewMode === 'map' ? 'active' : ''}" id="btn-view-map" title="Leaflet Dark Route Map" style="padding: 4px 10px; font-size: 11px;">
+                  🗺️ Route Map
+                </button>
+              </div>
             </div>
 
             <!-- Content Stream -->
             <div id="tab-content">
-              ${activeTab === 'flights' ? renderFlightsList(sortedFlights, currentTrip, viewMode, expandedFlightIds) : ''}
+              ${viewMode === 'map' ? '' : activeTab === 'flights' ? renderFlightsList(sortedFlights, currentTrip, viewMode, expandedFlightIds) : ''}
             </div>
 
             <!-- Full-Width Bottom Add Flight Button -->
-            ${activeTab === 'flights' ? `
+            ${activeTab === 'flights' && viewMode !== 'map' ? `
               <div style="margin-top: var(--space-lg);">
                 <button class="btn btn-primary" id="btn-add-flight-bottom" style="padding: 0.85rem var(--space-lg); font-size: var(--font-size-md);">
                   <span style="display:flex;">${getIcon('plus')}</span> Add Flight
@@ -284,12 +282,13 @@ export async function renderDashboard(container, tripId) {
       renderCoordinationTab(coordContainer, currentTrip);
     }
 
-    if (activeMainTab === 'tracking' && activeTab === 'timeline') {
-      const timelineContainer = container.querySelector('#tab-content');
-      renderTimeline(timelineContainer, currentTrip.flights, currentTrip.participants);
-    } else if (activeMainTab === 'tracking' && activeTab === 'map') {
-      const mapContainer = container.querySelector('#tab-content');
-      renderRouteMap(mapContainer, sortedFlights, currentTrip.participants, currentTrip, filterPerson);
+    if (activeMainTab === 'tracking') {
+      const tabContent = container.querySelector('#tab-content');
+      if (viewMode === 'map') {
+        renderRouteMap(tabContent, sortedFlights, currentTrip.participants, currentTrip, filterPerson);
+      } else if (activeTab === 'timeline') {
+        renderTimeline(tabContent, currentTrip.flights, currentTrip.participants);
+      }
     }
 
     // Avatar Popover Interactivity
@@ -325,6 +324,7 @@ export async function renderDashboard(container, tripId) {
     // View mode toggle handlers
     const btnCompact = container.querySelector('#btn-view-compact');
     const btnExpanded = container.querySelector('#btn-view-expanded');
+    const btnMap = container.querySelector('#btn-view-map');
 
     if (btnCompact) {
       btnCompact.addEventListener('click', () => {
@@ -336,6 +336,13 @@ export async function renderDashboard(container, tripId) {
     if (btnExpanded) {
       btnExpanded.addEventListener('click', () => {
         viewMode = 'expanded';
+        render();
+      });
+    }
+
+    if (btnMap) {
+      btnMap.addEventListener('click', () => {
+        viewMode = 'map';
         render();
       });
     }
@@ -416,8 +423,8 @@ export async function renderDashboard(container, tripId) {
         const targetPhase = tab.dataset.phase;
 
         if (targetPhase) {
-          activeTab = 'flights';
           phaseFilter = targetPhase;
+          activeTab = 'flights';
         } else {
           activeTab = targetTab;
         }
