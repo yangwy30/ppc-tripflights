@@ -1,7 +1,4 @@
-/* ============================================
-   Flight Search API
-   Priority: SerpAPI (Google Flights) → Amadeus → Mock
-   ============================================ */
+/* Flight Search API */
 
 // --- SerpAPI Credentials (from .env) ---
 const SERPAPI_KEY = import.meta?.env?.VITE_SERPAPI_KEY || '';
@@ -78,9 +75,9 @@ export async function searchFlights(originIata, destinationIata, outboundDate, r
     return results;
 }
 
-// =============================================
+// ---
 //  SerpAPI (Google Flights) via Supabase Edge Function
-// =============================================
+// ---
 
 const SUPABASE_URL = import.meta?.env?.VITE_SUPABASE_URL || '';
 
@@ -181,9 +178,9 @@ function _mapSerpApiResponse(flightGroups, requestedOrigin, requestedDest, date)
     }).filter(Boolean); // Return all valid flights
 }
 
-// =============================================
+// ---
 //  Amadeus API Implementation
-// =============================================
+// ---
 
 /**
  * Authenticate with Amadeus using OAuth2 Client Credentials flow.
@@ -380,9 +377,9 @@ function _parseIsoDuration(isoDuration) {
     return `${hours}h ${minutes}m`;
 }
 
-// =============================================
+// ---
 //  Mock Fallback Implementation
-// =============================================
+// ---
 
 /**
  * Mock flight search using static data.

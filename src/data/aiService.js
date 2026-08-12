@@ -1,8 +1,4 @@
-/* ============================================
-   AI Concierge Service
-   Uses Gemini API to summarize grouped flight
-   options for group travel coordination.
-   ============================================ */
+/* AI Concierge Service */
 
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${GEMINI_API_KEY}`;

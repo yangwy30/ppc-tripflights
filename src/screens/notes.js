@@ -1,7 +1,4 @@
-/* ============================================
-   Notes screen
-   Features: Real-time Pub/Sub Event Subscription
-   ============================================ */
+/* Notes screen */
 
 import { getTrip, getUserNickname, addNote, deleteNote, exportTripSummary } from '../data/dataAdapter.js';
 import { subscribe, EVENTS } from '../data/store.js';

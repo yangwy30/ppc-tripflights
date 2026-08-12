@@ -1,9 +1,4 @@
-/* ============================================
-   Alert Service
-   
-   Auto-refreshes flight status every 15 minutes
-   and sends browser notifications for delays.
-   ============================================ */
+/* Alert Service */
 
 import { savePushSubscription, getUserNickname } from './dataAdapter.js';
 import { emit, EVENTS } from './store.js';

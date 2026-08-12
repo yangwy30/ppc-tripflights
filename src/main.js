@@ -1,6 +1,4 @@
-/* ============================================
-   Main entry point
-   ============================================ */
+/* Main entry point */
 
 import './styles/index.css';
 import './styles/components.css';

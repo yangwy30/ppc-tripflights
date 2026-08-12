@@ -1,12 +1,4 @@
-/* ============================================
-   Flight Lookup Service
-   
-   Uses AeroDataBox API via RapidAPI for real
-   flight lookups, with mock data fallback.
-   
-   Returns ALL route options when a flight number
-   has multiple routes (e.g. DL665).
-   ============================================ */
+/* Flight Lookup Service */
 
 // --- AeroDataBox Configuration ---
 const RAPIDAPI_KEY = import.meta?.env?.VITE_RAPIDAPI_KEY || '';

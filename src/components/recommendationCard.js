@@ -1,7 +1,4 @@
-/* ============================================
-   Recommendation Card
-   Renders a beautiful grouped flight option
-   ============================================ */
+/* Recommendation Card */
 
 /**
  * Renders a single grouped option containing multiple flights.

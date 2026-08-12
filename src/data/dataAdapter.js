@@ -1,13 +1,4 @@
-/* ============================================
-   Data Adapter (Supabase)
-   
-   Multi-user backend replacing localStorage.
-   Same exported interface as the original — all
-   functions are now async.
-   
-   userNicknames still use localStorage (they are
-   per-device preferences, not shared data).
-   ============================================ */
+/* Data Adapter (Supabase) */
 
 import { supabase } from './supabaseClient.js';
 import { emit, EVENTS } from './store.js';

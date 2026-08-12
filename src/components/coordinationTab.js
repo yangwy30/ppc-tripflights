@@ -1,7 +1,4 @@
-/* ============================================
-   Coordination Tab
-   The UI for the Phase 3 Flight Coordination Engine
-   ============================================ */
+/* Coordination Tab */
 
 import { generateGroupOptions } from '../data/coordinationEngine.js';
 import { generateConciergeSummary } from '../data/aiService.js';

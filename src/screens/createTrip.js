@@ -1,6 +1,4 @@
-/* ============================================
-   Create Trip screen
-   ============================================ */
+/* Create Trip screen */
 
 import { createTrip } from '../data/dataAdapter.js';
 import { emit, EVENTS } from '../data/store.js';

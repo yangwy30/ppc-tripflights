@@ -1,8 +1,6 @@
-/* ============================================
-   Component Styles
-   ============================================ */
+/* Component Styles */
 
-/* --- Screen Container --- */
+/* Screen Container */
 .screen {
     padding: var(--space-lg) 0;
     padding-bottom: calc(var(--space-3xl) + var(--safe-area-bottom));
@@ -23,7 +21,7 @@
     font-size: var(--font-size-base);
 }
 
-/* --- Card --- */
+/* Card */
 .card {
     background: var(--color-surface);
     border-radius: var(--radius-lg);
@@ -42,7 +40,7 @@
     padding: var(--space-base);
 }
 
-/* --- Leaflet Real Dark Map & Hero Component --- */
+/* Leaflet Real Dark Map & Hero Component */
 .route-map-hero-card {
     background: var(--color-surface);
     border: 1px solid var(--color-border);
@@ -179,7 +177,7 @@
     border-radius: 50%;
 }
 
-/* --- Hero Embedded Insights Card --- */
+/* Hero Embedded Insights Card */
 .hero-insights-card {
     background: rgba(15, 23, 42, 0.85);
     border: 1px solid var(--color-border);
@@ -197,7 +195,7 @@
     border-color: rgba(255, 255, 255, 0.2);
 }
 
-/* --- Hero PIN Pill --- */
+/* Hero PIN Pill */
 .hero-pin-pill {
     display: inline-flex;
     align-items: center;
@@ -245,7 +243,7 @@
     color: var(--color-text-primary);
 }
 
-/* --- Overlapping Avatar Group & Popover --- */
+/* Overlapping Avatar Group & Popover */
 .avatar-group-wrapper {
     position: relative;
     display: inline-block;
@@ -347,7 +345,7 @@
     background: rgba(255, 255, 255, 0.08);
 }
 
-/* --- Button --- */
+/* Button */
 .btn {
     display: inline-flex;
     align-items: center;
@@ -426,7 +424,7 @@
     font-size: var(--font-size-md);
 }
 
-/* --- Input --- */
+/* Input */
 .input-group {
     margin-bottom: var(--space-base);
 }
@@ -480,7 +478,7 @@
     flex-shrink: 0;
 }
 
-/* --- Badge & Live Indicator Dots --- */
+/* Badge & Live Indicator Dots */
 .badge {
     display: inline-flex;
     align-items: center;
@@ -567,7 +565,7 @@
     font-family: var(--font-family-mono);
 }
 
-/* --- Dashboard Segmented Tabs Control --- */
+/* Dashboard Segmented Tabs Control */
 .tabs {
     display: inline-flex;
     align-items: center;
@@ -610,7 +608,7 @@
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
 }
 
-/* --- Commercial Flight Card (Expanded) --- */
+
 .flight-card {
     background: var(--color-surface);
     border: 1px solid var(--color-border);
@@ -740,7 +738,7 @@
     border-radius: 50%;
 }
 
-/* --- Compact 48px Ticket Row --- */
+/* Compact 48px Ticket Row */
 .flight-row-compact {
     background: var(--color-surface);
     border: 1px solid var(--color-border);
@@ -775,7 +773,7 @@
     min-height: 48px;
 }
 
-/* --- Timeline Component (Fixed Layout) --- */
+/* Timeline Component (Fixed Layout) */
 .tl-wrapper {
     background: var(--color-surface);
     border: 1px solid var(--color-border);
@@ -939,7 +937,7 @@
     text-overflow: ellipsis;
 }
 
-/* --- Modals --- */
+/* Modals */
 .modal-overlay {
     position: fixed;
     top: 0;
@@ -966,7 +964,7 @@
     backdrop-filter: var(--glass-blur);
 }
 
-/* --- Toast --- */
+/* Toast */
 .toast-container {
     position: fixed;
     bottom: var(--space-xl);

@@ -1,6 +1,4 @@
-/* ============================================
-   Home screen
-   ============================================ */
+/* Home screen */
 
 import { getAllTrips } from '../data/dataAdapter.js';
 import { navigate } from '../app.js';

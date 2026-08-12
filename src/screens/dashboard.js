@@ -1,7 +1,4 @@
-/* ============================================
-   Dashboard screen
-   Features: Hero Route Map, Three-Segment Tab Stream [Outbound ➔ Return ➔ Timeline]
-   ============================================ */
+/* Dashboard screen */
 
 import { getTrip, updateFlightStatus, getUserNickname, deleteParticipant, deleteFlight } from '../data/dataAdapter.js';
 import { subscribe, EVENTS } from '../data/store.js';

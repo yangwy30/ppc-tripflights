@@ -1,6 +1,4 @@
-/* ============================================
-   App Router (hash-based SPA)
-   ============================================ */
+/* App Router (hash-based SPA) */
 
 import { subscribe, EVENTS } from './data/store.js';
 import { renderHome } from './screens/home.js';

@@ -1,6 +1,4 @@
-/* ============================================
-   Add Flight screen
-   ============================================ */
+/* Add Flight screen */
 
 import { addFlight, getTrip, getUserNickname, addParticipant } from '../data/dataAdapter.js';
 import { emit, EVENTS } from '../data/store.js';

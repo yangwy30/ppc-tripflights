@@ -1,6 +1,4 @@
-/* ============================================
-   Join Trip screen
-   ============================================ */
+/* Join Trip screen */
 
 import { joinTrip, updateParticipantDestination } from '../data/dataAdapter.js';
 import { emit, EVENTS } from '../data/store.js';

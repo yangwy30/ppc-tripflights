@@ -1,7 +1,4 @@
-/* ============================================
-   Timeline Engine
-   Fixed: Elimination of outer row container box ("box-in-a-box" artifact) + Unified Flight Card
-   ============================================ */
+/* Timeline Engine */
 
 import { getIcon } from './icons.js';
 

@@ -1,7 +1,4 @@
-/* ============================================
-   Flight Card Component
-   Dynamic Time-Based Flight Status Resolver (Landed / In-Air / Scheduled / Delayed)
-   ============================================ */
+/* Flight Card Component */
 
 import { getIcon } from './icons.js';
 

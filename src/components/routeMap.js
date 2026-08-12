@@ -1,7 +1,4 @@
-/* ============================================
-   Route Map Engine
-   Fix: DOM Cache in 60fps Animation Loop + Clean Map Destroy Hook
-   ============================================ */
+/* Route Map Engine */
 
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';

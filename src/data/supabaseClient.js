@@ -1,8 +1,4 @@
-/* ============================================
-   Supabase Client
-   
-   Reads credentials from Vite environment vars.
-   ============================================ */
+/* Supabase Client */
 
 import { createClient } from '@supabase/supabase-js';
 

@@ -1,6 +1,4 @@
-/* ============================================
-   Toast Notification System
-   ============================================ */
+/* Toast Notification System */
 
 const STATUS_ICONS = {
     success: '✓',

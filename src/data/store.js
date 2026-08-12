@@ -1,6 +1,4 @@
-/* ============================================
-   Reactive Store (pub/sub)
-   ============================================ */
+/* Reactive Store (pub/sub) */
 
 const listeners = new Map();
 
