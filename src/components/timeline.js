@@ -1,6 +1,6 @@
 /* ============================================
-   PPC: Delay No More — Pure Local Wall-Clock Time Timeline Component
-   Zero Timezone Conversions: Bar Starts at Local Dep Time, Ends at Local Arr Time
+   PPC: Delay No More — Precision Pixel-Aligned Timeline Component
+   Fixed: Date Header 100px Spacer Offset Bug & Pure Local Time Grid Alignment
    ============================================ */
 
 import { getIcon } from './icons.js';
@@ -66,7 +66,7 @@ export function renderTimeline(container, tripOrFlights, participantsOrFilter, f
 
   const totalDays = dateList.length;
   const dayWidthPx = Math.max(260, totalDays <= 2 ? 380 : 280);
-  const totalWidthPx = `${totalDays * dayWidthPx}px`;
+  const totalWidthPx = `${totalDays * dayWidthPx + 110}px`; // 110px label offset + grid width
 
   // Group flights by person
   const personFlights = {};
@@ -89,21 +89,23 @@ export function renderTimeline(container, tripOrFlights, participantsOrFilter, f
       </div>
     `;
   });
-  html += '<div class="tl-legend-hint">↔ Scroll timeline · All times in Local Wall-Clock Times</div>';
+  html += '<div class="tl-legend-hint">↔ Scroll timeline · Times in Local Wall-Clock Times</div>';
   html += '</div>';
 
   // Scrollable container
   html += `<div class="tl-scroll">`;
   html += `<div class="tl-canvas" style="min-width: ${totalWidthPx}; position: relative;">`;
 
-  // Date Headers with 6-hour markers cleanly underneath
-  html += '<div class="tl-date-row">';
+  // Date Header Row with 110px Label Spacer Alignment!
+  html += '<div class="tl-date-row" style="display: flex; align-items: center; border-bottom: 1px solid var(--color-border); margin-bottom: var(--space-md);">';
+  html += '<div style="width: 110px; flex-shrink: 0; padding: 4px 8px; font-size: 11px; font-weight: 700; color: var(--color-text-tertiary);">TRAVELERS</div>';
+  html += '<div style="flex: 1; display: flex;">';
   dateList.forEach((date) => {
     const widthPct = (100 / totalDays);
     html += `
-      <div class="tl-date-cell" style="width:${widthPct}%;">
-        <div class="tl-date-label">${formatDateShort(date)}</div>
-        <div class="tl-hour-subrow">
+      <div class="tl-date-cell" style="width:${widthPct}%; border-right: 1px dashed var(--color-border-light); padding: 4px 6px;">
+        <div class="tl-date-label" style="font-size: var(--font-size-xs); font-weight: 700; color: var(--color-text-primary); font-family: var(--font-family-mono); text-align: center;">${formatDateShort(date)}</div>
+        <div class="tl-hour-subrow" style="display: flex; justify-content: space-between; font-size: 9px; color: var(--color-text-tertiary); font-family: var(--font-family-mono); margin-top: 4px; opacity: 0.8;">
           <span>00:00</span>
           <span>06:00</span>
           <span>12:00</span>
@@ -112,32 +114,32 @@ export function renderTimeline(container, tripOrFlights, participantsOrFilter, f
       </div>
     `;
   });
-  html += '</div>';
+  html += '</div></div>'; // end inner flex & date-row
 
-  // Background Grid Lines
-  html += '<div class="tl-grid">';
+  // Background Grid Lines layer (Offset 110px from left)
+  html += '<div class="tl-grid" style="position: absolute; top: 40px; left: 110px; right: 0; bottom: 0; pointer-events: none;">';
   dateList.forEach((date, dayIdx) => {
     const dayStartPct = (dayIdx / totalDays) * 100;
     const dayWidthPct = 100 / totalDays;
     for (let h = 0; h <= 24; h += 6) {
       const xPct = dayStartPct + (h / 24) * dayWidthPct;
-      html += `<div class="tl-grid-line" style="left:${xPct}%;"></div>`;
+      html += `<div class="tl-grid-line" style="position: absolute; top: 0; bottom: 0; width: 1px; background: rgba(255, 255, 255, 0.05); left:${xPct}%;"></div>`;
     }
   });
   html += '</div>';
 
-  // Person rows (Pure Local Wall-Clock Times)
+  // Person Rows Layer (110px label + flex:1 bars container)
   participants.forEach((person, personIdx) => {
     const color = PERSON_COLORS_HEX[personIdx % 6];
     const pFlights = personFlights[person.name] || [];
     if (pFlights.length === 0) return;
 
-    html += `<div class="tl-person-row" style="height: 48px; margin-bottom: 10px;">`;
-    html += `<div class="tl-person-label" style="width: 100px;">
-      <span class="tl-person-dot" style="background:${color};"></span>
-      <span style="overflow:hidden; text-overflow:ellipsis; font-weight:700;">${escapeHtml(person.name)}</span>
+    html += `<div class="tl-person-row" style="display: flex; align-items: center; height: 48px; margin-bottom: 10px; position: relative; z-index: 2;">`;
+    html += `<div class="tl-person-label" style="width: 110px; flex-shrink: 0; font-size: var(--font-size-xs); font-weight: 700; color: var(--color-text-primary); display: flex; align-items: center; gap: 6px; padding-right: 8px;">
+      <span class="tl-person-dot" style="width: 8px; height: 8px; border-radius: 50%; background:${color}; flex-shrink: 0;"></span>
+      <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(person.name)}</span>
     </div>`;
-    html += `<div class="tl-person-bars" style="height: 42px;">`;
+    html += `<div class="tl-person-bars" style="flex: 1; position: relative; height: 42px; background: rgba(255, 255, 255, 0.02); border-radius: var(--radius-sm); border: 1px solid var(--color-border-light);">`;
 
     pFlights.forEach((flight) => {
       const depTimeStr = flight.departure?.time || '00:00';
@@ -167,6 +169,8 @@ export function renderTimeline(container, tripOrFlights, participantsOrFilter, f
 
       html += `
         <div class="tl-bar" data-flight="${flightData}" style="
+          position: absolute;
+          top: 3px;
           left: ${startPct}%;
           width: ${widthPct}%;
           min-width: 115px;
@@ -177,14 +181,16 @@ export function renderTimeline(container, tripOrFlights, participantsOrFilter, f
           display: flex;
           align-items: center;
           justify-content: space-between;
-          box-shadow: 0 4px 12px rgba(0,0,0,0.4);
-          z-index: 5;
+          box-shadow: 0 4px 14px rgba(0,0,0,0.5);
+          cursor: pointer;
+          z-index: 10;
+          transition: transform var(--transition-fast);
         ">
           <div style="display:flex; flex-direction:column; overflow:hidden; line-height:1.2;">
             <div style="font-weight:900; font-family:var(--font-family-mono); font-size:11px; color:#ffffff; white-space:nowrap;">
               ${escapeHtml(fn)}
             </div>
-            <div style="font-size:9px; color:rgba(255,255,255,0.85); font-family:var(--font-family-mono); white-space:nowrap;">
+            <div style="font-size:9px; color:rgba(255,255,255,0.9); font-family:var(--font-family-mono); white-space:nowrap;">
               ${escapeHtml(depCode)} (${escapeHtml(depTimeStr)}) ➔ ${escapeHtml(arrCode)} (${escapeHtml(arrTimeStr)})
             </div>
           </div>
