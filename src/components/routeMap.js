@@ -1,6 +1,6 @@
 /* ============================================
    PPC: Delay No More — Professional Clean Route Map Engine
-   Zero Emoji Badges + Constant Speed Smooth Arrow Motion (Zero Jitter)
+   Fix: Accurate Curve Tangent Vectors + Endpoint Smooth Alpha Fade
    ============================================ */
 
 import L from 'leaflet';
@@ -336,14 +336,14 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
     `, { sticky: true, className: 'leaflet-dark-tooltip' });
   });
 
-  // CONSTANT VELOCITY SMOOTH ARROW MARKERS (▶) - ZERO JITTER
+  // CONSTANT VELOCITY SMOOTH ARROW MARKERS (▶) WITH ACCURATE TANGENTS & ENDPOINT ALPHA FADE
   if (phaseName !== 'all' && activeCorridors.length > 0) {
     const flowMarkers = [];
     activeCorridors.forEach(corridor => {
       const icon = L.divIcon({
         className: 'flow-arrow-marker',
         html: `
-          <div class="arrow-wrapper" style="position:relative; width:16px; height:16px; display:flex; align-items:center; justify-content:center;">
+          <div class="arrow-wrapper" style="position:relative; width:16px; height:16px; display:flex; align-items:center; justify-content:center; opacity:0; transition: opacity 0.15s ease-out;">
             <span class="arrow-inner" style="display:inline-block; color:${corridor.color}; font-size:11px; font-weight:900; line-height:1; filter:drop-shadow(0 0 6px ${corridor.color}); transform-origin: center center;">
               ▶
             </span>
@@ -362,24 +362,24 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
 
     let globalTime = 0;
     function animateFlow() {
-      globalTime += 0.016; // 60fps time delta in seconds
+      globalTime += 0.016;
 
       flowMarkers.forEach((item, idx) => {
         const pts = item.points;
         if (!pts || pts.length < 2) return;
 
         const totalPts = pts.length;
-
-        // Distance-normalized velocity: 400 km per second constant travel rate
         const travelRate = 400; // km/sec
-        const cycleDuration = Math.max(2.5, item.distKm / travelRate); // Seconds for 1 full trip
+        const cycleDuration = Math.max(2.5, item.distKm / travelRate);
         const offsetProgress = ((globalTime / cycleDuration) + (idx * 0.35)) % 1;
 
         // Sub-pixel continuous LERP coordinate calculation
         const exactIndex = offsetProgress * (totalPts - 1);
-        const i1 = Math.floor(exactIndex);
-        const i2 = Math.min(totalPts - 1, i1 + 1);
-        const weight = exactIndex - i1;
+
+        // ALWAYS pick two distinct points along the curve for accurate non-zero tangent calculation!
+        const i1 = Math.min(totalPts - 2, Math.floor(exactIndex));
+        const i2 = i1 + 1;
+        const weight = exactIndex - Math.floor(exactIndex);
 
         const lat1 = pts[i1][0], lon1 = pts[i1][1];
         const lat2 = pts[i2][0], lon2 = pts[i2][1];
@@ -389,14 +389,24 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
 
         item.marker.setLatLng([currentLat, currentLon]);
 
-        // Compute Angle Vector for Arrow Rotation
+        // Compute Tangent Vector Angle (pt1 != pt2 guaranteed!)
         const pt1 = map.latLngToContainerPoint(pts[i1]);
         const pt2 = map.latLngToContainerPoint(pts[i2]);
         const angle = Math.atan2(pt2.y - pt1.y, pt2.x - pt1.x) * (180 / Math.PI);
 
-        // Rotate ONLY the inner span element to leave Leaflet container transform untouched! (Fixes 100% jitter!)
+        // Smooth Alpha Fade near endpoints (Fade-in on takeoff <0.08, Fade-out on landing >0.92)
+        let alpha = 1.0;
+        if (offsetProgress < 0.08) {
+          alpha = offsetProgress / 0.08;
+        } else if (offsetProgress > 0.92) {
+          alpha = (1.0 - offsetProgress) / 0.08;
+        }
+
         const el = item.marker.getElement();
         if (el) {
+          const wrapper = el.querySelector('.arrow-wrapper');
+          if (wrapper) wrapper.style.opacity = alpha.toFixed(2);
+
           const innerSpan = el.querySelector('.arrow-inner');
           if (innerSpan) {
             innerSpan.style.transform = `rotate(${angle}deg)`;
