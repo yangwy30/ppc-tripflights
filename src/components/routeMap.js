@@ -1,6 +1,5 @@
 /* ============================================
-   PPC: Delay No More — Pure Flighty Aesthetic Route Map Engine
-   Clean Glowing Arcs + Metro De-duplicated Pins + Zero Mid-Line Clutter
+   PPC: Delay No More — Flighty Unified Airport Pin & Dynamic Arc Map Engine
    ============================================ */
 
 import L from 'leaflet';
@@ -61,16 +60,6 @@ const AIRPORT_COORDS = {
   BNE: [-27.3842, 153.1175]
 };
 
-// Known Metro Area Offsets so close airports (EWR/JFK or SFO/SJC) never collide
-const AIRPORT_LABEL_OFFSETS = {
-  EWR: { dx: -18, dy: -18 },
-  JFK: { dx: 18, dy: 18 },
-  LGA: { dx: 0, dy: -24 },
-  SFO: { dx: -15, dy: -15 },
-  SJC: { dx: 15, dy: 15 },
-  OAK: { dx: 0, dy: -20 }
-};
-
 let activeLeafletMap = null;
 
 export function renderRouteMap(container, flights = [], participants = [], trip = {}, activePersonFilter = 'all', phaseName = 'All') {
@@ -81,7 +70,7 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
     activeLeafletMap = null;
   }
 
-  const phaseTitle = phaseName === 'outbound' ? '🛫 Outbound Flight Network' : phaseName === 'return' ? '🛬 Return Flight Network' : '🗺️ Flight Network';
+  const phaseTitle = phaseName === 'outbound' ? '🛫 Outbound Network' : phaseName === 'return' ? '🛬 Return Network' : '🗺️ Flight Network';
 
   container.innerHTML = `
     <div class="route-map-hero-card">
@@ -120,13 +109,14 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
     subdomains: 'abcd'
   }).addTo(map);
 
-  // Add Zoom Control at top right
   L.control.zoom({ position: 'topright' }).addTo(map);
 
   const bounds = [];
   const airportMap = new Map();
 
-  // Draw Clean Glowing Arcs for Every Flight
+  // Track flight counts per route pair for subtle arc offsets
+  const routePairCounts = new Map();
+
   flights.forEach(f => {
     const depCode = (f.departure?.code || 'JFK').toUpperCase().trim();
     const arrCode = (f.arrival?.code || 'LAX').toUpperCase().trim();
@@ -140,25 +130,32 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
     bounds.push(startCoords);
     bounds.push(endCoords);
 
-    // Track airports and travelers
-    if (!airportMap.has(depCode)) airportMap.set(depCode, { code: depCode, coords: startCoords, travelers: new Map() });
-    if (!airportMap.has(arrCode)) airportMap.set(arrCode, { code: arrCode, coords: endCoords, travelers: new Map() });
-    
-    airportMap.get(depCode).travelers.set(f.addedBy, color);
-    airportMap.get(arrCode).travelers.set(f.addedBy, color);
+    // Track airports and traveler details
+    if (!airportMap.has(depCode)) airportMap.set(depCode, { code: depCode, coords: startCoords, departures: [], arrivals: [] });
+    if (!airportMap.has(arrCode)) airportMap.set(arrCode, { code: arrCode, coords: endCoords, departures: [], arrivals: [] });
 
-    // Compute Great Circle Arc Points
-    const arcPoints = getGreatCircleArc(startCoords, endCoords, 60);
+    airportMap.get(depCode).departures.push({ name: f.addedBy, color, flight: f });
+    airportMap.get(arrCode).arrivals.push({ name: f.addedBy, color, flight: f });
 
-    // Draw Sleek Glowing Polyline (No Floating Middle Pills!)
+    // Compute route pair count for curvature variation
+    const pairKey = [depCode, arrCode].sort().join('-');
+    const pairIdx = routePairCounts.get(pairKey) || 0;
+    routePairCounts.set(pairKey, pairIdx + 1);
+
+    // Dynamic Arc Curvature based on dep airport code & pair index
+    const arcHeightFactor = depCode === 'EWR' ? 0.22 : depCode === 'JFK' ? 0.12 : 0.16 + (pairIdx * 0.05);
+
+    const arcPoints = getGreatCircleArcOffset(startCoords, endCoords, 60, arcHeightFactor);
+
+    // Draw Sleek Polyline Arc
     const polyline = L.polyline(arcPoints, {
       color: color,
-      weight: isFilteredOut ? 1.5 : 3.5,
+      weight: isFilteredOut ? 1.5 : 3,
       opacity: isFilteredOut ? 0.2 : 0.85,
       lineCap: 'round'
     }).addTo(map);
 
-    // Bind Sleek Glass Tooltip on Line Hover
+    // Tooltip on Hover
     polyline.bindTooltip(`
       <div style="padding: 4px 6px;">
         <div style="font-weight:800; font-family:var(--font-family-mono); font-size:12px; color:#fff; display:flex; align-items:center; gap:8px;">
@@ -172,29 +169,39 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
     `, { sticky: true, className: 'leaflet-dark-tooltip' });
   });
 
-  // Render Clean Airport Pins with De-duplicated Label Offsets
+  // Render UNIFIED Single Pill Pins at Airport Locations
   airportMap.forEach((data, code) => {
-    const { coords, travelers } = data;
-    const travelerEntries = Array.from(travelers.entries());
-    const isFiltered = activePersonFilter !== 'all' && !travelers.has(activePersonFilter);
-    const offset = AIRPORT_LABEL_OFFSETS[code] || { dx: 0, dy: -16 };
+    const { coords, departures, arrivals } = data;
+    const allTravelers = [...departures, ...arrivals];
+    const isFiltered = activePersonFilter !== 'all' && !allTravelers.some(t => t.name === activePersonFilter);
 
-    const avatarDotsHtml = travelerEntries.slice(0, 3).map(([name, color]) => `
-      <span style="width:7px; height:7px; border-radius:50%; background:${color}; display:inline-block; border:1px solid #0F172A;" title="${escapeHtml(name)}"></span>
+    // Distinct traveler initials for clean badges
+    const uniqueTravelers = [];
+    const seenNames = new Set();
+    allTravelers.forEach(t => {
+      if (!seenNames.has(t.name)) {
+        seenNames.add(t.name);
+        uniqueTravelers.push(t);
+      }
+    });
+
+    const avatarStackHtml = uniqueTravelers.slice(0, 3).map(t => `
+      <span style="width:16px; height:16px; border-radius:50%; background:${t.color}; display:inline-flex; align-items:center; justify-content:center; font-size:8px; font-weight:700; color:#fff; border:1px solid #0F172A; margin-left:-4px;">
+        ${escapeHtml(t.name.charAt(0).toUpperCase())}
+      </span>
     `).join('');
 
     const customIcon = L.divIcon({
-      className: 'airport-pin-marker',
+      className: 'airport-unified-pill-marker',
       html: `
-        <div style="position:relative; cursor:pointer; opacity:${isFiltered ? 0.35 : 1};">
-          <!-- Beacon Pulse Dot -->
-          <div style="width:10px; height:10px; border-radius:50%; background:#0A84FF; box-shadow:0 0 10px #0A84FF; border:2px solid #ffffff; transform:translate(-50%, -50%);"></div>
-          
-          <!-- Offset Badge Label -->
-          <div style="position:absolute; left:${offset.dx}px; top:${offset.dy}px; transform:translate(-50%, -50%); display:flex; align-items:center; gap:4px; background:rgba(15,23,42,0.92); border:1px solid rgba(255,255,255,0.18); border-radius:4px; padding:2px 6px; backdrop-filter:blur(8px); box-shadow:0 4px 12px rgba(0,0,0,0.6); white-space:nowrap;">
-            <span style="font-size:10px; font-weight:800; font-family:var(--font-family-mono); color:#ffffff;">${code}</span>
-            <div style="display:flex; align-items:center; gap:2px;">${avatarDotsHtml}</div>
-          </div>
+        <div style="display:inline-flex; align-items:center; gap:5px; background:rgba(15,23,42,0.92); border:1px solid rgba(255,255,255,0.2); border-radius:12px; padding:3px 8px; backdrop-filter:blur(8px); box-shadow:0 4px 15px rgba(0,0,0,0.6); transform:translate(-50%, -50%); cursor:pointer; opacity:${isFiltered ? 0.35 : 1};">
+          <span style="width:6px; height:6px; border-radius:50%; background:#0A84FF; box-shadow:0 0 8px #0A84FF;"></span>
+          <span style="font-size:11px; font-weight:800; font-family:var(--font-family-mono); color:#ffffff;">${code}</span>
+          ${uniqueTravelers.length > 0 ? `
+            <div style="display:flex; align-items:center; margin-left:4px;">
+              ${avatarStackHtml}
+            </div>
+          ` : ''}
         </div>
       `,
       iconSize: [0, 0]
@@ -202,13 +209,13 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
 
     const marker = L.marker(coords, { icon: customIcon }).addTo(map);
 
-    const travelerNames = travelerEntries.map(([name]) => escapeHtml(name)).join(', ');
+    const namesList = uniqueTravelers.map(t => escapeHtml(t.name)).join(', ');
     marker.bindTooltip(`
       <div style="font-size:11px; font-weight:700; color:#fff; font-family:var(--font-family-mono);">
         📍 Airport ${code}
       </div>
       <div style="font-size:10px; color:#94A3B8; margin-top:2px;">
-        Travelers: ${travelerNames}
+        Group Travelers: ${namesList || 'None'}
       </div>
     `, { sticky: true, className: 'leaflet-dark-tooltip' });
   });
@@ -220,16 +227,15 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
     } catch (e) { }
   }
 
-  // Trigger resize tick to ensure Leaflet renders tiles to fill container
   setTimeout(() => {
     if (map) map.invalidateSize();
   }, 100);
 }
 
 /**
- * Great Circle Arc Geodesic Interpolation
+ * Great Circle Arc Interpolation with Curvature Offset
  */
-function getGreatCircleArc(start, end, numPoints = 50) {
+function getGreatCircleArcOffset(start, end, numPoints = 50, arcHeightFactor = 0.15) {
   const lat1 = start[0] * Math.PI / 180;
   const lon1 = start[1] * Math.PI / 180;
   const lat2 = end[0] * Math.PI / 180;
@@ -252,8 +258,12 @@ function getGreatCircleArc(start, end, numPoints = 50) {
     const y = A * Math.cos(lat1) * Math.sin(lon1) + B * Math.cos(lat2) * Math.sin(lon2);
     const z = A * Math.sin(lat1) + B * Math.sin(lat2);
 
-    const lat = Math.atan2(z, Math.sqrt(x * x + y * y)) * 180 / Math.PI;
-    const lon = Math.atan2(y, x) * 180 / Math.PI;
+    let lat = Math.atan2(z, Math.sqrt(x * x + y * y)) * 180 / Math.PI;
+    let lon = Math.atan2(y, x) * 180 / Math.PI;
+
+    // Apply smooth arc curve height
+    const curveOffset = Math.sin(f * Math.PI) * arcHeightFactor * (end[1] - start[1] < 0 ? -15 : 15);
+    lat += curveOffset * 0.15;
 
     points.push([lat, lon]);
   }
