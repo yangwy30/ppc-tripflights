@@ -307,9 +307,10 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
       className: 'airport-pill-marker',
       html: `
         <div style="position:relative; cursor:pointer; opacity:${isFiltered ? 0.35 : 1};">
-          <div style="width:8px; height:8px; border-radius:50%; background:#0A84FF; box-shadow:0 0 10px #0A84FF; border:1.5px solid #ffffff; transform:translate(-50%, -50%);"></div>
+          <div style="position:absolute; width:22px; height:22px; border-radius:50%; background:rgba(56,189,248,0.25); animation: radarPulse 2s infinite ease-out; transform:translate(-50%, -50%);"></div>
+          <div style="width:8px; height:8px; border-radius:50%; background:#38BDF8; box-shadow:0 0 12px #38BDF8; border:1.5px solid #ffffff; position:relative; z-index:2; transform:translate(-50%, -50%);"></div>
           
-          <div style="position:absolute; ${pillStyle} display:inline-flex; align-items:center; gap:5px; background:rgba(15,23,42,0.95); border:1px solid rgba(255,255,255,0.22); border-radius:12px; padding:3px 10px; backdrop-filter:blur(10px); box-shadow:0 4px 18px rgba(0,0,0,0.75); white-space:nowrap; z-index:10;">
+          <div style="position:absolute; ${pillStyle} display:inline-flex; align-items:center; gap:5px; background:rgba(14,20,32,0.95); border:1px solid rgba(255,255,255,0.22); border-radius:12px; padding:3px 10px; backdrop-filter:blur(10px); box-shadow:0 4px 18px rgba(0,0,0,0.75); white-space:nowrap; z-index:10;">
             <span style="font-size:11px; font-weight:800; font-family:var(--font-family-mono); color:#ffffff; letter-spacing:0.5px;">${code}</span>
             ${avatarStackHtml ? `
               <div style="display:flex; align-items:center; margin-left:4px;">

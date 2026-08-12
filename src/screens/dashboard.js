@@ -157,45 +157,50 @@ export async function renderDashboard(container, tripId) {
           </div>
         </div>
 
-        <!-- Embedded Hero Insights Card -->
-        <div class="hero-insights-card">
-          <div style="display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: var(--space-sm);">
+        <!-- Command Center Hero Card -->
+        <div class="command-hud-card mb-lg">
+          <div style="display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: var(--space-md);">
             <div>
-              <div style="display:flex; align-items:center; gap: 8px; margin-bottom: 4px;">
-                <h1 style="font-size: 1.6rem; font-weight: 800; letter-spacing: -0.03em; color: var(--color-text-primary); margin:0;">
+              <div style="display:flex; align-items:center; gap: 10px; flex-wrap: wrap; margin-bottom: 6px;">
+                <h1 style="font-size: 1.75rem; font-weight: 800; letter-spacing: -0.04em; color: #FFFFFF; margin:0;">
                   ${escapeHtml(currentTrip.name)}
                 </h1>
                 
                 <!-- Shareable PIN Badge Pill -->
-                <div class="hero-pin-pill" id="hero-pin-copy-trigger" title="Click to copy PIN code">
-                  <span class="hero-pin-label">PIN</span>
-                  <span class="hero-pin-code">${escapeHtml(currentTrip.pin || 'PPC')}</span>
-                  <span class="hero-pin-copy">${getIcon('copy')}</span>
+                <div class="hero-pin-pill" id="hero-pin-copy-trigger" title="Click to copy PIN code" style="background: rgba(56, 189, 248, 0.12); border-color: rgba(56, 189, 248, 0.3);">
+                  <span class="hero-pin-label" style="color: #38BDF8;">PIN</span>
+                  <span class="hero-pin-code" style="color: #FFFFFF; font-weight: 800;">${escapeHtml(currentTrip.pin || 'PPC')}</span>
+                  <span class="hero-pin-copy" style="color: #38BDF8;">${getIcon('copy')}</span>
                 </div>
               </div>
 
-              <div style="font-size: var(--font-size-xs); color: var(--color-text-secondary); display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                <span>${currentTrip.startDate || ''} ~ ${currentTrip.endDate || ''}</span>
+              <div style="font-size: var(--font-size-xs); color: var(--color-text-secondary); display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-weight: 500;">
+                <span class="hud-countdown-pill">
+                  <span class="live-dot" style="background: #38BDF8;"></span>
+                  ${currentTrip.flights?.length || 0} TICKETS TRACKED
+                </span>
                 <span>·</span>
-                <span>Destination: <strong style="font-family: var(--font-family-mono); color: var(--color-text-primary);">${currentTrip.destinationAirport || 'Not Set'}</strong></span>
-                ${currentTrip.returnAirport ? ` · Return: <strong style="font-family: var(--font-family-mono);">${currentTrip.returnAirport}</strong>` : ''}
+                <span>Dates: <strong style="color: var(--color-text-primary); font-family: var(--font-family-mono);">${currentTrip.startDate || 'TBD'} ~ ${currentTrip.endDate || 'TBD'}</strong></span>
+                <span>·</span>
+                <span>Dest: <strong style="font-family: var(--font-family-mono); color: #38BDF8;">${currentTrip.destinationAirport || 'Not Set'}</strong></span>
+                ${currentTrip.returnAirport ? ` · Ret: <strong style="font-family: var(--font-family-mono); color: #60A5FA;">${currentTrip.returnAirport}</strong>` : ''}
               </div>
             </div>
 
             <!-- Overlapping Avatar Ring with Interactive Popover -->
             <div class="avatar-group-wrapper" id="avatar-group-wrapper">
               <div style="display:flex; align-items:center; gap: 8px;">
-                <span style="font-size: var(--font-size-xs); color: var(--color-text-tertiary); font-weight: 500;">
-                  ${participantsList.length} Members
+                <span style="font-size: var(--font-size-xs); color: var(--color-text-tertiary); font-weight: 600; font-family: var(--font-family-mono);">
+                  ${participantsList.length} TRAVELERS
                 </span>
                 <div class="avatar-group" id="avatar-group-trigger" title="Click to see all members">
                   ${visibleAvatars.map((p, i) => `
-                    <div class="avatar-ring" style="background:${PERSON_COLORS_HEX[i % 6]};">
+                    <div class="avatar-ring" style="background:${PERSON_COLORS_HEX[i % 6]}; border-color: #0E1420;">
                       ${escapeHtml(p.name.charAt(0).toUpperCase())}
                     </div>
                   `).join('')}
                   ${overflowCount > 0 ? `
-                    <div class="avatar-ring avatar-count-ring">
+                    <div class="avatar-ring avatar-count-ring" style="border-color: #0E1420;">
                       +${overflowCount}
                     </div>
                   ` : ''}
