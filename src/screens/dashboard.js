@@ -304,20 +304,22 @@ export async function renderDashboard(container, tripId) {
       });
     }
 
-    // Expand / collapse compact rows on row click
-    container.querySelectorAll('.flight-row-compact').forEach(row => {
-      row.addEventListener('click', (e) => {
-        if (e.target.closest('.flight-refresh') || e.target.closest('.flight-delete')) return;
-        const flightId = row.querySelector('.flight-delete')?.dataset?.flightId;
-        if (!flightId) return;
-        if (expandedFlightIds.has(flightId)) {
-          expandedFlightIds.delete(flightId);
-        } else {
-          expandedFlightIds.add(flightId);
-        }
-        render();
+    // Bidirectional Expand / collapse in compact mode
+    if (viewMode === 'compact') {
+      container.querySelectorAll('[data-flight-toggle-id]').forEach(el => {
+        el.addEventListener('click', (e) => {
+          if (e.target.closest('.flight-refresh') || e.target.closest('.flight-delete')) return;
+          const flightId = el.dataset.flightToggleId;
+          if (!flightId) return;
+          if (expandedFlightIds.has(flightId)) {
+            expandedFlightIds.delete(flightId);
+          } else {
+            expandedFlightIds.add(flightId);
+          }
+          render();
+        });
       });
-    });
+    }
 
     // Event Listeners
     container.querySelector('#btn-back').addEventListener('click', () => {
@@ -484,7 +486,7 @@ function renderFlightsList(flights, trip, viewMode, expandedFlightIds) {
     if (viewMode === 'compact' && !expandedFlightIds.has(flight.id)) {
       return renderCompactFlightRow(flight, trip.participants, i, trip);
     } else {
-      return renderFlightCard(flight, trip.participants, i, trip);
+      return renderFlightCard(flight, trip.participants, i, trip, viewMode === 'compact' && expandedFlightIds.has(flight.id));
     }
   }).join('');
 }

@@ -48,7 +48,7 @@ function formatTimeWithBadge(timeStr) {
   return escapeHtml(baseTime);
 }
 
-export function renderFlightCard(flight, participants, index, trip) {
+export function renderFlightCard(flight, participants, index, trip, isExpandedInCompactMode = false) {
   const personIndex = participants.findIndex(p => p.name === flight.addedBy);
   const personColor = PERSON_COLORS[personIndex >= 0 ? personIndex % 6 : 0];
   const statusInfo = STATUS_MAP[flight.status] || STATUS_MAP.scheduled;
@@ -75,7 +75,7 @@ export function renderFlightCard(flight, participants, index, trip) {
   const arrCode = flight.arrival?.code || '???';
 
   return `
-    <div class="flight-card" style="--flight-person-color: ${personColor};">
+    <div class="flight-card ${isExpandedInCompactMode ? 'flight-card-expanded-in-compact' : ''}" data-flight-toggle-id="${flight.id}" style="--flight-person-color: ${personColor}; ${isExpandedInCompactMode ? 'cursor:pointer; border-color: rgba(10, 132, 255, 0.4);' : ''}">
       <div class="flight-card-header">
         <div>
           <div style="display:flex; align-items:center; gap: var(--space-sm);">
@@ -85,6 +85,11 @@ export function renderFlightCard(flight, participants, index, trip) {
           <div class="flight-airline">${escapeHtml(flight.airline || '')}</div>
         </div>
         <div style="display:flex; align-items:center; gap: var(--space-xs);">
+          ${isExpandedInCompactMode ? `
+            <button class="btn btn-sm btn-secondary flight-collapse-btn" data-flight-collapse-id="${flight.id}" style="padding: 2px 8px; font-size: 10px; margin-right: 4px;">
+              ▲ Collapse
+            </button>
+          ` : ''}
           <span class="badge ${statusInfo.class}"><span class="live-dot"></span>${statusInfo.label}</span>
           <button class="btn btn-icon btn-ghost flight-refresh" data-flight-id="${flight.id}" data-flight-number="${flight.flightNumber}" data-flight-date="${flight.date || ''}" title="Refresh status" style="width:28px;height:28px;font-size:var(--font-size-xs);">${getIcon('refresh')}</button>
         </div>
@@ -156,7 +161,7 @@ export function renderCompactFlightRow(flight, participants, index, trip) {
   const arrCode = flight.arrival?.code || '???';
 
   return `
-    <div class="flight-row-compact" style="--flight-person-color: ${personColor};">
+    <div class="flight-row-compact" data-flight-toggle-id="${flight.id}" style="--flight-person-color: ${personColor}; cursor: pointer;">
       <div class="flight-row-compact-inner">
         <span class="badge ${statusInfo.class}" style="font-size:10px; padding: 2px 6px;"><span class="live-dot"></span>${statusInfo.label}</span>
         
