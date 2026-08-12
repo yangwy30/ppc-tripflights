@@ -1,7 +1,6 @@
 /* ============================================
-   PPC: Delay No More — Scalable Phase-Sensitive Route Map Engine
-   Outbound: 🛫 Origin [Avatars] ➔ 🛬 Destination
-   Return:   🛫 Origin ➔ 🛬 Home Airports [Avatars]
+   PPC: Delay No More — Flighty Animated Flow Arrows & Clean City Nodes Route Map Engine
+   Includes 60fps Directional Vector Flow Arrows + Shared City De-duplication
    ============================================ */
 
 import L from 'leaflet';
@@ -68,8 +67,13 @@ const AIRPORT_COORDS = {
 };
 
 let activeLeafletMap = null;
+let animFrameId = null;
 
 export function renderRouteMap(container, flights = [], participants = [], trip = {}, activePersonFilter = 'all', phaseName = 'All') {
+  if (animFrameId) {
+    cancelAnimationFrame(animFrameId);
+    animFrameId = null;
+  }
   if (activeLeafletMap) {
     try {
       activeLeafletMap.remove();
@@ -77,7 +81,7 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
     activeLeafletMap = null;
   }
 
-  const phaseTitle = phaseName === 'outbound' ? '🛫 Outbound Convergence Map' : phaseName === 'return' ? '🛬 Return Dispersal Map' : '🗺️ Flight Network';
+  const phaseTitle = phaseName === 'outbound' ? '🛫 Outbound Flow Network' : phaseName === 'return' ? '🛬 Return Flow Network' : '🗺️ Flight Network';
 
   container.innerHTML = `
     <div class="route-map-hero-card">
@@ -91,7 +95,7 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
           </span>
         </div>
         <div style="font-size: 11px; color: var(--color-text-tertiary); font-family: var(--font-family-mono);">
-          CartoDB Dark Basemap · Phase Direction Badges
+          CartoDB Dark Basemap · Animated Flow Vectors ───►
         </div>
       </div>
 
@@ -120,6 +124,7 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
 
   const bounds = [];
   const airportMap = new Map();
+  const activeCorridors = [];
 
   // Normalized traveler color resolution helper
   const normalizedParticipants = participants.map(p => p.name.trim().toLowerCase());
@@ -144,7 +149,7 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
     corridorGroups.get(corridorKey).push(f);
   });
 
-  // Render Flights with Algorithmic Arc Fan-Out
+  // Render Flights with Algorithmic Arc Fan-Out & Store Active Flow Curves
   corridorGroups.forEach((flightList, corridorKey) => {
     const totalInCorridor = flightList.length;
 
@@ -178,9 +183,21 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
       const polyline = L.polyline(arcPoints, {
         color: color,
         weight: isFilteredOut ? 1.5 : 3.5,
-        opacity: isFilteredOut ? 0.2 : 0.9,
+        opacity: isFilteredOut ? 0.2 : 0.85,
         lineCap: 'round'
       }).addTo(map);
+
+      // Store flow corridor data for 60fps directional arrow animation
+      if (!isFilteredOut) {
+        activeCorridors.push({
+          points: arcPoints,
+          color,
+          depCode,
+          arrCode,
+          flightNumber: f.flightNumber,
+          addedBy: f.addedBy
+        });
+      }
 
       // Tooltip on Hover
       polyline.bindTooltip(`
@@ -242,7 +259,9 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
     }
   }
 
-  // Phase-Sensitive Arrow & Traveler Avatar Differentiation
+  const totalGroupCount = participants.length || 1;
+
+  // Render Airport Pins with De-duplicated Shared City Nodes & Direction Badges
   airportMap.forEach((data, code) => {
     const { coords, departures, arrivals } = data;
     const allTravelers = [...departures, ...arrivals];
@@ -252,7 +271,6 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
     let travelerList = [];
 
     if (phaseName === 'outbound') {
-      // Outbound: Departures are home airports (🛫 [Avatars]), Arrivals are target destination (🛬 Hub)
       if (departures.length > 0 && arrivals.length === 0) {
         phaseIcon = '🛫';
         travelerList = departures;
@@ -261,7 +279,6 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
         travelerList = []; // Clean target arrival hub
       }
     } else if (phaseName === 'return') {
-      // Return: Departures are trip origin (🛫 Hub), Arrivals are home return airports (🛬 [Avatars])
       if (departures.length > 0 && arrivals.length === 0) {
         phaseIcon = '🛫';
         travelerList = []; // Clean departure hub
@@ -270,7 +287,6 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
         travelerList = arrivals;
       }
     } else {
-      // All Phase: Show all relevant travelers
       travelerList = allTravelers;
     }
 
@@ -283,7 +299,10 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
       }
     });
 
-    const avatarStackHtml = uniqueTravelers.length > 0
+    // RULE: If ALL travelers in group are at this airport, don't clutter with avatars!
+    const isSharedByEveryone = uniqueTravelers.length >= totalGroupCount;
+
+    const avatarStackHtml = (!isSharedByEveryone && uniqueTravelers.length > 0)
       ? uniqueTravelers.slice(0, 3).map(t => `
         <span style="width:16px; height:16px; border-radius:50%; background:${t.color}; display:inline-flex; align-items:center; justify-content:center; font-size:8px; font-weight:800; color:#fff; border:1px solid #0F172A; margin-left:-4px;">
           ${escapeHtml(t.name.charAt(0).toUpperCase())}
@@ -328,6 +347,65 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
       </div>
     `, { sticky: true, className: 'leaflet-dark-tooltip' });
   });
+
+  // 60FPS ANIMATED FLOW ARROWS ALONG ARC PATHS (Departure ➔ Arrival Direction Vector)
+  const flowMarkers = [];
+  activeCorridors.forEach(corridor => {
+    const icon = L.divIcon({
+      className: 'flow-arrow-marker',
+      html: `
+        <div style="color:${corridor.color}; font-size:12px; font-weight:900; line-height:1; filter:drop-shadow(0 0 6px ${corridor.color}); transform:translate(-50%, -50%);">
+          ▶
+        </div>
+      `,
+      iconSize: [0, 0]
+    });
+
+    const flowMarker = L.marker(corridor.points[0], { icon }).addTo(map);
+    flowMarkers.push({ marker: flowMarker, points: corridor.points });
+  });
+
+  let progress = 0;
+  function animateFlow() {
+    progress = (progress + 0.006) % 1;
+
+    flowMarkers.forEach((item, idx) => {
+      const pts = item.points;
+      if (!pts || pts.length < 2) return;
+
+      const totalPts = pts.length;
+      // Stagger flow arrows along each arc
+      const offsetProgress = (progress + (idx * 0.25)) % 1;
+      const targetIndex = Math.floor(offsetProgress * (totalPts - 1));
+      const nextIndex = Math.min(totalPts - 1, targetIndex + 1);
+
+      const currPt = pts[targetIndex];
+      const nextPt = pts[nextIndex];
+
+      if (currPt && nextPt) {
+        item.marker.setLatLng(currPt);
+
+        // Compute Angle Vector for Arrow Rotation
+        const pt1 = map.latLngToContainerPoint(currPt);
+        const pt2 = map.latLngToContainerPoint(nextPt);
+        const angle = Math.atan2(pt2.y - pt1.y, pt2.x - pt1.x) * (180 / Math.PI);
+
+        const el = item.marker.getElement();
+        if (el) {
+          const arrowChild = el.querySelector('div');
+          if (arrowChild) {
+            arrowChild.style.transform = `translate(-50%, -50%) rotate(${angle}deg)`;
+          }
+        }
+      }
+    });
+
+    animFrameId = requestAnimationFrame(animateFlow);
+  }
+
+  if (activeCorridors.length > 0) {
+    animateFlow();
+  }
 
   setTimeout(() => {
     if (map) map.invalidateSize();
