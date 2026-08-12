@@ -1,6 +1,6 @@
 /* ============================================
    PPC: Delay No More — Professional Clean Route Map Engine
-   Fix: Accurate Curve Tangent Vectors + Endpoint Smooth Alpha Fade
+   SOTA Fix: DOM Cache in 60fps Animation Loop + Clean Map Destroy Hook
    ============================================ */
 
 import L from 'leaflet';
@@ -69,7 +69,7 @@ const AIRPORT_COORDS = {
 let activeLeafletMap = null;
 let animFrameId = null;
 
-export function renderRouteMap(container, flights = [], participants = [], trip = {}, activePersonFilter = 'all', phaseName = 'All') {
+export function destroyRouteMap() {
   if (animFrameId) {
     cancelAnimationFrame(animFrameId);
     animFrameId = null;
@@ -80,6 +80,10 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
     } catch (e) { }
     activeLeafletMap = null;
   }
+}
+
+export function renderRouteMap(container, flights = [], participants = [], trip = {}, activePersonFilter = 'all', phaseName = 'All') {
+  destroyRouteMap();
 
   const phaseTitle = phaseName === 'outbound' ? 'Outbound Flight Network' : phaseName === 'return' ? 'Return Flight Network' : 'Flight Network';
 
@@ -336,7 +340,7 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
     `, { sticky: true, className: 'leaflet-dark-tooltip' });
   });
 
-  // CONSTANT VELOCITY SMOOTH ARROW MARKERS (▶) WITH ACCURATE TANGENTS & ENDPOINT ALPHA FADE
+  // CONSTANT VELOCITY SMOOTH ARROW MARKERS WITH DOM REFERENCE CACHING (HIGH PERFORMANCE 60 FPS LOOP)
   if (phaseName !== 'all' && activeCorridors.length > 0) {
     const flowMarkers = [];
     activeCorridors.forEach(corridor => {
@@ -353,8 +357,13 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
       });
 
       const flowMarker = L.marker(corridor.points[0], { icon }).addTo(map);
+      
+      // Cache DOM references inside flowMarkers upon creation! (Eliminates querySelector inside 60 FPS loop!)
+      const el = flowMarker.getElement();
       flowMarkers.push({
         marker: flowMarker,
+        wrapperEl: el?.querySelector('.arrow-wrapper'),
+        innerEl: el?.querySelector('.arrow-inner'),
         points: corridor.points,
         distKm: corridor.distKm || 1000
       });
@@ -362,6 +371,8 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
 
     let globalTime = 0;
     function animateFlow() {
+      if (!activeLeafletMap) return;
+
       globalTime += 0.016;
 
       flowMarkers.forEach((item, idx) => {
@@ -376,7 +387,6 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
         // Sub-pixel continuous LERP coordinate calculation
         const exactIndex = offsetProgress * (totalPts - 1);
 
-        // ALWAYS pick two distinct points along the curve for accurate non-zero tangent calculation!
         const i1 = Math.min(totalPts - 2, Math.floor(exactIndex));
         const i2 = i1 + 1;
         const weight = exactIndex - Math.floor(exactIndex);
@@ -389,7 +399,7 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
 
         item.marker.setLatLng([currentLat, currentLon]);
 
-        // Compute Tangent Vector Angle (pt1 != pt2 guaranteed!)
+        // Compute Tangent Vector Angle
         const pt1 = map.latLngToContainerPoint(pts[i1]);
         const pt2 = map.latLngToContainerPoint(pts[i2]);
         const angle = Math.atan2(pt2.y - pt1.y, pt2.x - pt1.x) * (180 / Math.PI);
@@ -402,15 +412,19 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
           alpha = (1.0 - offsetProgress) / 0.08;
         }
 
-        const el = item.marker.getElement();
-        if (el) {
-          const wrapper = el.querySelector('.arrow-wrapper');
-          if (wrapper) wrapper.style.opacity = alpha.toFixed(2);
+        // Direct cached DOM reference manipulation (0 querySelector calls in animation loop!)
+        if (item.wrapperEl) {
+          item.wrapperEl.style.opacity = alpha.toFixed(2);
+        } else {
+          const el = item.marker.getElement();
+          if (el) item.wrapperEl = el.querySelector('.arrow-wrapper');
+        }
 
-          const innerSpan = el.querySelector('.arrow-inner');
-          if (innerSpan) {
-            innerSpan.style.transform = `rotate(${angle}deg)`;
-          }
+        if (item.innerEl) {
+          item.innerEl.style.transform = `rotate(${angle}deg)`;
+        } else {
+          const el = item.marker.getElement();
+          if (el) item.innerEl = el.querySelector('.arrow-inner');
         }
       });
 

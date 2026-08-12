@@ -10,7 +10,7 @@ import { showToast } from '../components/toast.js';
 import { renderTimeline } from '../components/timeline.js';
 import { renderFlightCard, renderCompactFlightRow } from '../components/flightCard.js';
 import { renderCoordinationTab } from '../components/coordinationTab.js';
-import { renderRouteMap } from '../components/routeMap.js';
+import { renderRouteMap, destroyRouteMap } from '../components/routeMap.js';
 import { startPolling, stopPolling, isPolling, setAutoRefreshPref, getAutoRefreshPref } from '../data/alertService.js';
 import { getIcon } from '../components/icons.js';
 
@@ -72,13 +72,21 @@ export async function renderDashboard(container, tripId) {
     return;
   }
 
-  // Handle trip deleted / changed events
+  // Handle trip deleted / changed events with correct event constants
   const unsubscribe = subscribe((event, data) => {
     if (event === EVENTS.TRIP_DELETED && data === tripId) {
       stopPolling(tripId);
+      destroyRouteMap();
       showToast('Trip was deleted', 'info');
       navigate('');
-    } else if (event === EVENTS.FLIGHT_ADDED || event === EVENTS.FLIGHT_DELETED || event === EVENTS.FLIGHT_UPDATED || event === EVENTS.PARTICIPANT_ADDED || event === EVENTS.PARTICIPANT_DELETED) {
+    } else if (
+      event === EVENTS.FLIGHT_ADDED ||
+      event === EVENTS.FLIGHT_DELETED ||
+      event === EVENTS.FLIGHT_UPDATED ||
+      event === EVENTS.FLIGHT_STATUS_CHANGED ||
+      event === EVENTS.PARTICIPANT_ADDED ||
+      event === EVENTS.PARTICIPANT_DELETED
+    ) {
       render();
     }
   });
@@ -318,6 +326,7 @@ export async function renderDashboard(container, tripId) {
         renderRouteMap(heroMapContainer, sortedFlights, currentTrip.participants || [], currentTrip, filterPerson, phaseFilter);
       }
     } else {
+      destroyRouteMap(); // Clean teardown of Leaflet map and 60fps animation frame loop!
       const tabContent = container.querySelector('#tab-content');
       if (tabContent) {
         renderTimeline(tabContent, currentTrip, filterPerson);
@@ -326,6 +335,7 @@ export async function renderDashboard(container, tripId) {
 
     // Lazy render Coordination Engine tab if active
     if (activeMainTab === 'coordination') {
+      destroyRouteMap();
       const coordContainer = container.querySelector('#coordination-tab-content');
       if (coordContainer) {
         renderCoordinationTab(coordContainer, currentTrip, nickname);
@@ -338,6 +348,7 @@ export async function renderDashboard(container, tripId) {
   function bindEvents() {
     // Topbar back
     container.querySelector('#btn-back')?.addEventListener('click', () => {
+      destroyRouteMap();
       unsubscribe();
       navigate('');
     });
@@ -378,6 +389,8 @@ export async function renderDashboard(container, tripId) {
 
     // Add Flight
     const handleAddFlight = () => {
+      destroyRouteMap();
+      unsubscribe();
       navigate(`trip/${tripId}/add-flight`);
     };
     container.querySelector('#btn-add-flight')?.addEventListener('click', handleAddFlight);
