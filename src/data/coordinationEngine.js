@@ -163,14 +163,14 @@ export async function generateGroupOptions(trip, currentUserName) {
         res.returnOptions.sort((a, b) => (a.stops - b.stops) || (a.price - b.price));
     });
 
-    // Filter down to the top N flights per person to prevent massive Cartesian products
-    const limitPerPerson = 10;
-    const outboundBuckets = flightResults.map(res => res.outboundOptions.slice(0, limitPerPerson));
+    // Filter down to top 3 flights per person to guarantee O(1) performance without thread lockup
+    const limitPerPerson = 3;
+    const outboundBuckets = flightResults.map(res => res.outboundOptions.slice(0, limitPerPerson)).filter(b => b.length > 0);
 
     // Only build return combinations if we actually have a return date and results
     const hasReturnFlights = returnDate && flightResults.some(res => res.returnOptions.length > 0);
     const returnBuckets = hasReturnFlights
-        ? flightResults.map(res => res.returnOptions.slice(0, limitPerPerson))
+        ? flightResults.map(res => res.returnOptions.slice(0, limitPerPerson)).filter(b => b.length > 0)
         : null;
 
     // 3. Generate combinations separately
@@ -179,13 +179,15 @@ export async function generateGroupOptions(trip, currentUserName) {
 
     if (outboundCombinations.length === 0 || outboundCombinations[0].length === 0) return [];
 
-    // 4. Pair combinations and score them
+    // 4. Pair combinations and score them (Capped at 500 iterations max for 60fps UI performance)
     const groupedOptions = [];
+    let evalCount = 0;
+    const maxEvals = 500;
 
-    // To limit UI output, we don't need a full combo × combo product, just pair top ones or pair randomly and sort.
-    // For performance, we'll try evaluating up to N^2 combinations
     for (const outCombo of outboundCombinations) {
         for (const inCombo of returnCombinations) {
+            evalCount++;
+            if (evalCount > maxEvals) break;
             // Calculate total stops
             const totalStops = outCombo.reduce((sum, f) => sum + (f.stops || 0), 0) + inCombo.reduce((sum, f) => sum + (f.stops || 0), 0);
 

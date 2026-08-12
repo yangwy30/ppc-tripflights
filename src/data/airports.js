@@ -3,7 +3,9 @@ let AIRPORT_DATA = [];
 export async function loadAirports() {
     if (AIRPORT_DATA.length > 0) return;
     try {
-        const res = await fetch('/airports.json');
+        const baseUrl = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.BASE_URL) ? import.meta.env.BASE_URL : './';
+        const targetUrl = baseUrl.endsWith('/') ? `${baseUrl}airports.json` : `${baseUrl}/airports.json`;
+        const res = await fetch(targetUrl).catch(() => fetch('/airports.json'));
         AIRPORT_DATA = await res.json();
         console.log(`Loaded ${AIRPORT_DATA.length} airport city groups.`);
     } catch (e) {
