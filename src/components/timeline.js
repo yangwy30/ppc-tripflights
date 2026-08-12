@@ -1,6 +1,6 @@
 /* ============================================
    PPC: Delay No More — Apple Flighty Dark Minimalist Timeline
-   Features: Unified Gradient Glass Capsules + Inside Integrated Typography + Exact Dep/Arr Local Time Alignment
+   Features: Exact Dep/Arr Local Time Alignment + Floating Overflow-Free Full Text Label
    ============================================ */
 
 import { getIcon } from './icons.js';
@@ -65,7 +65,7 @@ export function renderTimeline(container, tripOrFlights, participantsOrFilter, f
   if (dateList.length === 0) dateList.push(new Date().toISOString().split('T')[0]);
 
   const totalDays = dateList.length;
-  const dayWidthPx = Math.max(300, totalDays <= 2 ? 460 : 340);
+  const dayWidthPx = Math.max(340, totalDays <= 2 ? 500 : 360);
   const totalWidthPx = `${totalDays * dayWidthPx + 110}px`; // 110px label offset + grid width
 
   // Group flights by person
@@ -128,7 +128,7 @@ export function renderTimeline(container, tripOrFlights, participantsOrFilter, f
   });
   html += '</div>';
 
-  // Person Rows Layer (Unified Apple Glass Capsule Styling)
+  // Person Rows Layer
   participants.forEach((person, personIdx) => {
     const color = PERSON_COLORS_HEX[personIdx % 6];
     const pFlights = personFlights[person.name] || [];
@@ -159,7 +159,7 @@ export function renderTimeline(container, tripOrFlights, participantsOrFilter, f
       // EXACT PIXEL ALIGNMENT: Left = Dep Local Time, Right = Arr Local Time
       const startPct = ((flightDateIdx + depHour / 24) / totalDays) * 100;
       const endPct = ((flightDateIdx + arrHour / 24) / totalDays) * 100;
-      const widthPct = Math.max(1.2, endPct - startPct);
+      const widthPct = Math.max(0.6, endPct - startPct);
 
       const depCode = (flight.departure?.code || 'DEP').toUpperCase();
       const arrCode = (flight.arrival?.code || 'ARR').toUpperCase();
@@ -167,7 +167,6 @@ export function renderTimeline(container, tripOrFlights, participantsOrFilter, f
 
       const flightData = encodeURIComponent(JSON.stringify(flight));
 
-      // Unified Glass Capsule Style with Color Accent
       html += `
         <div class="tl-bar" data-flight="${flightData}" style="
           position: absolute;
@@ -175,50 +174,55 @@ export function renderTimeline(container, tripOrFlights, participantsOrFilter, f
           left: ${startPct}%;
           width: ${widthPct}%;
           height: 36px;
-          background: linear-gradient(135deg, ${hexToRgba(color, 0.35)}, ${hexToRgba(color, 0.15)});
+          background: linear-gradient(135deg, ${hexToRgba(color, 0.85)}, ${hexToRgba(color, 0.6)});
           border: 1.5px solid ${color};
-          box-shadow: 0 4px 16px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.2);
-          border-radius: 10px;
-          padding: 2px 8px;
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          box-sizing: border-box;
+          box-shadow: 0 4px 14px rgba(0,0,0,0.5);
+          border-radius: 8px;
           cursor: pointer;
           z-index: 10;
-          overflow: hidden;
-          backdrop-filter: blur(10px);
-          transition: transform var(--transition-fast), box-shadow var(--transition-fast);
         ">
-          <!-- Flight Number Badge Pill inside Bar -->
-          <span style="
-            background: ${color};
-            color: #ffffff;
-            font-weight: 900;
-            font-family: var(--font-family-mono);
-            font-size: 10px;
-            padding: 2px 6px;
-            border-radius: 6px;
+          <!-- Floating Label Pill Overlay (NO overflow:hidden on parent so text NEVER gets cut off!) -->
+          <div style="
+            position: absolute;
+            top: 50%;
+            left: 4px;
+            transform: translateY(-50%);
+            display: flex;
+            align-items: center;
+            gap: 6px;
             white-space: nowrap;
-            flex-shrink: 0;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+            z-index: 15;
+            pointer-events: none;
           ">
-            ${escapeHtml(fn)}
-          </span>
+            <span style="
+              background: #0F172A;
+              color: #ffffff;
+              font-weight: 900;
+              font-family: var(--font-family-mono);
+              font-size: 10px;
+              padding: 2px 6px;
+              border-radius: 5px;
+              border: 1px solid ${color};
+              box-shadow: 0 2px 6px rgba(0,0,0,0.6);
+            ">
+              ${escapeHtml(fn)}
+            </span>
 
-          <!-- Integrated Route & Time Text INSIDE the Capsule -->
-          <span style="
-            font-size: 10px;
-            font-weight: 700;
-            color: #ffffff;
-            font-family: var(--font-family-mono);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            opacity: 0.95;
-          ">
-            ${escapeHtml(depCode)} (${escapeHtml(depTimeStr)}) ➔ ${escapeHtml(arrCode)} (${escapeHtml(arrTimeStr)})
-          </span>
+            <span style="
+              font-size: 10px;
+              font-weight: 700;
+              color: #ffffff;
+              font-family: var(--font-family-mono);
+              background: rgba(15, 23, 42, 0.88);
+              padding: 2px 7px;
+              border-radius: 5px;
+              border: 1px solid rgba(255, 255, 255, 0.2);
+              box-shadow: 0 2px 8px rgba(0,0,0,0.7);
+              backdrop-filter: blur(8px);
+            ">
+              ${escapeHtml(depCode)} ${escapeHtml(depTimeStr)} ➔ ${escapeHtml(arrCode)} ${escapeHtml(arrTimeStr)}
+            </span>
+          </div>
         </div>
       `;
     });
