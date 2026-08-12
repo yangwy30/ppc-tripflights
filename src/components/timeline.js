@@ -1,6 +1,6 @@
 /* ============================================
-   PPC: Delay No More — Apple Flighty Dark Minimalist Timeline
-   Features: Exact Dep/Arr Local Time Alignment + Floating Overflow-Free Full Text Label
+   PPC: Delay No More — State of the Art Flight Timeline Component
+   Apple / Flighty 3.0 Inspired Slate Dark Glassmorphic Timeline
    ============================================ */
 
 import { getIcon } from './icons.js';
@@ -65,8 +65,8 @@ export function renderTimeline(container, tripOrFlights, participantsOrFilter, f
   if (dateList.length === 0) dateList.push(new Date().toISOString().split('T')[0]);
 
   const totalDays = dateList.length;
-  const dayWidthPx = Math.max(340, totalDays <= 2 ? 500 : 360);
-  const totalWidthPx = `${totalDays * dayWidthPx + 110}px`; // 110px label offset + grid width
+  const dayWidthPx = Math.max(380, totalDays <= 2 ? 550 : 400);
+  const totalWidthPx = `${totalDays * dayWidthPx + 120}px`; // 120px label offset + grid width
 
   // Group flights by person
   const personFlights = {};
@@ -77,35 +77,37 @@ export function renderTimeline(container, tripOrFlights, participantsOrFilter, f
     personFlights[name].push(f);
   });
 
-  let html = '<div class="tl-wrapper">';
+  let html = '<div class="tl-wrapper" style="background: #090A0F; border-radius: 16px; padding: 16px; border: 1px solid rgba(255, 255, 255, 0.08); box-shadow: 0 20px 40px rgba(0,0,0,0.6);">';
 
-  // Legend Header
-  html += '<div class="tl-legend">';
+  // SOTA Legend Header
+  html += '<div class="tl-legend" style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.06);">';
+  html += '<div style="display:flex; align-items:center; gap: 12px; flex-wrap:wrap;">';
   participants.forEach((p, i) => {
     html += `
-      <div class="tl-legend-item">
-        <span class="tl-legend-dot" style="background:${PERSON_COLORS_HEX[i % 6]};"></span>
+      <div class="tl-legend-item" style="display:flex; align-items:center; gap: 6px; font-size: 11px; font-weight: 600; color: #94A3B8; font-family: var(--font-family-mono);">
+        <span class="tl-legend-dot" style="width: 8px; height: 8px; border-radius: 50%; background:${PERSON_COLORS_HEX[i % 6]}; box-shadow: 0 0 8px ${PERSON_COLORS_HEX[i % 6]};"></span>
         <span>${escapeHtml(p.name)}</span>
       </div>
     `;
   });
-  html += '<div class="tl-legend-hint">↔ Scroll timeline · Tap flight bar for details</div>';
+  html += '</div>';
+  html += '<div style="font-size: 11px; color: #64748B; font-family: var(--font-family-mono);">↔ Scroll timeline · Tap bar for details</div>';
   html += '</div>';
 
   // Scrollable container
-  html += `<div class="tl-scroll">`;
-  html += `<div class="tl-canvas" style="min-width: ${totalWidthPx}; position: relative;">`;
+  html += `<div class="tl-scroll" style="overflow-x: auto; scrollbar-width: thin;">`;
+  html += `<div class="tl-canvas" style="min-width: ${totalWidthPx}; position: relative; padding-bottom: 10px;">`;
 
-  // Date Header Row with 110px Label Spacer Alignment!
-  html += '<div class="tl-date-row" style="display: flex; align-items: center; border-bottom: 1px solid var(--color-border); margin-bottom: var(--space-md);">';
-  html += '<div style="width: 110px; flex-shrink: 0; padding: 4px 8px; font-size: 11px; font-weight: 800; letter-spacing: 0.5px; color: var(--color-text-tertiary);">TRAVELERS</div>';
+  // Date Header Row with 120px Label Spacer Alignment
+  html += '<div class="tl-date-row" style="display: flex; align-items: center; border-bottom: 1px solid rgba(255, 255, 255, 0.08); margin-bottom: 16px; padding-bottom: 8px;">';
+  html += '<div style="width: 120px; flex-shrink: 0; padding: 4px 8px; font-size: 10px; font-weight: 800; letter-spacing: 1.2px; color: #64748B; font-family: var(--font-family-mono); text-transform: uppercase;">MEMBER</div>';
   html += '<div style="flex: 1; display: flex;">';
   dateList.forEach((date) => {
     const widthPct = (100 / totalDays);
     html += `
-      <div class="tl-date-cell" style="width:${widthPct}%; border-right: 1px dashed var(--color-border-light); padding: 4px 6px;">
-        <div class="tl-date-label" style="font-size: var(--font-size-xs); font-weight: 700; color: var(--color-text-primary); font-family: var(--font-family-mono); text-align: center;">${formatDateShort(date)}</div>
-        <div class="tl-hour-subrow" style="display: flex; justify-content: space-between; font-size: 9px; color: var(--color-text-tertiary); font-family: var(--font-family-mono); margin-top: 4px; opacity: 0.8;">
+      <div class="tl-date-cell" style="width:${widthPct}%; border-right: 1px dashed rgba(255, 255, 255, 0.06); padding: 0 8px;">
+        <div class="tl-date-label" style="font-size: 12px; font-weight: 800; color: #F8FAFC; font-family: var(--font-family-mono); text-align: center; letter-spacing: 0.5px;">${formatDateShort(date)}</div>
+        <div class="tl-hour-subrow" style="display: flex; justify-content: space-between; font-size: 9px; font-weight: 700; color: #64748B; font-family: var(--font-family-mono); margin-top: 6px; opacity: 0.85;">
           <span>00:00</span>
           <span>06:00</span>
           <span>12:00</span>
@@ -116,30 +118,30 @@ export function renderTimeline(container, tripOrFlights, participantsOrFilter, f
   });
   html += '</div></div>';
 
-  // Background Grid Lines layer (Offset 110px from left)
-  html += '<div class="tl-grid" style="position: absolute; top: 40px; left: 110px; right: 0; bottom: 0; pointer-events: none;">';
+  // Background Grid Lines layer (Offset 120px from left)
+  html += '<div class="tl-grid" style="position: absolute; top: 48px; left: 120px; right: 0; bottom: 0; pointer-events: none;">';
   dateList.forEach((date, dayIdx) => {
     const dayStartPct = (dayIdx / totalDays) * 100;
     const dayWidthPct = 100 / totalDays;
     for (let h = 0; h <= 24; h += 6) {
       const xPct = dayStartPct + (h / 24) * dayWidthPct;
-      html += `<div class="tl-grid-line" style="position: absolute; top: 0; bottom: 0; width: 1px; background: rgba(255, 255, 255, 0.05); left:${xPct}%;"></div>`;
+      html += `<div class="tl-grid-line" style="position: absolute; top: 0; bottom: 0; width: 1px; background: rgba(255, 255, 255, 0.04); left:${xPct}%;"></div>`;
     }
   });
   html += '</div>';
 
-  // Person Rows Layer
+  // Person Rows Layer — SOTA State of the Art Flight Capsule Styling
   participants.forEach((person, personIdx) => {
     const color = PERSON_COLORS_HEX[personIdx % 6];
     const pFlights = personFlights[person.name] || [];
     if (pFlights.length === 0) return;
 
-    html += `<div class="tl-person-row" style="display: flex; align-items: center; height: 48px; margin-bottom: 12px; position: relative; z-index: 2;">`;
-    html += `<div class="tl-person-label" style="width: 110px; flex-shrink: 0; font-size: var(--font-size-xs); font-weight: 700; color: var(--color-text-primary); display: flex; align-items: center; gap: 6px; padding-right: 8px;">
-      <span class="tl-person-dot" style="width: 8px; height: 8px; border-radius: 50%; background:${color}; flex-shrink: 0;"></span>
+    html += `<div class="tl-person-row" style="display: flex; align-items: center; height: 52px; margin-bottom: 12px; position: relative; z-index: 2;">`;
+    html += `<div class="tl-person-label" style="width: 120px; flex-shrink: 0; font-size: 12px; font-weight: 700; color: #E2E8F0; display: flex; align-items: center; gap: 8px; padding-right: 12px;">
+      <span class="tl-person-dot" style="width: 10px; height: 10px; border-radius: 50%; background:${color}; box-shadow: 0 0 10px ${color}; flex-shrink: 0;"></span>
       <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(person.name)}</span>
     </div>`;
-    html += `<div class="tl-person-bars" style="flex: 1; position: relative; height: 44px; background: rgba(255, 255, 255, 0.02); border-radius: var(--radius-sm); border: 1px solid rgba(255, 255, 255, 0.06);">`;
+    html += `<div class="tl-person-bars" style="flex: 1; position: relative; height: 46px; background: rgba(15, 23, 42, 0.4); border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.05);">`;
 
     pFlights.forEach((flight) => {
       const depTimeStr = flight.departure?.time || '00:00';
@@ -159,7 +161,7 @@ export function renderTimeline(container, tripOrFlights, participantsOrFilter, f
       // EXACT PIXEL ALIGNMENT: Left = Dep Local Time, Right = Arr Local Time
       const startPct = ((flightDateIdx + depHour / 24) / totalDays) * 100;
       const endPct = ((flightDateIdx + arrHour / 24) / totalDays) * 100;
-      const widthPct = Math.max(0.6, endPct - startPct);
+      const widthPct = Math.max(0.8, endPct - startPct);
 
       const depCode = (flight.departure?.code || 'DEP').toUpperCase();
       const arrCode = (flight.arrival?.code || 'ARR').toUpperCase();
@@ -167,61 +169,66 @@ export function renderTimeline(container, tripOrFlights, participantsOrFilter, f
 
       const flightData = encodeURIComponent(JSON.stringify(flight));
 
+      // SOTA Flight Pill Design: Integrated Glass Pill with Left Color Accent Ribbon
       html += `
         <div class="tl-bar" data-flight="${flightData}" style="
           position: absolute;
           top: 4px;
           left: ${startPct}%;
           width: ${widthPct}%;
-          height: 36px;
-          background: linear-gradient(135deg, ${hexToRgba(color, 0.85)}, ${hexToRgba(color, 0.6)});
-          border: 1.5px solid ${color};
-          box-shadow: 0 4px 14px rgba(0,0,0,0.5);
+          min-width: 140px;
+          height: 38px;
+          background: rgba(15, 23, 42, 0.92);
+          border-left: 4px solid ${color};
+          border-top: 1px solid rgba(255, 255, 255, 0.12);
+          border-right: 1px solid rgba(255, 255, 255, 0.12);
+          border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6), 0 0 12px ${hexToRgba(color, 0.25)};
           border-radius: 8px;
+          padding: 0 10px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          box-sizing: border-box;
           cursor: pointer;
           z-index: 10;
+          backdrop-filter: blur(12px);
+          transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease;
         ">
-          <!-- Floating Label Pill Overlay (NO overflow:hidden on parent so text NEVER gets cut off!) -->
-          <div style="
-            position: absolute;
-            top: 50%;
-            left: 4px;
-            transform: translateY(-50%);
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            white-space: nowrap;
-            z-index: 15;
-            pointer-events: none;
-          ">
+          <!-- Flight Number & Airline Code -->
+          <div style="display: flex; align-items: center; gap: 8px;">
             <span style="
-              background: #0F172A;
-              color: #ffffff;
               font-weight: 900;
               font-family: var(--font-family-mono);
-              font-size: 10px;
-              padding: 2px 6px;
-              border-radius: 5px;
-              border: 1px solid ${color};
-              box-shadow: 0 2px 6px rgba(0,0,0,0.6);
+              font-size: 11px;
+              color: #FFFFFF;
+              letter-spacing: 0.5px;
             ">
               ${escapeHtml(fn)}
             </span>
-
             <span style="
               font-size: 10px;
               font-weight: 700;
-              color: #ffffff;
+              color: ${color};
               font-family: var(--font-family-mono);
-              background: rgba(15, 23, 42, 0.88);
-              padding: 2px 7px;
-              border-radius: 5px;
-              border: 1px solid rgba(255, 255, 255, 0.2);
-              box-shadow: 0 2px 8px rgba(0,0,0,0.7);
-              backdrop-filter: blur(8px);
             ">
-              ${escapeHtml(depCode)} ${escapeHtml(depTimeStr)} ➔ ${escapeHtml(arrCode)} ${escapeHtml(arrTimeStr)}
+              ${escapeHtml(depCode)}➔${escapeHtml(arrCode)}
             </span>
+          </div>
+
+          <!-- Departure & Arrival Local Times -->
+          <div style="
+            font-size: 10px;
+            font-weight: 700;
+            color: #94A3B8;
+            font-family: var(--font-family-mono);
+            background: rgba(255, 255, 255, 0.06);
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-left: 6px;
+            white-space: nowrap;
+          ">
+            ${escapeHtml(depTimeStr)} - ${escapeHtml(arrTimeStr)}
           </div>
         </div>
       `;
@@ -235,8 +242,16 @@ export function renderTimeline(container, tripOrFlights, participantsOrFilter, f
 
   container.innerHTML = html;
 
-  // Click handler for flight detail modal
+  // Click handler for flight detail modal & hover animation
   container.querySelectorAll('.tl-bar').forEach(bar => {
+    bar.addEventListener('mouseenter', () => {
+      bar.style.transform = 'translateY(-2px) scale(1.02)';
+      bar.style.zIndex = '30';
+    });
+    bar.addEventListener('mouseleave', () => {
+      bar.style.transform = 'none';
+      bar.style.zIndex = '10';
+    });
     bar.addEventListener('click', () => {
       try {
         const flight = JSON.parse(decodeURIComponent(bar.dataset.flight));
