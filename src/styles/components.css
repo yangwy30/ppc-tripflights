@@ -446,7 +446,7 @@
     transform: translateY(-1px);
 }
 
-/* --- Commercial Flight Card --- */
+/* --- Commercial Flight Card (Expanded) --- */
 .flight-card {
     background: var(--color-surface);
     border: 1px solid var(--color-border);
@@ -574,6 +574,41 @@
     width: 8px;
     height: 8px;
     border-radius: 50%;
+}
+
+/* --- Compact 48px Ticket Row --- */
+.flight-row-compact {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    margin-bottom: 6px;
+    transition: all var(--transition-fast);
+    backdrop-filter: var(--glass-blur);
+    position: relative;
+    overflow: hidden;
+}
+
+.flight-row-compact::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 3px;
+    height: 100%;
+    background: var(--flight-person-color, var(--color-accent));
+}
+
+.flight-row-compact:hover {
+    border-color: rgba(255, 255, 255, 0.2);
+    transform: translateY(-1px);
+}
+
+.flight-row-compact-inner {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: 8px 12px 8px 16px;
+    min-height: 48px;
 }
 
 /* --- Timeline Component (Fixed Layout) --- */

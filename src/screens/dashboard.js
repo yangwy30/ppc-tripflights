@@ -9,7 +9,7 @@ import { showToast } from '../components/toast.js';
 import { refreshFlightStatus } from '../data/flightService.js';
 import { updateFlightStatus } from '../data/dataAdapter.js';
 import { renderTimeline } from '../components/timeline.js';
-import { renderFlightCard } from '../components/flightCard.js';
+import { renderFlightCard, renderCompactFlightRow } from '../components/flightCard.js';
 import { renderCoordinationTab } from '../components/coordinationTab.js';
 import { startPolling, stopPolling, isPolling, setAutoRefreshPref, getAutoRefreshPref } from '../data/alertService.js';
 import { getIcon } from '../components/icons.js';
@@ -37,7 +37,9 @@ export async function renderDashboard(container, tripId) {
   let activeMainTab = 'tracking';
   let activeTab = 'flights';
   let phaseFilter = 'all'; // 'all' | 'outbound' | 'return'
+  let viewMode = 'compact'; // 'compact' | 'expanded'
   let filterPerson = 'all';
+  const expandedFlightIds = new Set();
 
   if (getAutoRefreshPref(tripId)) {
     startPolling(tripId);
@@ -178,23 +180,36 @@ export async function renderDashboard(container, tripId) {
                 `).join('')}
               </div>
 
-              <!-- Phase & View Sub-Tabs -->
-              <div class="tabs mb-base">
-                <button class="tab ${activeTab === 'flights' && phaseFilter === 'all' ? 'active' : ''}" data-tab="flights" data-phase="all">All (${currentTrip.flights.length})</button>
-                <button class="tab ${activeTab === 'flights' && phaseFilter === 'outbound' ? 'active' : ''}" data-tab="flights" data-phase="outbound">
-                  <span style="color: #34D399; display:flex;">${getIcon('plane')}</span> Outbound (${filteredOutbound})
-                </button>
-                <button class="tab ${activeTab === 'flights' && phaseFilter === 'return' ? 'active' : ''}" data-tab="flights" data-phase="return">
-                  <span style="color: #60A5FA; display:flex;">${getIcon('plane')}</span> Return (${filteredReturn})
-                </button>
-                <button class="tab ${activeTab === 'timeline' ? 'active' : ''}" data-tab="timeline">
-                  <span style="display:flex;">${getIcon('timeline')}</span> Timeline
-                </button>
+              <!-- Phase & View Sub-Tabs + View Mode Toggle -->
+              <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:var(--space-sm);" class="mb-base">
+                <div class="tabs">
+                  <button class="tab ${activeTab === 'flights' && phaseFilter === 'all' ? 'active' : ''}" data-tab="flights" data-phase="all">All (${currentTrip.flights.length})</button>
+                  <button class="tab ${activeTab === 'flights' && phaseFilter === 'outbound' ? 'active' : ''}" data-tab="flights" data-phase="outbound">
+                    <span style="color: #34D399; display:flex;">${getIcon('plane')}</span> Outbound (${filteredOutbound})
+                  </button>
+                  <button class="tab ${activeTab === 'flights' && phaseFilter === 'return' ? 'active' : ''}" data-tab="flights" data-phase="return">
+                    <span style="color: #60A5FA; display:flex;">${getIcon('plane')}</span> Return (${filteredReturn})
+                  </button>
+                  <button class="tab ${activeTab === 'timeline' ? 'active' : ''}" data-tab="timeline">
+                    <span style="display:flex;">${getIcon('timeline')}</span> Timeline
+                  </button>
+                </div>
+
+                ${activeTab === 'flights' ? `
+                  <div class="tabs" style="padding: 2px;">
+                    <button class="tab ${viewMode === 'compact' ? 'active' : ''}" id="btn-view-compact" title="Compact Ticket Rows" style="padding: 4px 10px; font-size: 11px;">
+                      ☰ Compact
+                    </button>
+                    <button class="tab ${viewMode === 'expanded' ? 'active' : ''}" id="btn-view-expanded" title="Full Flight Cards" style="padding: 4px 10px; font-size: 11px;">
+                      🎴 Cards
+                    </button>
+                  </div>
+                ` : ''}
               </div>
 
               <!-- Content Stream -->
               <div id="tab-content">
-                ${activeTab === 'flights' ? renderFlightsList(sortedFlights, currentTrip) : ''}
+                ${activeTab === 'flights' ? renderFlightsList(sortedFlights, currentTrip, viewMode, expandedFlightIds) : ''}
               </div>
             </div>
 
@@ -206,7 +221,6 @@ export async function renderDashboard(container, tripId) {
 
           <!-- Sidebar Column (SaaS Trip Insights Dashboard Widget) -->
           <div class="side-card-stack">
-            
             <div class="card card-compact">
               <!-- Card Header -->
               <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: var(--space-md); padding-bottom: var(--space-xs); border-bottom: 1px solid var(--color-border);">
@@ -256,7 +270,6 @@ export async function renderDashboard(container, tripId) {
                 </button>
               </div>
             </div>
-
           </div>
 
         </div>
@@ -272,6 +285,39 @@ export async function renderDashboard(container, tripId) {
       const timelineContainer = container.querySelector('#tab-content');
       renderTimeline(timelineContainer, currentTrip.flights, currentTrip.participants);
     }
+
+    // View mode toggle handlers
+    const btnCompact = container.querySelector('#btn-view-compact');
+    const btnExpanded = container.querySelector('#btn-view-expanded');
+
+    if (btnCompact) {
+      btnCompact.addEventListener('click', () => {
+        viewMode = 'compact';
+        render();
+      });
+    }
+
+    if (btnExpanded) {
+      btnExpanded.addEventListener('click', () => {
+        viewMode = 'expanded';
+        render();
+      });
+    }
+
+    // Expand / collapse compact rows on row click
+    container.querySelectorAll('.flight-row-compact').forEach(row => {
+      row.addEventListener('click', (e) => {
+        if (e.target.closest('.flight-refresh') || e.target.closest('.flight-delete')) return;
+        const flightId = row.querySelector('.flight-delete')?.dataset?.flightId;
+        if (!flightId) return;
+        if (expandedFlightIds.has(flightId)) {
+          expandedFlightIds.delete(flightId);
+        } else {
+          expandedFlightIds.add(flightId);
+        }
+        render();
+      });
+    });
 
     // Event Listeners
     container.querySelector('#btn-back').addEventListener('click', () => {
@@ -341,12 +387,17 @@ export async function renderDashboard(container, tripId) {
       });
     });
 
-    container.querySelectorAll('.tab').forEach(tab => {
+    container.querySelectorAll('.tab[data-phase]').forEach(tab => {
       tab.addEventListener('click', () => {
-        activeTab = tab.dataset.tab;
-        if (tab.dataset.phase) {
-          phaseFilter = tab.dataset.phase;
-        }
+        activeTab = 'flights';
+        phaseFilter = tab.dataset.phase;
+        render();
+      });
+    });
+
+    container.querySelectorAll('.tab[data-tab="timeline"]').forEach(tab => {
+      tab.addEventListener('click', () => {
+        activeTab = 'timeline';
         render();
       });
     });
@@ -418,7 +469,7 @@ export async function renderDashboard(container, tripId) {
   render();
 }
 
-function renderFlightsList(flights, trip) {
+function renderFlightsList(flights, trip, viewMode, expandedFlightIds) {
   if (flights.length === 0) {
     return `
       <div class="empty-state">
@@ -429,7 +480,13 @@ function renderFlightsList(flights, trip) {
     `;
   }
 
-  return flights.map((flight, i) => renderFlightCard(flight, trip.participants, i, trip)).join('');
+  return flights.map((flight, i) => {
+    if (viewMode === 'compact' && !expandedFlightIds.has(flight.id)) {
+      return renderCompactFlightRow(flight, trip.participants, i, trip);
+    } else {
+      return renderFlightCard(flight, trip.participants, i, trip);
+    }
+  }).join('');
 }
 
 function formatDateRange(start, end) {

@@ -129,6 +129,64 @@ export function renderFlightCard(flight, participants, index, trip) {
   `;
 }
 
+export function renderCompactFlightRow(flight, participants, index, trip) {
+  const personIndex = participants.findIndex(p => p.name === flight.addedBy);
+  const personColor = PERSON_COLORS[personIndex >= 0 ? personIndex % 6 : 0];
+  const statusInfo = STATUS_MAP[flight.status] || STATUS_MAP.scheduled;
+
+  let directionBadge = '';
+  if (trip) {
+    const participant = participants[personIndex];
+    const destIata = (participant?.destinationAirport || trip.destinationAirport || '').toUpperCase().trim();
+    const retIata = (participant?.destinationAirport || trip.returnAirport || '').toUpperCase().trim();
+
+    const arrCode = (flight.arrival?.code || '').toUpperCase().trim();
+    const depCode = (flight.departure?.code || '').toUpperCase().trim();
+
+    if (destIata && arrCode === destIata) {
+      directionBadge = `<span class="badge-outbound" style="font-size: 9px; padding: 1px 6px;">Outbound</span>`;
+    } else if (destIata && depCode === destIata) {
+      directionBadge = `<span class="badge-return" style="font-size: 9px; padding: 1px 6px;">Return</span>`;
+    } else if (retIata && depCode === retIata) {
+      directionBadge = `<span class="badge-return" style="font-size: 9px; padding: 1px 6px;">Return</span>`;
+    }
+  }
+
+  const depCode = flight.departure?.code || '???';
+  const arrCode = flight.arrival?.code || '???';
+
+  return `
+    <div class="flight-row-compact" style="--flight-person-color: ${personColor};">
+      <div class="flight-row-compact-inner">
+        <span class="badge ${statusInfo.class}" style="font-size:10px; padding: 2px 6px;"><span class="live-dot"></span>${statusInfo.label}</span>
+        
+        <span class="flight-number" style="font-size: var(--font-size-xs); font-weight:700;">${escapeHtml(flight.flightNumber)}</span>
+        
+        ${directionBadge}
+
+        <div style="display:flex; align-items:center; gap: 5px; font-family: var(--font-family-mono); font-size: var(--font-size-xs); color: var(--color-text-primary); margin-left: auto;">
+          <span style="font-weight:700;">${escapeHtml(depCode)}</span>
+          <span style="color: var(--color-text-tertiary);">${escapeHtml(flight.departure?.time || '')}</span>
+          <span style="color: var(--color-accent); font-size:10px;">➔</span>
+          <span style="font-weight:700;">${escapeHtml(arrCode)}</span>
+          <span style="color: var(--color-text-tertiary);">${escapeHtml(flight.arrival?.time || '')}</span>
+          ${flight.duration ? `<span style="color: var(--color-text-tertiary); opacity: 0.6; font-size:10px;">(${escapeHtml(flight.duration)})</span>` : ''}
+        </div>
+
+        <div class="flight-person" style="font-size: 11px; margin-left: 10px; gap: 4px; flex-shrink: 0;">
+          <span class="flight-person-dot" style="background: ${personColor}; width: 6px; height: 6px;"></span>
+          <span style="color: var(--color-text-secondary); max-width: 60px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(flight.addedBy || 'Unknown')}</span>
+        </div>
+
+        <div style="display:flex; align-items:center; gap: 2px; margin-left: 6px; flex-shrink: 0;">
+          <button class="btn btn-icon btn-ghost flight-refresh" data-flight-id="${flight.id}" data-flight-number="${flight.flightNumber}" data-flight-date="${flight.date || ''}" title="Refresh status" style="width:22px;height:22px;font-size:10px;padding:0;">${getIcon('refresh')}</button>
+          <button class="btn btn-icon btn-ghost flight-delete" data-flight-id="${flight.id}" title="Remove flight" style="width:22px;height:22px;color:var(--color-danger);font-size:10px;padding:0;">${getIcon('trash')}</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 function escapeHtml(str) {
   if (!str) return '';
   const div = document.createElement('div');
