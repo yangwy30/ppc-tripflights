@@ -1,6 +1,6 @@
 /* ============================================
-   PPC: Delay No More — Flighty Animated Flow Arrows & Clean City Nodes Route Map Engine
-   Includes 60fps Directional Vector Flow Arrows + Shared City De-duplication
+   PPC: Delay No More — Sub-Pixel Butter-Smooth Slow Flow Arrow Engine
+   Includes Continuous LERP Interpolation + 8-Second Relaxing Flow Pace
    ============================================ */
 
 import L from 'leaflet';
@@ -95,7 +95,7 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
           </span>
         </div>
         <div style="font-size: 11px; color: var(--color-text-tertiary); font-family: var(--font-family-mono);">
-          CartoDB Dark Basemap · Animated Flow Vectors ───►
+          CartoDB Dark Basemap · Butter-Smooth Flow Pace
         </div>
       </div>
 
@@ -149,7 +149,7 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
     corridorGroups.get(corridorKey).push(f);
   });
 
-  // Render Flights with Algorithmic Arc Fan-Out & Store Active Flow Curves
+  // Render Flights with Algorithmic Arc Fan-Out
   corridorGroups.forEach((flightList, corridorKey) => {
     const totalInCorridor = flightList.length;
 
@@ -165,7 +165,6 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
       bounds.push(startCoords);
       bounds.push(endCoords);
 
-      // Track airports and traveler details
       if (!airportMap.has(depCode)) airportMap.set(depCode, { code: depCode, coords: startCoords, departures: [], arrivals: [] });
       if (!airportMap.has(arrCode)) airportMap.set(arrCode, { code: arrCode, coords: endCoords, departures: [], arrivals: [] });
 
@@ -177,7 +176,7 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
       const fanOffset = totalInCorridor > 1 ? (idxInCorridor - (totalInCorridor - 1) / 2) * 0.16 : 0.12;
       const arcHeightFactor = (isReversed ? -1 : 1) * fanOffset;
 
-      const arcPoints = getGreatCircleArcOffset(startCoords, endCoords, 60, arcHeightFactor);
+      const arcPoints = getGreatCircleArcOffset(startCoords, endCoords, 100, arcHeightFactor);
 
       // Draw Polyline Arc
       const polyline = L.polyline(arcPoints, {
@@ -187,19 +186,16 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
         lineCap: 'round'
       }).addTo(map);
 
-      // Store flow corridor data for 60fps directional arrow animation
+      // Store flow corridor data for butter-smooth 60fps LERP arrow animation
       if (!isFilteredOut) {
         activeCorridors.push({
           points: arcPoints,
           color,
           depCode,
-          arrCode,
-          flightNumber: f.flightNumber,
-          addedBy: f.addedBy
+          arrCode
         });
       }
 
-      // Tooltip on Hover
       polyline.bindTooltip(`
         <div style="padding: 4px 6px;">
           <div style="font-weight:800; font-family:var(--font-family-mono); font-size:12px; color:#fff; display:flex; align-items:center; gap:8px;">
@@ -214,7 +210,6 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
     });
   });
 
-  // Fit bounds first so Leaflet establishes container pixel coordinates
   if (bounds.length > 0) {
     try {
       map.fitBounds(bounds, { padding: [50, 50], maxZoom: 7 });
@@ -229,7 +224,6 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
     pillOffsetsMap.set(ap.code, { dx: 0, dy: -20 });
   });
 
-  // Screen Point Collision Detection Loop
   for (let i = 0; i < airportList.length; i++) {
     for (let j = i + 1; j < airportList.length; j++) {
       const apA = airportList[i];
@@ -261,7 +255,7 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
 
   const totalGroupCount = participants.length || 1;
 
-  // Render Airport Pins with De-duplicated Shared City Nodes & Direction Badges
+  // Render Airport Pins with De-duplicated Shared City Nodes
   airportMap.forEach((data, code) => {
     const { coords, departures, arrivals } = data;
     const allTravelers = [...departures, ...arrivals];
@@ -276,12 +270,12 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
         travelerList = departures;
       } else if (arrivals.length > 0 && departures.length === 0) {
         phaseIcon = '🛬';
-        travelerList = []; // Clean target arrival hub
+        travelerList = [];
       }
     } else if (phaseName === 'return') {
       if (departures.length > 0 && arrivals.length === 0) {
         phaseIcon = '🛫';
-        travelerList = []; // Clean departure hub
+        travelerList = [];
       } else if (arrivals.length > 0 && departures.length === 0) {
         phaseIcon = '🛬';
         travelerList = arrivals;
@@ -299,7 +293,6 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
       }
     });
 
-    // RULE: If ALL travelers in group are at this airport, don't clutter with avatars!
     const isSharedByEveryone = uniqueTravelers.length >= totalGroupCount;
 
     const avatarStackHtml = (!isSharedByEveryone && uniqueTravelers.length > 0)
@@ -317,10 +310,8 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
       className: 'airport-pill-marker',
       html: `
         <div style="position:relative; cursor:pointer; opacity:${isFiltered ? 0.35 : 1};">
-          <!-- Exact Airport Location Dot -->
           <div style="width:8px; height:8px; border-radius:50%; background:#0A84FF; box-shadow:0 0 10px #0A84FF; border:1.5px solid #ffffff; transform:translate(-50%, -50%);"></div>
           
-          <!-- Phase-Sensitive Badge Pill -->
           <div style="position:absolute; ${pillStyle} display:inline-flex; align-items:center; gap:5px; background:rgba(15,23,42,0.95); border:1px solid rgba(255,255,255,0.22); border-radius:12px; padding:3px 8px; backdrop-filter:blur(10px); box-shadow:0 4px 18px rgba(0,0,0,0.75); white-space:nowrap; z-index:10;">
             <span style="font-size:10px;">${phaseIcon}</span>
             <span style="font-size:11px; font-weight:800; font-family:var(--font-family-mono); color:#ffffff;">${code}</span>
@@ -348,13 +339,13 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
     `, { sticky: true, className: 'leaflet-dark-tooltip' });
   });
 
-  // 60FPS ANIMATED FLOW ARROWS ALONG ARC PATHS (Departure ➔ Arrival Direction Vector)
+  // SUB-PIXEL CONTINUOUS LERP ANIMATED FLOW ARROWS (Relaxing 8-Second Pace)
   const flowMarkers = [];
   activeCorridors.forEach(corridor => {
     const icon = L.divIcon({
       className: 'flow-arrow-marker',
       html: `
-        <div style="color:${corridor.color}; font-size:12px; font-weight:900; line-height:1; filter:drop-shadow(0 0 6px ${corridor.color}); transform:translate(-50%, -50%);">
+        <div style="color:${corridor.color}; font-size:11px; font-weight:900; line-height:1; filter:drop-shadow(0 0 6px ${corridor.color}); transform:translate(-50%, -50%); transition: transform 0.05s linear;">
           ▶
         </div>
       `,
@@ -367,35 +358,41 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
 
   let progress = 0;
   function animateFlow() {
-    progress = (progress + 0.006) % 1;
+    // Relaxing 8-second slow travel pace (0.002 instead of 0.006)
+    progress = (progress + 0.002) % 1;
 
     flowMarkers.forEach((item, idx) => {
       const pts = item.points;
       if (!pts || pts.length < 2) return;
 
       const totalPts = pts.length;
-      // Stagger flow arrows along each arc
-      const offsetProgress = (progress + (idx * 0.25)) % 1;
-      const targetIndex = Math.floor(offsetProgress * (totalPts - 1));
-      const nextIndex = Math.min(totalPts - 1, targetIndex + 1);
+      const offsetProgress = (progress + (idx * 0.3)) % 1;
 
-      const currPt = pts[targetIndex];
-      const nextPt = pts[nextIndex];
+      // Sub-pixel continuous LERP coordinate calculation
+      const exactIndex = offsetProgress * (totalPts - 1);
+      const i1 = Math.floor(exactIndex);
+      const i2 = Math.min(totalPts - 1, i1 + 1);
+      const weight = exactIndex - i1;
 
-      if (currPt && nextPt) {
-        item.marker.setLatLng(currPt);
+      const lat1 = pts[i1][0], lon1 = pts[i1][1];
+      const lat2 = pts[i2][0], lon2 = pts[i2][1];
 
-        // Compute Angle Vector for Arrow Rotation
-        const pt1 = map.latLngToContainerPoint(currPt);
-        const pt2 = map.latLngToContainerPoint(nextPt);
-        const angle = Math.atan2(pt2.y - pt1.y, pt2.x - pt1.x) * (180 / Math.PI);
+      const currentLat = lat1 + (lat2 - lat1) * weight;
+      const currentLon = lon1 + (lon2 - lon1) * weight;
+      const interpolatedCoords = [currentLat, currentLon];
 
-        const el = item.marker.getElement();
-        if (el) {
-          const arrowChild = el.querySelector('div');
-          if (arrowChild) {
-            arrowChild.style.transform = `translate(-50%, -50%) rotate(${angle}deg)`;
-          }
+      item.marker.setLatLng(interpolatedCoords);
+
+      // Compute Angle Vector for Arrow Rotation
+      const pt1 = map.latLngToContainerPoint(pts[i1]);
+      const pt2 = map.latLngToContainerPoint(pts[i2]);
+      const angle = Math.atan2(pt2.y - pt1.y, pt2.x - pt1.x) * (180 / Math.PI);
+
+      const el = item.marker.getElement();
+      if (el) {
+        const arrowChild = el.querySelector('div');
+        if (arrowChild) {
+          arrowChild.style.transform = `translate(-50%, -50%) rotate(${angle}deg)`;
         }
       }
     });
@@ -413,9 +410,9 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
 }
 
 /**
- * Great Circle Arc Interpolation with Curvature Offset
+ * Great Circle Arc Interpolation with Curvature Offset (100 High-Res Interpolation Points)
  */
-function getGreatCircleArcOffset(start, end, numPoints = 50, arcHeightFactor = 0.15) {
+function getGreatCircleArcOffset(start, end, numPoints = 100, arcHeightFactor = 0.15) {
   const lat1 = start[0] * Math.PI / 180;
   const lon1 = start[1] * Math.PI / 180;
   const lat2 = end[0] * Math.PI / 180;
