@@ -1,5 +1,5 @@
 /* ============================================
-   PPC: Delay No More — Join Trip Screen
+   PPC: Delay No More — Join Trip Screen (iOS SF Pro Style)
    ============================================ */
 
 import { joinTrip, updateParticipantDestination } from '../data/dataAdapter.js';
@@ -7,19 +7,20 @@ import { emit, EVENTS } from '../data/store.js';
 import { navigate } from '../app.js';
 import { showToast } from '../components/toast.js';
 import { setupAirportAutocomplete } from '../components/airportSearch.js';
+import { getIcon } from '../components/icons.js';
 
 export function renderJoinTrip(container) {
   container.innerHTML = `
     <div class="screen">
       <div class="topbar">
         <button class="topbar-back" id="btn-back">
-          ← Back
+          <span style="display:flex;">${getIcon('arrowLeft')}</span> Back
         </button>
       </div>
 
       <div class="screen-header">
-        <h1>Join a Trip</h1>
-        <p>Enter the PIN code shared by your friend</p>
+        <h1 style="font-size: 2.2rem; font-weight: 800; letter-spacing: -0.04em;">Join a Trip</h1>
+        <p style="font-size: var(--font-size-sm); color: var(--color-text-secondary);">Enter the PIN code shared by your friend</p>
       </div>
 
       <form id="join-form" class="flex-col" style="gap: var(--space-sm);">
@@ -27,7 +28,7 @@ export function renderJoinTrip(container) {
           <label for="pin-code">Trip PIN Code</label>
           <input class="input" type="text" id="pin-code" placeholder="Enter 6-digit PIN" 
             maxlength="6" pattern="[0-9]{6}" inputmode="numeric" required 
-            style="font-size: var(--font-size-xl); letter-spacing: 6px; text-align: center; font-weight: var(--font-weight-bold);" />
+            style="font-family: var(--font-family-mono); font-size: 2.2rem; letter-spacing: 8px; text-align: center; font-weight: 800;" />
         </div>
 
         <div class="input-group">
@@ -46,8 +47,8 @@ export function renderJoinTrip(container) {
           <div id="dest-airport-container"></div>
         </div>
 
-        <button class="btn btn-primary mt-lg" type="submit">
-          Join Trip 📌
+        <button class="btn btn-primary mt-lg" type="submit" style="padding: 0.85rem var(--space-lg); font-size: var(--font-size-md);">
+          <span style="display:flex;">${getIcon('share')}</span> Join Trip
         </button>
 
         <div id="join-error" style="display:none; text-align:center; margin-top: var(--space-base);">
@@ -95,7 +96,7 @@ export function renderJoinTrip(container) {
     } else {
       errorEl.style.display = 'block';
       submitBtn.disabled = false;
-      submitBtn.textContent = 'Join Trip 📌';
+      submitBtn.innerHTML = `<span style="display:flex;">${getIcon('share')}</span> Join Trip`;
       showToast('Trip not found', 'error');
     }
   });

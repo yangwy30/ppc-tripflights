@@ -1,5 +1,5 @@
 /* ============================================
-   PPC: Delay No More — Create Trip Screen
+   PPC: Delay No More — Create Trip Screen (iOS SF Pro Style)
    ============================================ */
 
 import { createTrip } from '../data/dataAdapter.js';
@@ -7,6 +7,7 @@ import { emit, EVENTS } from '../data/store.js';
 import { navigate } from '../app.js';
 import { showToast } from '../components/toast.js';
 import { setupAirportAutocomplete } from '../components/airportSearch.js';
+import { getIcon } from '../components/icons.js';
 
 export function renderCreateTrip(container) {
   // Default dates: today + 7 days
@@ -21,13 +22,13 @@ export function renderCreateTrip(container) {
     <div class="screen">
       <div class="topbar">
         <button class="topbar-back" id="btn-back">
-          ← Back
+          <span style="display:flex;">${getIcon('arrowLeft')}</span> Back
         </button>
       </div>
 
       <div class="screen-header">
-        <h1>Create a Trip</h1>
-        <p>Name your trip, set dates, and share the PIN</p>
+        <h1 style="font-size: 2.2rem; font-weight: 800; letter-spacing: -0.04em;">Create a Trip</h1>
+        <p style="font-size: var(--font-size-sm); color: var(--color-text-secondary);">Name your trip, set dates, and share the PIN code</p>
       </div>
 
       <form id="create-form" class="flex-col" style="gap: var(--space-sm);">
@@ -55,7 +56,7 @@ export function renderCreateTrip(container) {
         <div class="input-group">
           <label for="return-airport">Return From (City or Airport, Optional)</label>
           <div id="return-airport-container"></div>
-          <p style="font-size: var(--font-size-xs); color: var(--color-text-secondary); margin-top: 4px;">Leave blank if returning from the destination.</p>
+          <p style="font-size: var(--font-size-xs); color: var(--color-text-tertiary); margin-top: 4px;">Leave blank if returning from the destination.</p>
         </div>
 
         <div class="input-group">
@@ -66,11 +67,11 @@ export function renderCreateTrip(container) {
         <div class="input-group">
           <label for="home-airport">Your Origin (City or Airport, Optional)</label>
           <div id="home-airport-container"></div>
-          <p style="font-size: var(--font-size-xs); color: var(--color-text-secondary); margin-top: 4px;">Where are you flying from?</p>
+          <p style="font-size: var(--font-size-xs); color: var(--color-text-tertiary); margin-top: 4px;">Where are you flying from?</p>
         </div>
 
-        <button class="btn btn-primary mt-lg" type="submit">
-          Create Trip ✈️
+        <button class="btn btn-primary mt-lg" type="submit" style="padding: 0.85rem var(--space-lg); font-size: var(--font-size-md);">
+          <span style="display:flex;">${getIcon('plus')}</span> Create Trip
         </button>
       </form>
     </div>
@@ -111,7 +112,7 @@ export function renderCreateTrip(container) {
       navigate(`trip/${trip.id}`);
     } else {
       submitBtn.disabled = false;
-      submitBtn.textContent = 'Create Trip ✈️';
+      submitBtn.innerHTML = `<span style="display:flex;">${getIcon('plus')}</span> Create Trip`;
       showToast('Failed to create trip', 'error');
     }
   });

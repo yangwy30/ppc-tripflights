@@ -1,5 +1,5 @@
 /* ============================================
-   PPC: Delay No More — Coordination Tab
+   PPC: Delay No More — Coordination Tab (iOS SF Pro Style)
    The UI for the Phase 3 Flight Coordination Engine
    ============================================ */
 
@@ -9,6 +9,7 @@ import { renderRecommendationCard } from './recommendationCard.js';
 import { getUserNickname, addFlight } from '../data/dataAdapter.js';
 import { showToast } from './toast.js';
 import { emit, EVENTS } from '../data/store.js';
+import { getIcon } from './icons.js';
 
 // Module-level cache: persists results across tab switches (keyed by trip ID)
 const _coordinationCache = {};
@@ -34,7 +35,6 @@ export async function renderCoordinationTab(container, trip) {
 
     const currentNickname = getUserNickname(trip.id);
     const currentUser = trip.participants.find(p => p.name === currentNickname);
-    const currentUserOrigin = currentUser ? currentUser.homeAirport : null;
 
     const hasBookedFlight = trip.flights && trip.flights.some(f => f.addedBy === currentNickname);
 
@@ -62,37 +62,25 @@ export async function renderCoordinationTab(container, trip) {
         const fetchBtn = container.querySelector('#btn-find-flights');
         if (fetchBtn) {
             fetchBtn.addEventListener('click', async () => {
-                console.log('[CoordTab] Button clicked. Setting state to loading.');
-                // Clear stale cache for this trip
                 delete _coordinationCache[trip.id];
                 state = 'loading';
                 render();
 
                 try {
-                    // Start date of the trip for flight search
                     searchDate = trip.startDate || new Date().toISOString().split('T')[0];
-
-                    console.log('[CoordTab] Calling generateGroupOptions...');
                     options = await generateGroupOptions(trip, currentNickname);
-                    console.log('[CoordTab] generateGroupOptions returned:', options.length, 'options');
 
                     if (options.length > 0) {
-                        // Pass the Top Option to the AI with its actual arrival spread
-                        console.log('[CoordTab] Calling generateConciergeSummary...');
                         aiSummary = await generateConciergeSummary(options[0], currentNickname);
-                        console.log('[CoordTab] AI summary returned:', aiSummary.substring(0, 50) + '...');
                     }
 
                     state = 'results';
-                    // Cache results so they persist across tab switches
                     _coordinationCache[trip.id] = { options, aiSummary, searchDate };
-                    console.log('[CoordTab] State set to results. Calling render().');
                 } catch (error) {
                     console.error("[CoordTab] Engine failed:", error);
                     state = 'error';
                 }
                 render();
-                console.log('[CoordTab] Final render() called. State:', state);
             });
         }
 
@@ -135,7 +123,7 @@ export async function renderCoordinationTab(container, trip) {
                     }
 
                     emit(EVENTS.FLIGHT_ADDED);
-                    showToast('Flights added to your timeline! ✈️', 'success');
+                    showToast('Flights added to your timeline!', 'success');
 
                     // Switch to timeline tab automatically
                     const timelineTabBtn = document.querySelector('.tab-btn[data-tab="timeline"]');
@@ -145,7 +133,7 @@ export async function renderCoordinationTab(container, trip) {
                     console.error('Failed to add flights to timeline', err);
                     showToast('Failed to add to timeline', 'error');
                     btn.disabled = false;
-                    btn.textContent = '✅ Add to Timeline';
+                    btn.textContent = 'Add to Timeline';
                 }
             });
         });
@@ -165,30 +153,33 @@ function renderStatusHeader(trip, origins) {
         .filter(p => p.destinationAirport && p.destinationAirport !== trip.destinationAirport)
         .map(p => `${p.name} → ${p.destinationAirport}`);
 
-    let destHtml = `<strong>${trip.destinationAirport || 'Not set'}</strong>`;
-    let retHtml = trip.returnAirport ? ` • Return from: <strong>${trip.returnAirport}</strong>` : '';
+    let destHtml = `<strong style="font-family:var(--font-family-mono);">${trip.destinationAirport || 'Not set'}</strong>`;
+    let retHtml = trip.returnAirport ? ` • Return from: <strong style="font-family:var(--font-family-mono);">${trip.returnAirport}</strong>` : '';
 
     if (overrides.length > 0) {
         const overrideStr = `<span style="font-size: 0.9em; color: var(--color-text-secondary); margin-left: 4px;">(${overrides.join(', ')})</span>`;
         destHtml += overrideStr;
-        if (trip.returnAirport) retHtml += overrideStr; // apply overrides to return side too
+        if (trip.returnAirport) retHtml += overrideStr;
     }
 
     return `
         <div class="card mb-base" style="padding: var(--space-md); border-left: 4px solid var(--color-accent);">
-            <h3 style="margin-bottom: var(--space-xs);">Flight Coordination Engine</h3>
+            <div style="display:flex; align-items:center; gap: 8px; margin-bottom: var(--space-xs);">
+                <span style="color: var(--color-accent); display:flex;">${getIcon('sparkles')}</span>
+                <h3 style="margin:0; font-size: 1.1rem; font-weight: 800; letter-spacing: -0.02em;">Flight Coordination Engine</h3>
+            </div>
             <p style="font-size: var(--font-size-sm); margin-bottom: var(--space-sm);">
                 Destination: ${destHtml}
                 ${retHtml}
             </p>
             <div style="font-size: var(--font-size-sm); color: var(--color-text-secondary); margin-bottom: var(--space-md);">
                 ${missing === 0
-            ? `✅ All ${totalParticipants} travelers have set their origin airport.`
-            : `⚠️ Waiting on ${missing} traveler(s) to set an origin airport.`}
+            ? `All ${totalParticipants} travelers have set their origin airport.`
+            : `Waiting on ${missing} traveler(s) to set an origin airport.`}
             </div>
             
-            <button id="btn-find-flights" class="btn btn-primary" style="width: 100%;" ${!isReady ? 'disabled' : ''}>
-                🪄 Find Coordinated Flights
+            <button id="btn-find-flights" class="btn btn-primary" style="width: 100%; font-size: var(--font-size-sm);" ${!isReady ? 'disabled' : ''}>
+                <span style="display:flex;">${getIcon('sparkles')}</span> Find Coordinated Flights
             </button>
         </div>
     `;
@@ -197,9 +188,9 @@ function renderStatusHeader(trip, origins) {
 function renderIdleState() {
     return `
         <div class="empty-state" style="padding: var(--space-2xl) 0;">
-            <div class="empty-state-icon">🗓️</div>
+            <div class="empty-state-icon" style="display:flex; justify-content:center;">${getIcon('sparkles')}</div>
             <h3>Ready to Coordinate</h3>
-            <p>Click the button above to search the Amadeus API and find the best group flight combinations.</p>
+            <p>Click the button above to search and find the best group flight combinations.</p>
         </div>
     `;
 }
@@ -211,16 +202,16 @@ function renderBookedSuccessState(trip, origins, currentNickname) {
 
     return `
         <div class="card mb-base" style="padding: var(--space-xl); text-align: center; border: 1px solid var(--color-border); box-shadow: var(--shadow-md);">
-            <div style="font-size: 3rem; margin-bottom: var(--space-md);">🎉</div>
-            <h3 style="margin-bottom: var(--space-sm);">You're all set, ${currentNickname}!</h3>
-            <p style="color: var(--color-text-secondary); margin-bottom: var(--space-lg); max-width: 400px; margin-left: auto; margin-right: auto;">
+            <div style="font-size: 2.5rem; margin-bottom: var(--space-md); color: var(--color-success); display:flex; justify-content:center;">${getIcon('plane')}</div>
+            <h3 style="margin-bottom: var(--space-sm); font-weight: 800; letter-spacing: -0.03em;">You're all set, ${currentNickname}!</h3>
+            <p style="color: var(--color-text-secondary); margin-bottom: var(--space-lg); max-width: 400px; margin-left: auto; margin-right: auto; font-size: var(--font-size-sm);">
                 You've already added your flight to the itinerary. The rest of the group will use this tool to coordinate their arrivals around your schedule.
             </p>
             
             <div style="background: var(--color-surface-secondary); padding: var(--space-md); border-radius: var(--radius-sm); font-size: var(--font-size-sm); display: inline-block; text-align: left;">
-                <div style="font-weight: 500; margin-bottom: 4px;">Group Coordination Status:</div>
+                <div style="font-weight: 600; margin-bottom: 4px;">Group Coordination Status:</div>
                 <div style="color: var(--color-text-secondary);">
-                    ${missing === 0 ? '✓ Checking exact syncing options' : `⏳ Waiting on ${missing} traveler(s) to set their origins.`}
+                    ${missing === 0 ? '✓ Checking exact syncing options' : `Waiting on ${missing} traveler(s) to set their origins.`}
                 </div>
             </div>
         </div>
@@ -230,17 +221,10 @@ function renderBookedSuccessState(trip, origins, currentNickname) {
 function renderLoadingState() {
     return `
         <div class="empty-state" style="padding: var(--space-xl) 0;">
-            <div style="font-size: 2rem; animation: pulse 1.5s infinite;">⏳</div>
-            <h3 style="margin-top: var(--space-md);">Analyzing 1,000+ Combinations...</h3>
+            <div style="font-size: 2rem; animation: pulse 1.5s infinite; display:flex; justify-content:center;">${getIcon('sparkles')}</div>
+            <h3 style="margin-top: var(--space-md); font-weight: 800;">Analyzing Flight Combinations...</h3>
             <p>Fetching flights and calculating optimal arrival alignments.</p>
         </div>
-        <style>
-            @keyframes pulse {
-                0% { opacity: 1; transform: scale(1); }
-                50% { opacity: 0.5; transform: scale(1.1); }
-                100% { opacity: 1; transform: scale(1); }
-            }
-        </style>
     `;
 }
 
@@ -248,7 +232,7 @@ function renderResultsState(options, aiSummary, currentNickname, searchDate) {
     if (options.length === 0) {
         return `
             <div class="empty-state">
-                <div class="empty-state-icon">❌</div>
+                <div class="empty-state-icon" style="display:flex; justify-content:center;">${getIcon('plane')}</div>
                 <h3>No Group Matches Found</h3>
                 <p>We couldn't find flights that get everyone to the destination on the same day.</p>
             </div>
@@ -259,15 +243,15 @@ function renderResultsState(options, aiSummary, currentNickname, searchDate) {
         <!-- AI Concierge Summary -->
         <div class="card mb-base" style="background: var(--color-accent-light); border: 1px solid rgba(10, 132, 255, 0.2); padding: var(--space-md);">
             <div style="display:flex; align-items:center; gap: 8px; margin-bottom: var(--space-sm);">
-                <span style="font-size: 1.25rem;">✨</span>
-                <strong style="color: var(--color-accent-dark);">AI Concierge</strong>
+                <span style="display:flex; color: var(--color-accent);">${getIcon('sparkles')}</span>
+                <strong style="color: var(--color-accent); font-weight:700;">AI Concierge Summary</strong>
             </div>
             <p style="font-size: var(--font-size-sm); font-style: italic; color: var(--color-text-primary);">
                 "${aiSummary}"
             </p>
         </div>
 
-        <h3 style="margin-bottom: var(--space-sm);">Top Options for your Group</h3>
+        <h3 style="margin-bottom: var(--space-sm); font-weight: 800; letter-spacing: -0.02em;">Top Options for your Group</h3>
         
         <div class="recommendations-list" style="display: flex; flex-direction: column; gap: var(--space-md);">
             ${options.map((opt, i) => renderRecommendationCard(opt, i + 1, currentNickname, searchDate)).join('')}

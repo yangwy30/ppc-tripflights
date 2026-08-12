@@ -1,10 +1,5 @@
 /* ============================================
-   PPC: Delay No More — Add Flight Screen
-   
-   Features:
-   - Flight auto-lookup via AeroDataBox API
-   - Route picker when multiple routes found
-   - Book for self or any trip participant
+   PPC: Delay No More — Add Flight Screen (iOS SF Pro Style)
    ============================================ */
 
 import { addFlight, getTrip, getUserNickname, addParticipant } from '../data/dataAdapter.js';
@@ -12,6 +7,7 @@ import { emit, EVENTS } from '../data/store.js';
 import { navigate } from '../app.js';
 import { showToast } from '../components/toast.js';
 import { lookupFlight, getDemoFlightNumbers } from '../data/flightService.js';
+import { getIcon } from '../components/icons.js';
 
 export async function renderAddFlight(container, tripId) {
   const trip = await getTrip(tripId);
@@ -38,19 +34,24 @@ export async function renderAddFlight(container, tripId) {
     container.innerHTML = `
       <div class="screen">
         <div class="topbar">
-          <button class="topbar-back" id="btn-back">← Back</button>
+          <button class="topbar-back" id="btn-back">
+            <span style="display:flex;">${getIcon('arrowLeft')}</span> Back
+          </button>
         </div>
 
         <div class="screen-header">
-          <h1>Add Flight</h1>
-          <p>Look up a flight or enter details manually</p>
+          <h1 style="font-size: 2.2rem; font-weight: 800; letter-spacing: -0.04em;">Add Flight</h1>
+          <p style="font-size: var(--font-size-sm); color: var(--color-text-secondary);">Look up a flight or enter details manually</p>
         </div>
 
         <form id="flight-form" class="flex-col" style="gap: var(--space-base); padding-bottom: 100px;">
           
           <!-- Booking For (participant selector + add new) -->
           <div class="card">
-            <h4 style="margin-bottom: var(--space-sm);">👤 Booking For</h4>
+            <div style="display:flex; align-items:center; gap: 8px; margin-bottom: var(--space-xs);">
+              <span style="color: var(--color-accent); display:flex;">${getIcon('user')}</span>
+              <h4 style="margin:0;">Booking For</h4>
+            </div>
             <p style="font-size: var(--font-size-xs); color: var(--color-text-tertiary); margin-bottom: var(--space-md);">
               Select who this flight is for, or add a new traveler
             </p>
@@ -70,17 +71,20 @@ export async function renderAddFlight(container, tripId) {
 
           <!-- Flight Lookup -->
           <div class="card">
-            <h4 style="margin-bottom: var(--space-md);">🔍 Flight Lookup</h4>
+            <div style="display:flex; align-items:center; gap: 8px; margin-bottom: var(--space-md);">
+              <span style="color: var(--color-accent); display:flex;">${getIcon('plane')}</span>
+              <h4 style="margin:0;">Flight Lookup</h4>
+            </div>
             <div class="input-with-btn mb-sm">
               <input class="input" type="text" id="flight-lookup" placeholder="e.g. AA100, DL665" autocomplete="off" 
-                style="text-transform: uppercase;" />
+                style="font-family: var(--font-family-mono); font-weight:700; text-transform: uppercase;" />
               <button type="button" class="btn btn-primary btn-sm" id="btn-lookup" ${isLooking ? 'disabled' : ''}>
                 ${isLooking ? '⏳' : 'Look Up'}
               </button>
             </div>
             <div style="margin-top: var(--space-sm); display: flex; flex-wrap: wrap; gap: 4px;">
               ${demoFlights.map(fn => `
-                <button type="button" class="chip demo-flight" style="font-size: var(--font-size-xs); padding: 3px 8px;" data-fn="${fn}">${fn}</button>
+                <button type="button" class="chip demo-flight" style="font-size: var(--font-size-xs); font-family: var(--font-family-mono); padding: 3px 8px;" data-fn="${fn}">${fn}</button>
               `).join('')}
             </div>
             
@@ -99,7 +103,7 @@ export async function renderAddFlight(container, tripId) {
           <!-- Route Picker (shown when multiple routes found) -->
           ${routeOptions && routeOptions.length > 1 ? `
             <div class="card" style="border: 2px solid var(--color-accent); animation: scaleIn var(--transition-base) ease-out;">
-              <h4 style="margin-bottom: var(--space-sm);">🔀 Multiple Routes Found</h4>
+              <h4 style="margin-bottom: var(--space-sm);">Multiple Routes Found</h4>
               <p style="font-size: var(--font-size-sm); color: var(--color-text-secondary); margin-bottom: var(--space-md);">
                 This flight number has ${routeOptions.length} different routes. Select the correct one:
               </p>
@@ -113,14 +117,14 @@ export async function renderAddFlight(container, tripId) {
                   ">
                     <div style="display: flex; align-items: center; justify-content: space-between;">
                       <div>
-                        <div style="font-weight: var(--font-weight-bold); font-size: var(--font-size-md);">
-                          ${escapeHtml(route.departure.code)} → ${escapeHtml(route.arrival.code)}
+                        <div style="font-weight: 800; font-size: var(--font-size-md); font-family: var(--font-family-mono);">
+                          ${escapeHtml(route.departure.code)} ➔ ${escapeHtml(route.arrival.code)}
                         </div>
                         <div style="font-size: var(--font-size-sm); color: var(--color-text-secondary);">
-                          ${escapeHtml(route.departure.city)} → ${escapeHtml(route.arrival.city)}
+                          ${escapeHtml(route.departure.city)} ➔ ${escapeHtml(route.arrival.city)}
                         </div>
-                        <div style="font-size: var(--font-size-xs); color: var(--color-text-tertiary); margin-top: 2px;">
-                          ${escapeHtml(route.departure.time)} → ${escapeHtml(route.arrival.time)} · ${escapeHtml(route.duration)}
+                        <div style="font-size: var(--font-size-xs); color: var(--color-text-tertiary); margin-top: 2px; font-family: var(--font-family-mono);">
+                          ${escapeHtml(route.departure.time)} ➔ ${escapeHtml(route.arrival.time)} · ${escapeHtml(route.duration)}
                         </div>
                       </div>
                       <div style="font-size: 1.2rem;">${lookupResult === route ? '✅' : '○'}</div>
@@ -136,7 +140,7 @@ export async function renderAddFlight(container, tripId) {
             <div class="input-group">
               <label for="f-number">Flight Number</label>
               <input class="input" type="text" id="f-number" placeholder="e.g. UA901" required autocomplete="off"
-                value="${lookupResult?.flightNumber || ''}" style="text-transform: uppercase;" />
+                value="${lookupResult?.flightNumber || ''}" style="font-family: var(--font-family-mono); font-weight:700; text-transform: uppercase;" />
             </div>
 
             <div class="input-group">
@@ -149,12 +153,12 @@ export async function renderAddFlight(container, tripId) {
               <div class="input-group" style="flex:1;">
                 <label for="f-dep-code">From (Code)</label>
                 <input class="input" type="text" id="f-dep-code" placeholder="JFK" maxlength="4" autocomplete="off"
-                  value="${lookupResult?.departure?.code || ''}" style="text-transform: uppercase;" required />
+                  value="${lookupResult?.departure?.code || ''}" style="font-family: var(--font-family-mono); font-weight:700; text-transform: uppercase;" required />
               </div>
               <div class="input-group" style="flex:1;">
                 <label for="f-arr-code">To (Code)</label>
                 <input class="input" type="text" id="f-arr-code" placeholder="LHR" maxlength="4" autocomplete="off"
-                  value="${lookupResult?.arrival?.code || ''}" style="text-transform: uppercase;" required />
+                  value="${lookupResult?.arrival?.code || ''}" style="font-family: var(--font-family-mono); font-weight:700; text-transform: uppercase;" required />
               </div>
             </div>
 
@@ -200,13 +204,13 @@ export async function renderAddFlight(container, tripId) {
             <div class="input-group">
               <label for="f-duration">Duration</label>
               <input class="input" type="text" id="f-duration" placeholder="e.g. 7h 15m" autocomplete="off"
-                value="${lookupResult?.duration || ''}" />
+                value="${lookupResult?.duration || ''}" style="font-family: var(--font-family-mono);" />
             </div>
           </div>
 
           <div style="position: fixed; bottom: calc(var(--space-xl) + var(--safe-area-bottom)); left: 50%; transform: translateX(-50%); width: calc(100% - var(--space-xl) * 2); max-width: calc(var(--max-width) - var(--space-xl) * 2); z-index: 10;">
-            <button class="btn btn-primary" type="submit" style="width: 100%; box-shadow: var(--shadow-lg);">
-              Add Flight for ${escapeHtml(selectedPerson)} ✈️
+            <button class="btn btn-primary" type="submit" style="width: 100%; box-shadow: var(--shadow-lg); font-size: var(--font-size-md);">
+              <span style="display:flex;">${getIcon('plus')}</span> Add Flight for ${escapeHtml(selectedPerson)}
             </button>
           </div>
         </form>
