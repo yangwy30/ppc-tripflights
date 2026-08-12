@@ -5,17 +5,43 @@
 import { getIcon } from './icons.js';
 
 const PERSON_COLORS_HEX = [
-  '#0A84FF', '#34C759', '#F59E0B',
-  '#A855F7', '#EC4899', '#38BDF8'
+  '#38BDF8', // Person 1: Sky Cyan
+  '#FF2D55', // Person 2: Neon Coral Red
+  '#F59E0B', // Person 3: Amber Gold
+  '#AF52DE', // Person 4: Electric Violet
+  '#34C759', // Person 5: Mint Green
+  '#FF9500'  // Person 6: Bright Orange
 ];
 
-export function renderTimeline(container, flights, participants) {
+export function renderTimeline(container, tripOrFlights, participantsOrFilter, filterPerson = 'all') {
+  let flights = [];
+  let participants = [];
+
+  if (Array.isArray(tripOrFlights)) {
+    flights = tripOrFlights;
+    participants = Array.isArray(participantsOrFilter) ? participantsOrFilter : [];
+  } else if (tripOrFlights && typeof tripOrFlights === 'object') {
+    flights = tripOrFlights.flights || [];
+    participants = tripOrFlights.participants || [];
+    if (typeof participantsOrFilter === 'string') {
+      filterPerson = participantsOrFilter;
+    }
+  }
+
+  // Normalize participants
+  participants = participants.map(p => typeof p === 'string' ? { name: p } : p);
+
+  // Filter flights by person if filterPerson is active
+  if (filterPerson && filterPerson !== 'all') {
+    flights = flights.filter(f => f.addedBy === filterPerson);
+  }
+
   if (!flights || flights.length === 0) {
     container.innerHTML = `
-      <div class="empty-state">
-        <div class="empty-state-icon" style="display:flex; justify-content:center;">${getIcon('timeline')}</div>
-        <h3>No flights on timeline</h3>
-        <p>Add flights to see them visualized across dates</p>
+      <div class="empty-state card text-center" style="padding: var(--space-2xl) var(--space-lg);">
+        <div class="empty-state-icon" style="display:flex; justify-content:center; margin-bottom: var(--space-sm); font-size: 2.5rem;">${getIcon('timeline')}</div>
+        <h3 style="margin-bottom: var(--space-xs); font-weight: 700;">No flights on timeline</h3>
+        <p style="color: var(--color-text-secondary); font-size: var(--font-size-sm);">Add flights to see them visualized across dates</p>
       </div>
     `;
     return;
