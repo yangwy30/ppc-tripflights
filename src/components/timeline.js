@@ -1,6 +1,6 @@
 /* ============================================
-   PPC: Delay No More — Commercial Pro Timeline Component
-   Features: Timezone-Calibrated Flight Duration Width + Full Flight Number & Route Display
+   PPC: Delay No More — Pure Local Wall-Clock Time Timeline Component
+   Zero Timezone Conversions: Bar Starts at Local Dep Time, Ends at Local Arr Time
    ============================================ */
 
 import { getIcon } from './icons.js';
@@ -13,16 +13,6 @@ const PERSON_COLORS_HEX = [
   '#34C759', // Person 5: Mint Green
   '#FF9500'  // Person 6: Bright Orange
 ];
-
-const AIRPORT_TZ_OFFSETS = {
-  JFK: -5, EWR: -5, LGA: -5, BOS: -5, MIA: -5, MCO: -5, IAD: -5, ATL: -5, DTW: -5,
-  ORD: -6, DFW: -6, IAH: -6, MSP: -6, MDW: -6,
-  DEN: -7, SLC: -7, PHX: -7,
-  LAX: -8, SFO: -8, SEA: -8, SAN: -8, SJC: -8, OAK: -8, LAS: -8,
-  LHR: 0, LGW: 0, CDG: 1, FRA: 1, AMS: 1, FCO: 1, MUC: 1,
-  DXB: 4, SIN: 8, HND: 9, NRT: 9, ICN: 9, HKG: 8, PEK: 8, PVG: 8,
-  SYD: 10, MEL: 10
-};
 
 export function renderTimeline(container, tripOrFlights, participantsOrFilter, filterPerson = 'all') {
   let flights = [];
@@ -75,7 +65,6 @@ export function renderTimeline(container, tripOrFlights, participantsOrFilter, f
   if (dateList.length === 0) dateList.push(new Date().toISOString().split('T')[0]);
 
   const totalDays = dateList.length;
-  // Make day column wide enough so bars have clear space to display flight numbers
   const dayWidthPx = Math.max(260, totalDays <= 2 ? 380 : 280);
   const totalWidthPx = `${totalDays * dayWidthPx}px`;
 
@@ -100,7 +89,7 @@ export function renderTimeline(container, tripOrFlights, participantsOrFilter, f
       </div>
     `;
   });
-  html += '<div class="tl-legend-hint">↔ Scroll timeline · Tap a flight bar for details</div>';
+  html += '<div class="tl-legend-hint">↔ Scroll timeline · All times in Local Wall-Clock Times</div>';
   html += '</div>';
 
   // Scrollable container
@@ -137,7 +126,7 @@ export function renderTimeline(container, tripOrFlights, participantsOrFilter, f
   });
   html += '</div>';
 
-  // Person rows
+  // Person rows (Pure Local Wall-Clock Times)
   participants.forEach((person, personIdx) => {
     const color = PERSON_COLORS_HEX[personIdx % 6];
     const pFlights = personFlights[person.name] || [];
@@ -151,15 +140,24 @@ export function renderTimeline(container, tripOrFlights, participantsOrFilter, f
     html += `<div class="tl-person-bars" style="height: 42px;">`;
 
     pFlights.forEach((flight) => {
-      const depHour = parseTime(flight.departure?.time);
+      const depTimeStr = flight.departure?.time || '00:00';
+      const arrTimeStr = flight.arrival?.time || '00:00';
+
+      const depHour = parseTime(depTimeStr);
+      let arrHour = parseTime(arrTimeStr);
+
       const flightDateIdx = dateList.indexOf(flight.date);
       if (flightDateIdx < 0) return;
 
-      // Accurate Flight Duration Calculation (accounting for Timezone Offsets)
-      const durationHours = getDurationHours(flight);
+      // Pure Local Wall-Clock Span: If arrival hour <= departure hour, flight crosses overnight (+24h)
+      if (arrHour <= depHour) {
+        arrHour += 24;
+      }
+
+      const localSpanHours = Math.max(arrHour - depHour, 1.2);
 
       const startPct = ((flightDateIdx + depHour / 24) / totalDays) * 100;
-      const widthPct = Math.max((durationHours / 24 / totalDays) * 100, 1.8);
+      const widthPct = Math.max((localSpanHours / 24 / totalDays) * 100, 1.8);
 
       const depCode = (flight.departure?.code || 'DEP').toUpperCase();
       const arrCode = (flight.arrival?.code || 'ARR').toUpperCase();
@@ -187,11 +185,8 @@ export function renderTimeline(container, tripOrFlights, participantsOrFilter, f
               ${escapeHtml(fn)}
             </div>
             <div style="font-size:9px; color:rgba(255,255,255,0.85); font-family:var(--font-family-mono); white-space:nowrap;">
-              ${escapeHtml(depCode)}➔${escapeHtml(arrCode)}
+              ${escapeHtml(depCode)} (${escapeHtml(depTimeStr)}) ➔ ${escapeHtml(arrCode)} (${escapeHtml(arrTimeStr)})
             </div>
-          </div>
-          <div style="font-size:9px; font-weight:800; font-family:var(--font-family-mono); color:rgba(255,255,255,0.9); background:rgba(0,0,0,0.25); padding:2px 5px; border-radius:4px; margin-left:4px; flex-shrink:0;">
-            ${durationHours.toFixed(1)}h
           </div>
         </div>
       `;
@@ -216,52 +211,6 @@ export function renderTimeline(container, tripOrFlights, participantsOrFilter, f
       }
     });
   });
-}
-
-/**
- * Timezone-Calibrated Duration Resolver
- */
-function getDurationHours(flight) {
-  // 1. Try parsing explicit duration string (e.g. "6h 30m", "5.5h", "320m")
-  if (flight.duration) {
-    const durStr = String(flight.duration).toLowerCase().trim();
-    const hMatch = durStr.match(/(\d+)\s*h/);
-    const mMatch = durStr.match(/(\d+)\s*m/);
-
-    if (hMatch || mMatch) {
-      const h = hMatch ? parseInt(hMatch[1], 10) : 0;
-      const m = mMatch ? parseInt(mMatch[1], 10) : 0;
-      return Math.max(1.0, h + m / 60);
-    }
-  }
-
-  // 2. Compute local wall-clock times + timezone offset
-  const depCode = (flight.departure?.code || '').toUpperCase().trim();
-  const arrCode = (flight.arrival?.code || '').toUpperCase().trim();
-
-  const depHour = parseTime(flight.departure?.time);
-  let arrHour = parseTime(flight.arrival?.time);
-
-  if (arrHour <= depHour) {
-    arrHour += 24; // Cross overnight
-  }
-
-  let localDiff = arrHour - depHour;
-
-  // Timezone adjustment if offsets are known
-  const depTz = AIRPORT_TZ_OFFSETS[depCode];
-  const arrTz = AIRPORT_TZ_OFFSETS[arrCode];
-
-  if (depTz !== undefined && arrTz !== undefined) {
-    // True elapsed flight time = Local Arrival - Local Departure + (Dep TZ - Arr TZ)
-    const tzDiff = depTz - arrTz;
-    const trueDuration = localDiff + tzDiff;
-    if (trueDuration > 0.5 && trueDuration < 24) {
-      return trueDuration;
-    }
-  }
-
-  return Math.max(1.5, localDiff);
 }
 
 function showFlightDetailModal(flight, participants) {
@@ -300,7 +249,7 @@ function showFlightDetailModal(flight, participants) {
         <div>
           <div style="font-size: 1.8rem; font-weight: 800; font-family: var(--font-family-mono);">${escapeHtml(flight.departure?.code || '')}</div>
           <div style="font-size: var(--font-size-xs); color: var(--color-text-secondary);">${escapeHtml(flight.departure?.city || '')}</div>
-          <div style="font-size: var(--font-size-sm); font-weight: 600; font-family: var(--font-family-mono); margin-top: 4px;">${escapeHtml(flight.departure?.time || '')}</div>
+          <div style="font-size: var(--font-size-sm); font-weight: 600; font-family: var(--font-family-mono); margin-top: 4px;">${escapeHtml(flight.departure?.time || '')} Local</div>
         </div>
         <div style="text-align:center;">
           <div style="color: var(--color-accent);">${getIcon('plane')}</div>
@@ -309,7 +258,7 @@ function showFlightDetailModal(flight, participants) {
         <div style="text-align:right;">
           <div style="font-size: 1.8rem; font-weight: 800; font-family: var(--font-family-mono);">${escapeHtml(flight.arrival?.code || '')}</div>
           <div style="font-size: var(--font-size-xs); color: var(--color-text-secondary);">${escapeHtml(flight.arrival?.city || '')}</div>
-          <div style="font-size: var(--font-size-sm); font-weight: 600; font-family: var(--font-family-mono); margin-top: 4px;">${escapeHtml(flight.arrival?.time || '')}</div>
+          <div style="font-size: var(--font-size-sm); font-weight: 600; font-family: var(--font-family-mono); margin-top: 4px;">${escapeHtml(flight.arrival?.time || '')} Local</div>
         </div>
       </div>
 
