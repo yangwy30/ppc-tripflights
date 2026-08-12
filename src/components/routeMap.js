@@ -1,6 +1,6 @@
 /* ============================================
-   PPC: Delay No More — Scalable Algorithmic Flight Route Map Engine
-   Clean Destination Hub Pin + Origin Traveler Avatar Badges
+   PPC: Delay No More — Scalable Dynamic Hub & Traveler Route Map Engine
+   Zero Hardcoding: Dynamic Trip Hub Resolution + Algorithmic Collision Auto-Layout
    ============================================ */
 
 import L from 'leaflet';
@@ -90,7 +90,7 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
           </span>
         </div>
         <div style="font-size: 11px; color: var(--color-text-tertiary); font-family: var(--font-family-mono);">
-          CartoDB Dark Basemap · Hover Lines for Details
+          CartoDB Dark Basemap · Dynamic Hub Resolution
         </div>
       </div>
 
@@ -119,12 +119,22 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
 
   const bounds = [];
   const airportMap = new Map();
+  const airportFrequency = new Map();
 
-  // Destination Airport Codes
-  const destinationAirportCodes = (trip.destinationAirport || '')
-    .split(',')
-    .map(s => s.trim().toUpperCase())
-    .filter(Boolean);
+  // Dynamic User-Set Hub Resolution
+  const hubCodes = new Set();
+  if (trip.destinationAirport) {
+    trip.destinationAirport.split(',').forEach(s => {
+      const code = s.trim().toUpperCase();
+      if (code) hubCodes.add(code);
+    });
+  }
+  if (trip.returnAirport) {
+    trip.returnAirport.split(',').forEach(s => {
+      const code = s.trim().toUpperCase();
+      if (code) hubCodes.add(code);
+    });
+  }
 
   // Normalized traveler color resolution helper
   const normalizedParticipants = participants.map(p => p.name.trim().toLowerCase());
@@ -145,9 +155,21 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
     const arrCode = (f.arrival?.code || 'LAX').toUpperCase().trim();
     const corridorKey = [depCode, arrCode].sort().join('-');
 
+    airportFrequency.set(depCode, (airportFrequency.get(depCode) || 0) + 1);
+    airportFrequency.set(arrCode, (airportFrequency.get(arrCode) || 0) + 1);
+
     if (!corridorGroups.has(corridorKey)) corridorGroups.set(corridorKey, []);
     corridorGroups.get(corridorKey).push(f);
   });
+
+  // Dynamic Fallback Hub if no user-set hub is defined: Pick most frequent airport!
+  if (hubCodes.size === 0 && airportFrequency.size > 0) {
+    let maxFreq = 0, topCode = '';
+    airportFrequency.forEach((freq, code) => {
+      if (freq > maxFreq) { maxFreq = freq; topCode = code; }
+    });
+    if (topCode) hubCodes.add(topCode);
+  }
 
   // Render Flights with Algorithmic Arc Fan-Out
   corridorGroups.forEach((flightList, corridorKey) => {
@@ -172,7 +194,7 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
       airportMap.get(depCode).departures.push({ name: f.addedBy, color, flight: f });
       airportMap.get(arrCode).arrivals.push({ name: f.addedBy, color, flight: f });
 
-      // Algorithmic Arc Fan-out Formula (0 hardcoding)
+      // Algorithmic Arc Fan-out Formula
       const isReversed = depCode > arrCode;
       const fanOffset = totalInCorridor > 1 ? (idxInCorridor - (totalInCorridor - 1) / 2) * 0.16 : 0.12;
       const arcHeightFactor = (isReversed ? -1 : 1) * fanOffset;
@@ -247,26 +269,29 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
     }
   }
 
-  // Render Airport Pins: Destination as Clean Hub Pin, Origins with Traveler Avatar Badges
+  // Render Airport Pins: Dynamically Resolved User Hubs vs Non-Hub Origin/Return Pins
   airportMap.forEach((data, code) => {
     const { coords, departures, arrivals } = data;
-    const isDestination = destinationAirportCodes.includes(code) || (phaseName === 'outbound' && departures.length === 0 && arrivals.length > 0);
+    const isHub = hubCodes.has(code);
 
     const allTravelers = [...departures, ...arrivals];
     const isFiltered = activePersonFilter !== 'all' && !allTravelers.some(t => t.name === activePersonFilter);
 
-    // Only render traveler avatar badges for DEPARTURES at Origin Airports!
-    const originTravelers = [];
+    // Traveler avatar badges for non-hub airports
+    const relevantTravelers = phaseName === 'return' ? arrivals : departures;
+    const travelerList = (relevantTravelers.length > 0 ? relevantTravelers : allTravelers);
+
+    const uniqueTravelers = [];
     const seenNames = new Set();
-    departures.forEach(t => {
+    travelerList.forEach(t => {
       if (!seenNames.has(t.name)) {
         seenNames.add(t.name);
-        originTravelers.push(t);
+        uniqueTravelers.push(t);
       }
     });
 
-    const avatarStackHtml = (!isDestination && originTravelers.length > 0)
-      ? originTravelers.slice(0, 3).map(t => `
+    const avatarStackHtml = (!isHub && uniqueTravelers.length > 0)
+      ? uniqueTravelers.slice(0, 3).map(t => `
         <span style="width:16px; height:16px; border-radius:50%; background:${t.color}; display:inline-flex; align-items:center; justify-content:center; font-size:8px; font-weight:800; color:#fff; border:1px solid #0F172A; margin-left:-4px;">
           ${escapeHtml(t.name.charAt(0).toUpperCase())}
         </span>
@@ -281,12 +306,12 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
       html: `
         <div style="position:relative; cursor:pointer; opacity:${isFiltered ? 0.35 : 1};">
           <!-- Exact Airport Location Dot -->
-          <div style="width:8px; height:8px; border-radius:50%; background:${isDestination ? '#F59E0B' : '#0A84FF'}; box-shadow:0 0 10px ${isDestination ? '#F59E0B' : '#0A84FF'}; border:1.5px solid #ffffff; transform:translate(-50%, -50%);"></div>
+          <div style="width:8px; height:8px; border-radius:50%; background:${isHub ? '#F59E0B' : '#0A84FF'}; box-shadow:0 0 10px ${isHub ? '#F59E0B' : '#0A84FF'}; border:1.5px solid #ffffff; transform:translate(-50%, -50%);"></div>
           
           <!-- Pill Badge -->
-          <div style="position:absolute; ${pillStyle} display:inline-flex; align-items:center; gap:5px; background:rgba(15,23,42,0.95); border:1px solid ${isDestination ? 'rgba(245, 158, 11, 0.4)' : 'rgba(255,255,255,0.22)'}; border-radius:12px; padding:3px 8px; backdrop-filter:blur(10px); box-shadow:0 4px 18px rgba(0,0,0,0.75); white-space:nowrap; z-index:10;">
-            ${isDestination ? `<span style="font-size:10px;">🎯</span>` : ''}
-            <span style="font-size:11px; font-weight:800; font-family:var(--font-family-mono); color:${isDestination ? '#F59E0B' : '#ffffff'};">${code}</span>
+          <div style="position:absolute; ${pillStyle} display:inline-flex; align-items:center; gap:5px; background:rgba(15,23,42,0.95); border:1px solid ${isHub ? 'rgba(245, 158, 11, 0.4)' : 'rgba(255,255,255,0.22)'}; border-radius:12px; padding:3px 8px; backdrop-filter:blur(10px); box-shadow:0 4px 18px rgba(0,0,0,0.75); white-space:nowrap; z-index:10;">
+            ${isHub ? `<span style="font-size:10px;">🎯</span>` : ''}
+            <span style="font-size:11px; font-weight:800; font-family:var(--font-family-mono); color:${isHub ? '#F59E0B' : '#ffffff'};">${code}</span>
             ${avatarStackHtml ? `
               <div style="display:flex; align-items:center; margin-left:4px;">
                 ${avatarStackHtml}
@@ -303,7 +328,7 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
     const namesList = Array.from(new Set(allTravelers.map(t => escapeHtml(t.name)))).join(', ');
     marker.bindTooltip(`
       <div style="font-size:11px; font-weight:700; color:#fff; font-family:var(--font-family-mono);">
-        ${isDestination ? '🎯 Destination Hub' : '📍 Airport'} ${code}
+        ${isHub ? '🎯 User Set Trip Hub' : '📍 Airport'} ${code}
       </div>
       <div style="font-size:10px; color:#94A3B8; margin-top:2px;">
         Travelers: ${namesList || 'None'}
