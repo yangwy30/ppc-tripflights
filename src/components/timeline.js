@@ -88,7 +88,6 @@ export function renderTimeline(container, tripOrFlights, participantsOrFilter, f
     `;
   });
   html += '</div>';
-  html += '<div style="font-size: 11px; color: #64748B; font-family: var(--font-family-mono);">↔ Scroll timeline · Tap bar for details</div>';
   html += '</div>';
 
   // Scrollable container

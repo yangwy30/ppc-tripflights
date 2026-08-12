@@ -6,26 +6,24 @@ import { getIcon } from '../components/icons.js';
 
 export async function renderHome(container) {
   container.innerHTML = `
-    <div class="screen" style="display:flex; flex-direction:column; justify-content:center; align-items:center; min-height: 85vh;">
-      <div class="card" style="width: 100%; max-width: 440px; padding: var(--space-xl); background: rgba(15, 23, 42, 0.85); border: 1px solid var(--color-border); backdrop-filter: blur(20px);">
-        <div style="display:flex; align-items:center; gap: 12px; margin-bottom: var(--space-lg);">
+    <div class="screen" style="max-width: 540px; margin: 0 auto; padding-top: var(--space-xl);">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: var(--space-lg);">
+        <div style="display:flex; align-items:center; gap: 10px;">
           <span style="color: var(--color-accent); display:flex; font-size: 1.5rem;">${getIcon('plane')}</span>
-          <span style="font-size: 1.6rem; font-weight: 800; letter-spacing: -0.045em;">PPC: Delay No More</span>
-        </div>
-        
-        <div style="background: rgba(30, 41, 59, 0.5); border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow: hidden;">
-          <button class="btn btn-ghost" id="btn-create" style="width:100%; justify-flex-start; padding: 14px 18px; border-bottom: 1px solid var(--color-border); border-radius:0;">
-            <span style="color: var(--color-text-secondary); width:20px; display:flex;">${getIcon('plus')}</span>
-            <span style="font-weight: var(--font-weight-semibold); letter-spacing: -0.01em;">Create New Trip</span>
-          </button>
-          <button class="btn btn-ghost" id="btn-join" style="width:100%; justify-flex-start; padding: 14px 18px; border-radius:0;">
-            <span style="color: var(--color-text-secondary); width:20px; display:flex;">${getIcon('share')}</span>
-            <span style="font-weight: var(--font-weight-semibold); letter-spacing: -0.01em;">Join Trip with 6-Digit PIN</span>
-          </button>
+          <h1 style="font-size: 1.5rem; font-weight: 800; letter-spacing: -0.03em; margin: 0;">PPC: Delay No More</h1>
         </div>
       </div>
+      
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap: var(--space-sm); margin-bottom: var(--space-xl);">
+        <button class="btn btn-primary" id="btn-create" style="padding: 12px 16px; font-size: var(--font-size-sm); justify-content: center;">
+          <span style="display:flex;">${getIcon('plus')}</span> New Trip
+        </button>
+        <button class="btn btn-secondary" id="btn-join" style="padding: 12px 16px; font-size: var(--font-size-sm); justify-content: center;">
+          <span style="display:flex;">${getIcon('share')}</span> Join with PIN
+        </button>
+      </div>
 
-      <div id="trip-list-section" style="width: 100%; max-width: 440px; margin-top: var(--space-xl);"></div>
+      <div id="trip-list-section"></div>
     </div>
   `;
 

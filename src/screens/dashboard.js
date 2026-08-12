@@ -229,10 +229,10 @@ export async function renderDashboard(container, tripId) {
         <!-- Main Workspace Tab Bar: Tracking vs Flight Coordination Engine -->
         <div class="tab-container mb-lg">
           <button class="tab-btn ${activeMainTab === 'tracking' ? 'active' : ''}" data-maintab="tracking">
-            <span style="display:flex;">${getIcon('plane')}</span> Flight Tracking (${currentTrip.flights?.length || 0})
+            <span style="display:flex;">${getIcon('plane')}</span> Flights (${currentTrip.flights?.length || 0})
           </button>
           <button class="tab-btn ${activeMainTab === 'coordination' ? 'active' : ''}" data-maintab="coordination">
-            <span style="display:flex;">${getIcon('sparkles')}</span> Coordination Engine
+            <span style="display:flex;">${getIcon('sparkles')}</span> Group Planning
           </button>
         </div>
 
@@ -277,15 +277,15 @@ export async function renderDashboard(container, tripId) {
             <!-- Flight List Section Header & Mode Toggles -->
             ${activeTab !== 'timeline' ? `
               <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:var(--space-sm);">
-                <div style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--color-text-tertiary);">
-                  Flight Itinerary List (${sortedFlights.length})
+                <div style="font-size:12px; font-weight:700; color:var(--color-text-secondary);">
+                  Flights (${sortedFlights.length})
                 </div>
                 <div class="tabs" style="padding: 2px;">
                   <button class="tab ${viewMode === 'compact' ? 'active' : ''}" id="btn-view-compact" title="Compact Ticket Rows" style="padding: 4px 10px; font-size: 11px;">
-                    ☰ Compact
+                    <span style="display:flex;">${getIcon('list')}</span> Compact
                   </button>
                   <button class="tab ${viewMode === 'expanded' ? 'active' : ''}" id="btn-view-expanded" title="Full Flight Cards" style="padding: 4px 10px; font-size: 11px;">
-                    🎴 Cards
+                    <span style="display:flex;">${getIcon('grid')}</span> Cards
                   </button>
                 </div>
               </div>

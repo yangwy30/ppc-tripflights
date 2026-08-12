@@ -82,24 +82,8 @@ export function destroyRouteMap() {
 export function renderRouteMap(container, flights = [], participants = [], trip = {}, activePersonFilter = 'all', phaseName = 'All') {
   destroyRouteMap();
 
-  const phaseTitle = phaseName === 'outbound' ? 'Outbound Flight Network' : phaseName === 'return' ? 'Return Flight Network' : 'Flight Network';
-
   container.innerHTML = `
     <div class="route-map-hero-card">
-      <div class="route-map-header">
-        <div style="display:flex; align-items:center; gap:8px;">
-          <span style="font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:1px; color:var(--color-accent);">
-            ${phaseTitle}
-          </span>
-          <span style="font-size:11px; color:var(--color-text-tertiary); font-family:var(--font-family-mono);">
-            (${flights.length} flights)
-          </span>
-        </div>
-        <div style="font-size: 11px; color: var(--color-text-tertiary); font-family: var(--font-family-mono);">
-          CartoDB Dark Basemap · Vector Flight Path
-        </div>
-      </div>
-
       <div id="hero-leaflet-map" style="width:100%; height:380px; border-radius: var(--radius-md); overflow:hidden; border: 1px solid var(--color-border); z-index:1; background:#090A0F; position:relative;"></div>
     </div>
   `;

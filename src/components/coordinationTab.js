@@ -160,10 +160,10 @@ function renderStatusHeader(trip, origins) {
     }
 
     return `
-        <div class="card mb-base" style="padding: var(--space-md); border-left: 4px solid var(--color-accent);">
+        <div class="card mb-base" style="padding: var(--space-md);">
             <div style="display:flex; align-items:center; gap: 8px; margin-bottom: var(--space-xs);">
                 <span style="color: var(--color-accent); display:flex;">${getIcon('sparkles')}</span>
-                <h3 style="margin:0; font-size: 1.1rem; font-weight: 800; letter-spacing: -0.02em;">Flight Coordination Engine</h3>
+                <h3 style="margin:0; font-size: 1.1rem; font-weight: 700; letter-spacing: -0.02em;">Group Coordination</h3>
             </div>
             <p style="font-size: var(--font-size-sm); margin-bottom: var(--space-sm);">
                 Destination: ${destHtml}
@@ -171,8 +171,8 @@ function renderStatusHeader(trip, origins) {
             </p>
             <div style="font-size: var(--font-size-sm); color: var(--color-text-secondary); margin-bottom: var(--space-md);">
                 ${missing === 0
-            ? `All ${totalParticipants} travelers have set their origin airport.`
-            : `Waiting on ${missing} traveler(s) to set an origin airport.`}
+            ? `All ${totalParticipants} travelers have set their home airport.`
+            : `Waiting on ${missing} traveler(s) to set home airport.`}
             </div>
             
             <button id="btn-find-flights" class="btn btn-primary" style="width: 100%; font-size: var(--font-size-sm);" ${!isReady ? 'disabled' : ''}>
@@ -184,10 +184,10 @@ function renderStatusHeader(trip, origins) {
 
 function renderIdleState() {
     return `
-        <div class="empty-state" style="padding: var(--space-2xl) 0;">
+        <div class="empty-state" style="padding: var(--space-xl) 0;">
             <div class="empty-state-icon" style="display:flex; justify-content:center;">${getIcon('sparkles')}</div>
             <h3>Ready to Coordinate</h3>
-            <p>Click the button above to search and find the best group flight combinations.</p>
+            <p>Click the button above to search group flight options.</p>
         </div>
     `;
 }
@@ -198,17 +198,14 @@ function renderBookedSuccessState(trip, origins, currentNickname) {
     const missing = totalParticipants - originsSet;
 
     return `
-        <div class="card mb-base" style="padding: var(--space-xl); text-align: center; border: 1px solid var(--color-border); box-shadow: var(--shadow-md);">
-            <div style="font-size: 2.5rem; margin-bottom: var(--space-md); color: var(--color-success); display:flex; justify-content:center;">${getIcon('plane')}</div>
-            <h3 style="margin-bottom: var(--space-sm); font-weight: 800; letter-spacing: -0.03em;">You're all set, ${currentNickname}!</h3>
-            <p style="color: var(--color-text-secondary); margin-bottom: var(--space-lg); max-width: 400px; margin-left: auto; margin-right: auto; font-size: var(--font-size-sm);">
-                You've already added your flight to the itinerary. The rest of the group will use this tool to coordinate their arrivals around your schedule.
-            </p>
-            
-            <div style="background: var(--color-surface-secondary); padding: var(--space-md); border-radius: var(--radius-sm); font-size: var(--font-size-sm); display: inline-block; text-align: left;">
-                <div style="font-weight: 600; margin-bottom: 4px;">Group Coordination Status:</div>
-                <div style="color: var(--color-text-secondary);">
-                    ${missing === 0 ? '✓ Checking exact syncing options' : `Waiting on ${missing} traveler(s) to set their origins.`}
+        <div class="card mb-base" style="padding: var(--space-lg); display: flex; align-items: center; justify-content: space-between; gap: var(--space-md);">
+            <div style="display:flex; align-items:center; gap: 12px;">
+                <span style="color: var(--color-success); display:flex;">${getIcon('plane')}</span>
+                <div>
+                    <div style="font-weight: 700; font-size: var(--font-size-base); color: var(--color-text-primary);">Flight Added (${escapeHtml(currentNickname)})</div>
+                    <div style="font-size: var(--font-size-xs); color: var(--color-text-secondary); margin-top: 2px;">
+                        ${missing === 0 ? 'All traveler home airports set' : `Waiting on ${missing} traveler(s)`}
+                    </div>
                 </div>
             </div>
         </div>
