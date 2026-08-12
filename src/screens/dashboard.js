@@ -159,9 +159,15 @@ export async function renderDashboard(container, tripId) {
               <!-- Phase & View Sub-Tabs (Outbound / Return / All / Timeline) -->
               <div class="tabs mb-base">
                 <button class="tab ${activeTab === 'flights' && phaseFilter === 'all' ? 'active' : ''}" data-tab="flights" data-phase="all">All (${currentTrip.flights.length})</button>
-                <button class="tab ${activeTab === 'flights' && phaseFilter === 'outbound' ? 'active' : ''}" data-tab="flights" data-phase="outbound">🛫 Outbound (${outboundCount})</button>
-                <button class="tab ${activeTab === 'flights' && phaseFilter === 'return' ? 'active' : ''}" data-tab="flights" data-phase="return">🛬 Return (${returnCount})</button>
-                <button class="tab ${activeTab === 'timeline' ? 'active' : ''}" data-tab="timeline">📊 Timeline</button>
+                <button class="tab ${activeTab === 'flights' && phaseFilter === 'outbound' ? 'active' : ''}" data-tab="flights" data-phase="outbound">
+                  <span style="color: #34D399; display:flex;">${getIcon('plane')}</span> Outbound (${outboundCount})
+                </button>
+                <button class="tab ${activeTab === 'flights' && phaseFilter === 'return' ? 'active' : ''}" data-tab="flights" data-phase="return">
+                  <span style="color: #60A5FA; display:flex;">${getIcon('plane')}</span> Return (${returnCount})
+                </button>
+                <button class="tab ${activeTab === 'timeline' ? 'active' : ''}" data-tab="timeline">
+                  <span style="display:flex;">${getIcon('timeline')}</span> Timeline
+                </button>
               </div>
 
               <!-- Content Stream -->
