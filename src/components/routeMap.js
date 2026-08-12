@@ -105,6 +105,14 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
     scrollWheelZoom: false
   }).setView([38, -96], 4);
 
+  activeLeafletMap = map;
+
+  // CartoDB Dark Matter @2x Retina Basemap
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}@2x.png', {
+    maxZoom: 19,
+    subdomains: 'abcd'
+  }).addTo(map);
+
   const bounds = [];
   const airportMap = new Map();
   const activeCorridors = [];
