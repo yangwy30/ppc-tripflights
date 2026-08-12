@@ -1,6 +1,6 @@
 /* ============================================
-   PPC: Delay No More — Elegant Single Bundled Master Arc Route Map Engine
-   Flighty & Linear Aesthetic: Single Master Arc + Avatar Ring Stack
+   PPC: Delay No More — Pure Flighty Aesthetic Route Map Engine
+   Clean Glowing Arcs + Metro De-duplicated Pins + Zero Mid-Line Clutter
    ============================================ */
 
 import L from 'leaflet';
@@ -61,6 +61,16 @@ const AIRPORT_COORDS = {
   BNE: [-27.3842, 153.1175]
 };
 
+// Known Metro Area Offsets so close airports (EWR/JFK or SFO/SJC) never collide
+const AIRPORT_LABEL_OFFSETS = {
+  EWR: { dx: -18, dy: -18 },
+  JFK: { dx: 18, dy: 18 },
+  LGA: { dx: 0, dy: -24 },
+  SFO: { dx: -15, dy: -15 },
+  SJC: { dx: 15, dy: 15 },
+  OAK: { dx: 0, dy: -20 }
+};
+
 let activeLeafletMap = null;
 
 export function renderRouteMap(container, flights = [], participants = [], trip = {}, activePersonFilter = 'all', phaseName = 'All') {
@@ -71,7 +81,7 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
     activeLeafletMap = null;
   }
 
-  const phaseTitle = phaseName === 'outbound' ? '🛫 Outbound Convergence Map' : phaseName === 'return' ? '🛬 Return Routes Map' : '🗺️ Group Flight Network';
+  const phaseTitle = phaseName === 'outbound' ? '🛫 Outbound Flight Network' : phaseName === 'return' ? '🛬 Return Flight Network' : '🗺️ Flight Network';
 
   container.innerHTML = `
     <div class="route-map-hero-card">
@@ -85,7 +95,7 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
           </span>
         </div>
         <div style="font-size: 11px; color: var(--color-text-tertiary); font-family: var(--font-family-mono);">
-          Bundled Master Arcs · CartoDB Dark Basemap
+          CartoDB Dark Basemap · Hover Lines for Details
         </div>
       </div>
 
@@ -104,7 +114,7 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
 
   activeLeafletMap = map;
 
-  // Single-Layer CartoDB Dark Matter @2x Retina Basemap (Zero double-text overlap!)
+  // CartoDB Dark Matter @2x Retina Basemap
   L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}@2x.png', {
     maxZoom: 19,
     subdomains: 'abcd'
@@ -114,36 +124,15 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
   L.control.zoom({ position: 'topright' }).addTo(map);
 
   const bounds = [];
+  const airportMap = new Map();
 
-  // Group Flights by Unique Route Pair (e.g. "EWR-LAX", "JFK-LHR")
-  const routeMasterMap = new Map();
-
+  // Draw Clean Glowing Arcs for Every Flight
   flights.forEach(f => {
     const depCode = (f.departure?.code || 'JFK').toUpperCase().trim();
     const arrCode = (f.arrival?.code || 'LAX').toUpperCase().trim();
-    const routeKey = `${depCode}➔${arrCode}`;
-
-    if (!routeMasterMap.has(routeKey)) {
-      routeMasterMap.set(routeKey, {
-        depCode,
-        arrCode,
-        flights: [],
-        travelers: []
-      });
-    }
-    const entry = routeMasterMap.get(routeKey);
-    entry.flights.push(f);
-
     const pIndex = participants.findIndex(p => p.name === f.addedBy);
     const color = PERSON_COLORS_HEX[pIndex >= 0 ? pIndex % 6 : 0];
-    entry.travelers.push({ name: f.addedBy, color, flight: f });
-  });
-
-  const airportMap = new Map();
-
-  // Render ONE Single Bundled Master Arc for Each Route Pair
-  routeMasterMap.forEach((entry, routeKey) => {
-    const { depCode, arrCode, flights: routeFlights, travelers } = entry;
+    const isFilteredOut = activePersonFilter !== 'all' && activePersonFilter !== f.addedBy;
 
     const startCoords = AIRPORT_COORDS[depCode] || [40.6413, -73.7781];
     const endCoords = AIRPORT_COORDS[arrCode] || [33.9416, -118.4085];
@@ -151,104 +140,77 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
     bounds.push(startCoords);
     bounds.push(endCoords);
 
-    if (!airportMap.has(depCode)) airportMap.set(depCode, { coords: startCoords, travelers: [] });
-    if (!airportMap.has(arrCode)) airportMap.set(arrCode, { coords: endCoords, travelers: [] });
+    // Track airports and travelers
+    if (!airportMap.has(depCode)) airportMap.set(depCode, { code: depCode, coords: startCoords, travelers: new Map() });
+    if (!airportMap.has(arrCode)) airportMap.set(arrCode, { code: arrCode, coords: endCoords, travelers: new Map() });
+    
+    airportMap.get(depCode).travelers.set(f.addedBy, color);
+    airportMap.get(arrCode).travelers.set(f.addedBy, color);
 
-    travelers.forEach(t => {
-      if (!airportMap.get(depCode).travelers.some(existing => existing.name === t.name)) {
-        airportMap.get(depCode).travelers.push(t);
-      }
-    });
-
-    // Check if active filter matches any traveler on this master route
-    const isMatchedByFilter = activePersonFilter === 'all' || travelers.some(t => t.name === activePersonFilter);
-    const mainColor = travelers[0]?.color || '#0A84FF';
-
-    // Compute Single Master Great Circle Arc Points
+    // Compute Great Circle Arc Points
     const arcPoints = getGreatCircleArc(startCoords, endCoords, 60);
 
-    // Draw One Master Glowing Polyline
+    // Draw Sleek Glowing Polyline (No Floating Middle Pills!)
     const polyline = L.polyline(arcPoints, {
-      color: mainColor,
-      weight: isMatchedByFilter ? 3.5 : 1.5,
-      opacity: isMatchedByFilter ? 0.9 : 0.25,
+      color: color,
+      weight: isFilteredOut ? 1.5 : 3.5,
+      opacity: isFilteredOut ? 0.2 : 0.85,
       lineCap: 'round'
     }).addTo(map);
 
-    // Construct Elegant Popover Tooltip for All Travelers on this Route
-    const travelerRowsHtml = travelers.map(t => `
-      <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:4px; padding-top:4px; border-top:1px solid rgba(255,255,255,0.06);">
-        <div style="display:flex; align-items:center; gap:6px;">
-          <span style="width:7px; height:7px; border-radius:50%; background:${t.color}; display:inline-block;"></span>
-          <strong style="color:#ffffff; font-size:11px;">${escapeHtml(t.name)}</strong>
-        </div>
-        <span style="font-family:var(--font-family-mono); font-size:10px; color:#38BDF8;">
-          ${escapeHtml(t.flight.flightNumber)} (${escapeHtml(t.flight.departure?.time || '')})
-        </span>
-      </div>
-    `).join('');
-
+    // Bind Sleek Glass Tooltip on Line Hover
     polyline.bindTooltip(`
-      <div style="min-width:180px;">
-        <div style="font-weight:800; font-family:var(--font-family-mono); font-size:12px; color:#fff; display:flex; align-items:center; justify-content:space-between;">
-          <span>✈️ ${escapeHtml(depCode)} ➔ ${escapeHtml(arrCode)}</span>
-          <span style="font-size:10px; color:#94A3B8; font-weight:normal;">${travelers.length} traveler${travelers.length > 1 ? 's' : ''}</span>
+      <div style="padding: 4px 6px;">
+        <div style="font-weight:800; font-family:var(--font-family-mono); font-size:12px; color:#fff; display:flex; align-items:center; gap:8px;">
+          <span>✈️ ${escapeHtml(f.flightNumber)}</span>
+          <span style="color:${color}; font-weight:700;">${escapeHtml(f.addedBy)}</span>
         </div>
-        ${travelerRowsHtml}
+        <div style="font-size:11px; color:#94A3B8; margin-top:3px; font-family:var(--font-family-mono);">
+          ${escapeHtml(depCode)} ➔ ${escapeHtml(arrCode)} (${escapeHtml(f.departure?.time || '')} ➔ ${escapeHtml(f.arrival?.time || '')})
+        </div>
       </div>
     `, { sticky: true, className: 'leaflet-dark-tooltip' });
-
-    // Add Midpoint Avatar Ring Stack Marker on the Arc
-    const midIndex = Math.floor(arcPoints.length / 2);
-    const midCoords = arcPoints[midIndex];
-
-    const visibleTravelers = travelers.slice(0, 3);
-    const overflowCount = Math.max(0, travelers.length - 3);
-
-    const avatarStackHtml = `
-      <div class="arc-avatar-pill" style="opacity:${isMatchedByFilter ? 1 : 0.35};">
-        <div class="avatar-ring-stack">
-          ${visibleTravelers.map((t, idx) => `
-            <div class="avatar-ring-mini" style="background:${t.color}; margin-left:${idx > 0 ? '-6px' : '0'};">
-              ${escapeHtml(t.name.charAt(0).toUpperCase())}
-            </div>
-          `).join('')}
-          ${overflowCount > 0 ? `<div class="avatar-ring-mini overflow-mini">+${overflowCount}</div>` : ''}
-        </div>
-        <span style="font-size:10px; font-weight:700; font-family:var(--font-family-mono); color:#ffffff;">
-          ${escapeHtml(depCode)}➔${escapeHtml(arrCode)}
-        </span>
-      </div>
-    `;
-
-    const arcMarkerIcon = L.divIcon({
-      className: 'arc-avatar-marker',
-      html: avatarStackHtml,
-      iconSize: [0, 0]
-    });
-
-    L.marker(midCoords, { icon: arcMarkerIcon }).addTo(map);
   });
 
-  // Add Clean Airport Node Markers
+  // Render Clean Airport Pins with De-duplicated Label Offsets
   airportMap.forEach((data, code) => {
     const { coords, travelers } = data;
-    const isFiltered = activePersonFilter !== 'all' && !travelers.some(t => t.name === activePersonFilter);
+    const travelerEntries = Array.from(travelers.entries());
+    const isFiltered = activePersonFilter !== 'all' && !travelers.has(activePersonFilter);
+    const offset = AIRPORT_LABEL_OFFSETS[code] || { dx: 0, dy: -16 };
+
+    const avatarDotsHtml = travelerEntries.slice(0, 3).map(([name, color]) => `
+      <span style="width:7px; height:7px; border-radius:50%; background:${color}; display:inline-block; border:1px solid #0F172A;" title="${escapeHtml(name)}"></span>
+    `).join('');
 
     const customIcon = L.divIcon({
-      className: 'airport-node-marker',
+      className: 'airport-pin-marker',
       html: `
-        <div style="display:flex; align-items:center; gap:4px; transform: translate(-50%, -50%); cursor:pointer;">
-          <div style="width:10px; height:10px; border-radius:50%; background:#0A84FF; box-shadow:0 0 10px #0A84FF; border:2px solid #fff;"></div>
-          <div style="font-size:10px; font-weight:800; font-family:var(--font-family-mono); color:${isFiltered ? '#64748B' : '#ffffff'}; text-shadow:0 1px 4px #000; background:rgba(15,23,42,0.9); padding:2px 6px; border-radius:4px; border:1px solid rgba(255,255,255,0.2);">
-            ${code}
+        <div style="position:relative; cursor:pointer; opacity:${isFiltered ? 0.35 : 1};">
+          <!-- Beacon Pulse Dot -->
+          <div style="width:10px; height:10px; border-radius:50%; background:#0A84FF; box-shadow:0 0 10px #0A84FF; border:2px solid #ffffff; transform:translate(-50%, -50%);"></div>
+          
+          <!-- Offset Badge Label -->
+          <div style="position:absolute; left:${offset.dx}px; top:${offset.dy}px; transform:translate(-50%, -50%); display:flex; align-items:center; gap:4px; background:rgba(15,23,42,0.92); border:1px solid rgba(255,255,255,0.18); border-radius:4px; padding:2px 6px; backdrop-filter:blur(8px); box-shadow:0 4px 12px rgba(0,0,0,0.6); white-space:nowrap;">
+            <span style="font-size:10px; font-weight:800; font-family:var(--font-family-mono); color:#ffffff;">${code}</span>
+            <div style="display:flex; align-items:center; gap:2px;">${avatarDotsHtml}</div>
           </div>
         </div>
       `,
       iconSize: [0, 0]
     });
 
-    L.marker(coords, { icon: customIcon }).addTo(map);
+    const marker = L.marker(coords, { icon: customIcon }).addTo(map);
+
+    const travelerNames = travelerEntries.map(([name]) => escapeHtml(name)).join(', ');
+    marker.bindTooltip(`
+      <div style="font-size:11px; font-weight:700; color:#fff; font-family:var(--font-family-mono);">
+        📍 Airport ${code}
+      </div>
+      <div style="font-size:10px; color:#94A3B8; margin-top:2px;">
+        Travelers: ${travelerNames}
+      </div>
+    `, { sticky: true, className: 'leaflet-dark-tooltip' });
   });
 
   // Fit bounds if valid points exist
