@@ -226,7 +226,7 @@ export async function renderDashboard(container, tripId) {
             </div>
 
             <!-- Phase & View Sub-Tabs + View Mode Toggle -->
-            <div style="display:flex; align-items:center; justify-space-between; flex-wrap:wrap; gap:var(--space-sm);" class="mb-base">
+            <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:var(--space-sm);" class="mb-base">
               <div class="tabs">
                 <button class="tab ${activeTab === 'flights' && phaseFilter === 'all' ? 'active' : ''}" data-tab="flights" data-phase="all">All (${currentTrip.flights.length})</button>
                 <button class="tab ${activeTab === 'flights' && phaseFilter === 'outbound' ? 'active' : ''}" data-tab="flights" data-phase="outbound">
@@ -305,7 +305,6 @@ export async function renderDashboard(container, tripId) {
 
       trigger.addEventListener('click', togglePopover);
 
-      // Close popover when clicking outside
       const handleOutsideClick = (e) => {
         if (!wrapper.contains(e.target)) {
           popover.classList.add('hidden');
@@ -313,7 +312,6 @@ export async function renderDashboard(container, tripId) {
       };
       document.addEventListener('click', handleOutsideClick);
 
-      // Handle item click in popover to filter person
       container.querySelectorAll('.avatar-popover-item').forEach(item => {
         item.addEventListener('click', (e) => {
           e.stopPropagation();
@@ -360,7 +358,7 @@ export async function renderDashboard(container, tripId) {
     }
 
     // Event Listeners
-    container.querySelector('#btn-back').addEventListener('click', () => {
+    container.querySelector('#btn-back')?.addEventListener('click', () => {
       stopPolling(tripId);
       unsubscribe();
       navigate('');
@@ -370,42 +368,21 @@ export async function renderDashboard(container, tripId) {
     container.querySelector('#btn-add-flight-top')?.addEventListener('click', triggerAddFlight);
     container.querySelector('#btn-add-flight-bottom')?.addEventListener('click', triggerAddFlight);
 
-    container.querySelector('#btn-notes').addEventListener('click', () => navigate(`notes/${tripId}`));
+    container.querySelector('#btn-notes')?.addEventListener('click', () => navigate(`notes/${tripId}`));
 
-    container.querySelector('#btn-subscribe').addEventListener('click', async () => {
+    container.querySelector('#btn-subscribe')?.addEventListener('click', async () => {
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://zgqjctiuycrhwrstorxw.supabase.co';
       const baseUrl = supabaseUrl.replace(/^https?:\/\//, 'webcal://');
       const subscribeUrl = `${baseUrl}/functions/v1/calendar-feed?tripId=${tripId}&token=${currentTrip.pin}`;
       window.location.href = subscribeUrl;
     });
 
-    container.querySelector('#btn-copy-pin').addEventListener('click', () => {
+    container.querySelector('#btn-copy-pin')?.addEventListener('click', () => {
       navigator.clipboard?.writeText(currentTrip.pin).then(() => {
         showToast('PIN copied!', 'success');
       }).catch(() => {
         showToast(`PIN: ${currentTrip.pin}`, 'info');
       });
-    });
-
-    container.querySelector('#btn-share').addEventListener('click', async () => {
-      const summary = await exportTripSummary(tripId);
-      if (navigator.share) {
-        navigator.share({ title: currentTrip.name, text: summary }).catch(() => { });
-      } else {
-        navigator.clipboard?.writeText(summary).then(() => {
-          showToast('Trip summary copied!', 'success');
-        });
-      }
-    });
-
-    container.querySelector('#btn-delete-trip').addEventListener('click', async () => {
-      if (confirm(`Delete "${currentTrip.name}"? This cannot be undone.`)) {
-        stopPolling(tripId);
-        unsubscribe();
-        await deleteTrip(tripId);
-        showToast('Trip deleted', 'info');
-        navigate('');
-      }
     });
 
     const toggleBtn = container.querySelector('#btn-toggle-refresh');
@@ -431,17 +408,19 @@ export async function renderDashboard(container, tripId) {
       });
     });
 
-    container.querySelectorAll('.tab[data-phase]').forEach(tab => {
-      tab.addEventListener('click', () => {
-        activeTab = 'flights';
-        phaseFilter = tab.dataset.phase;
-        render();
-      });
-    });
-
+    // Clean Combined Tab Switching Event Delegator
     container.querySelectorAll('.tab[data-tab]').forEach(tab => {
-      tab.addEventListener('click', () => {
-        activeTab = tab.dataset.tab;
+      tab.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const targetTab = tab.dataset.tab;
+        const targetPhase = tab.dataset.phase;
+
+        if (targetPhase) {
+          activeTab = 'flights';
+          phaseFilter = targetPhase;
+        } else {
+          activeTab = targetTab;
+        }
         render();
       });
     });
