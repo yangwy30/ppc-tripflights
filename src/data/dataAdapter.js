@@ -10,6 +10,7 @@
    ============================================ */
 
 import { supabase } from './supabaseClient.js';
+import { emit, EVENTS } from './store.js';
 
 const NICKNAME_KEY = 'ppc-trip-tracker_nicknames';
 
@@ -26,64 +27,69 @@ function saveToken(tripId, token) {
     const tokens = getTokens();
     tokens[tripId] = token;
     localStorage.setItem('ppc-trip-tracker_tokens', JSON.stringify(tokens));
-
-    // Set the token for the current session
-    supabase.auth.setSession({
-        access_token: token,
-        refresh_token: ''
-    });
+    supabase.auth.setSession({ access_token: token, refresh_token: '' }).catch(() => {});
 }
 
-// --- Local nickname helpers (per-device) ---
+export function getTokenForTrip(tripId) {
+    const tokens = getTokens();
+    return tokens[tripId] || null;
+}
 
-function loadNicknames() {
+export function getUserNickname(tripId) {
     try {
         const raw = localStorage.getItem(NICKNAME_KEY);
-        return raw ? JSON.parse(raw) : {};
+        const map = raw ? JSON.parse(raw) : {};
+        return map[tripId] || '';
     } catch {
-        return {};
+        return '';
     }
 }
 
-function saveNickname(tripId, nickname) {
-    const data = loadNicknames();
-    data[tripId] = nickname;
-    localStorage.setItem(NICKNAME_KEY, JSON.stringify(data));
+export function saveNickname(tripId, nickname) {
+    try {
+        const raw = localStorage.getItem(NICKNAME_KEY);
+        const map = raw ? JSON.parse(raw) : {};
+        map[tripId] = nickname;
+        localStorage.setItem(NICKNAME_KEY, JSON.stringify(map));
+    } catch {}
 }
 
 function generatePin() {
-    return String(Math.floor(100000 + Math.random() * 900000));
+    return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
 function generateId() {
-    return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+    return 't_' + Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
 }
 
-// --- Assemble a trip object from joined data ---
+// --- DB Row Assembler ---
 
-function assembleTrip(tripRow, participants, flights, notes) {
+function assembleTrip(tripRow, participantRows, flightRows, noteRows) {
+    if (!tripRow) return null;
+
     return {
         id: tripRow.id,
         pin: tripRow.pin,
         name: tripRow.name,
         startDate: tripRow.start_date,
         endDate: tripRow.end_date,
-        destinationAirport: tripRow.destination_airport,
-        returnAirport: tripRow.return_airport,
+        destinationAirport: tripRow.destination_airport || null,
+        returnAirport: tripRow.return_airport || null,
         createdAt: tripRow.created_at,
-        participants: (participants || []).map(p => ({
+        participants: (participantRows || []).map(p => ({
+            id: p.id,
             name: p.name,
-            joinedAt: p.joined_at,
             color: p.color,
-            homeAirport: p.home_airport,
-            destinationAirport: p.destination_airport
+            joinedAt: p.joined_at,
+            homeAirport: p.home_airport || null,
+            destinationAirport: p.destination_airport || null
         })),
-        flights: (flights || []).map(f => ({
+        flights: (flightRows || []).map(f => ({
             id: f.id,
             flightNumber: f.flight_number,
             airline: f.airline,
-            departure: f.departure || {},
-            arrival: f.arrival || {},
+            departure: f.departure,
+            arrival: f.arrival,
             date: f.date,
             duration: f.duration,
             status: f.status,
@@ -92,7 +98,7 @@ function assembleTrip(tripRow, participants, flights, notes) {
             addedBy: f.added_by,
             addedAt: f.added_at
         })),
-        notes: (notes || []).map(n => ({
+        notes: (noteRows || []).map(n => ({
             id: n.id,
             content: n.content,
             author: n.author,
@@ -101,16 +107,26 @@ function assembleTrip(tripRow, participants, flights, notes) {
     };
 }
 
-// --- Fetch a full trip with related data ---
+// Helper: set auth header for a specific trip (uses saved token)
+async function setAuthForTrip(tripId) {
+    const token = getTokenForTrip(tripId);
+    if (token) {
+        await supabase.auth.setSession({ access_token: token, refresh_token: '' }).catch(() => {});
+    }
+}
 
-async function fetchFullTrip(tripId) {
-    const { data: trip, error } = await supabase
+// --- Fetching Data ---
+
+export async function fetchFullTrip(tripId) {
+    await setAuthForTrip(tripId);
+
+    const { data: trip, error: tripError } = await supabase
         .from('trips')
         .select('*')
         .eq('id', tripId)
         .single();
 
-    if (error || !trip) return null;
+    if (tripError || !trip) return null;
 
     const [
         { data: participants },
@@ -141,8 +157,6 @@ export async function createTrip({ name, startDate, endDate, creatorName, destin
 
     if (tripError) { console.error('createTrip error:', tripError); return null; }
 
-    // After creating, we must get a valid JWT to proceed reading/writing to the rest of the tables
-    // by explicitly "verifying" the pin we just created.
     try {
         const { data: authData, error: authError } = await supabase.functions.invoke('verify-pin', {
             body: { pin }
@@ -156,7 +170,7 @@ export async function createTrip({ name, startDate, endDate, creatorName, destin
         saveToken(id, authData.token);
     } catch (err) {
         console.error('Edge function error', err);
-        return null; // Stop if we can't authenticate
+        return null;
     }
 
     await supabase.from('participants').insert({
@@ -168,12 +182,12 @@ export async function createTrip({ name, startDate, endDate, creatorName, destin
     });
 
     saveNickname(id, creatorName);
-
-    return fetchFullTrip(id);
+    const newTrip = await fetchFullTrip(id);
+    emit(EVENTS.TRIP_CREATED, newTrip);
+    return newTrip;
 }
 
 export async function joinTrip({ pin, nickname, homeAirport }) {
-    // 1. Verify PIN via Edge Function (bypasses RLS to check pin and return custom JWT)
     try {
         const { data: authData, error: authError } = await supabase.functions.invoke('verify-pin', {
             body: { pin }
@@ -181,13 +195,11 @@ export async function joinTrip({ pin, nickname, homeAirport }) {
 
         if (authError || !authData?.token || !authData?.trip_id) {
             console.error('Invalid PIN or no token returned', authError);
-            return null; // Invalid PIN
+            return null;
         }
 
-        // 2. Save token and set session so subsequent queries work
         saveToken(authData.trip_id, authData.token);
 
-        // 3. Now we are authenticated for this specific trip_id, we can safely query the trip
         const { data: trip, error: tripError } = await supabase
             .from('trips')
             .select('*')
@@ -196,212 +208,174 @@ export async function joinTrip({ pin, nickname, homeAirport }) {
 
         if (tripError || !trip) return null;
 
-        // Check if participant already exists (case-insensitive)
         const { data: existing } = await supabase
             .from('participants')
             .select('*')
-            .eq('trip_id', trip.id)
+            .eq('trip_id', authData.trip_id)
             .ilike('name', nickname);
 
         if (!existing || existing.length === 0) {
-            // Get current count for color assignment
-            const { data: allParticipants } = await supabase
+            const { data: allParts } = await supabase
                 .from('participants')
-                .select('id')
-                .eq('trip_id', trip.id);
+                .select('color')
+                .eq('trip_id', authData.trip_id);
+
+            const colorIndex = (allParts || []).length % 6;
 
             await supabase.from('participants').insert({
-                trip_id: trip.id,
+                trip_id: authData.trip_id,
                 name: nickname,
-                color: (allParticipants?.length || 0) % 6,
+                color: colorIndex,
                 home_airport: homeAirport || null,
                 destination_airport: null
             });
         }
 
-        saveNickname(trip.id, nickname);
+        saveNickname(authData.trip_id, nickname);
+        const joinedTrip = await fetchFullTrip(authData.trip_id);
+        emit(EVENTS.TRIP_JOINED, joinedTrip);
+        return joinedTrip;
 
-        return fetchFullTrip(trip.id);
     } catch (err) {
-        console.error('joinTrip edge function error:', err);
+        console.error('joinTrip exception:', err);
         return null;
     }
 }
 
 export async function getTrip(tripId) {
-    // Attempt to load the token for this trip into the session before fetching
-    const tokens = getTokens();
-    if (tokens[tripId]) {
-        await supabase.auth.setSession({
-            access_token: tokens[tripId],
-            refresh_token: ''
-        });
-    }
     return fetchFullTrip(tripId);
 }
 
 export async function getAllTrips() {
-    const nicknames = loadNicknames();
-    const tokens = getTokens(); // Need tokens to read the trips
-    const tripIds = Object.keys(nicknames).filter(id => tokens[id]);
-
+    const tokens = getTokens();
+    const tripIds = Object.keys(tokens);
     if (tripIds.length === 0) return [];
-
-    // Since RLS requires a specific JWT per trip, we cannot bulk-query trips 
-    // with a single `in('id', tripIds)` unless we had a multi-trip JWT or bypassed RLS.
-    // For this list view, we will fetch them individually using their respective tokens.
 
     const trips = [];
     for (const id of tripIds) {
-        await supabase.auth.setSession({
-            access_token: tokens[id],
-            refresh_token: ''
-        });
-
-        const { data: trip } = await supabase.from('trips').select('*').eq('id', id).single();
-        if (trip) trips.push(trip);
-    }
-
-    if (trips.length === 0) return [];
-
-    // Fetch participants and flights counts for each trip
-    // We must set the session specifically for each trip we query because
-    // the RLS policies now require the specific JWT for that trip.
-    const fullTrips = [];
-
-    for (const trip of trips) {
-        if (tokens[trip.id]) {
-            await supabase.auth.setSession({
-                access_token: tokens[trip.id],
-                refresh_token: ''
-            });
-
-            const [
-                { data: participants },
-                { data: flights }
-            ] = await Promise.all([
-                supabase.from('participants').select('*').eq('trip_id', trip.id),
-                supabase.from('flights').select('*').eq('trip_id', trip.id)
-            ]);
-
-            fullTrips.push(assembleTrip(trip, participants, flights, []));
+        try {
+            const trip = await fetchFullTrip(id);
+            if (trip) trips.push(trip);
+        } catch {
+            // Invalid/expired token for this trip, continue
         }
     }
-
-    return fullTrips;
-}
-
-export function getUserNickname(tripId) {
-    const data = loadNicknames();
-    return data[tripId] || 'You';
+    return trips;
 }
 
 export async function deleteTrip(tripId) {
-    const tokens = getTokens();
+    await setAuthForTrip(tripId);
+    await supabase.from('notes').delete().eq('trip_id', tripId);
+    await supabase.from('flights').delete().eq('trip_id', tripId);
+    await supabase.from('participants').delete().eq('trip_id', tripId);
+    await supabase.from('trips').delete().eq('id', tripId);
 
-    if (tokens[tripId]) {
-        await supabase.auth.setSession({
-            access_token: tokens[tripId],
-            refresh_token: ''
-        });
-        // CASCADE handles participants, flights, notes
-        await supabase.from('trips').delete().eq('id', tripId);
+    const tokens = getTokens();
+    delete tokens[tripId];
+    localStorage.setItem('ppc-trip-tracker_tokens', JSON.stringify(tokens));
+
+    const nickRaw = localStorage.getItem(NICKNAME_KEY);
+    if (nickRaw) {
+        try {
+            const map = JSON.parse(nickRaw);
+            delete map[tripId];
+            localStorage.setItem(NICKNAME_KEY, JSON.stringify(map));
+        } catch {}
     }
 
-    // Remove local nickname
-    const data = loadNicknames();
-    delete data[tripId];
-    delete tokens[tripId];
-
-    localStorage.setItem(NICKNAME_KEY, JSON.stringify(data));
-    localStorage.setItem('ppc-trip-tracker_tokens', JSON.stringify(tokens));
+    emit(EVENTS.TRIP_DELETED, tripId);
 }
 
-export async function addParticipant(tripId, name) {
-    // Check if already exists (case-insensitive)
-    const { data: existing } = await supabase
+export async function setParticipantHomeAirport(tripId, nickname, homeAirport) {
+    await setAuthForTrip(tripId);
+    const { data, error } = await supabase
         .from('participants')
-        .select('*')
+        .update({ home_airport: homeAirport || null })
         .eq('trip_id', tripId)
-        .ilike('name', name);
+        .ilike('name', nickname)
+        .select();
 
-    if (existing && existing.length > 0) {
-        return { name: existing[0].name, joinedAt: existing[0].joined_at, color: existing[0].color };
+    if (error) {
+        console.error('setParticipantHomeAirport error:', error);
+        return false;
     }
+    emit(EVENTS.PARTICIPANT_ADDED, { tripId, nickname, homeAirport });
+    return true;
+}
 
-    // Get count for color
-    const { data: all } = await supabase
+export async function setParticipantDestinationAirport(tripId, nickname, destinationAirport) {
+    await setAuthForTrip(tripId);
+    const { data, error } = await supabase
         .from('participants')
-        .select('id')
-        .eq('trip_id', tripId);
+        .update({ destination_airport: destinationAirport || null })
+        .eq('trip_id', tripId)
+        .ilike('name', nickname)
+        .select();
 
+    if (error) {
+        console.error('setParticipantDestinationAirport error:', error);
+        return false;
+    }
+    emit(EVENTS.PARTICIPANT_ADDED, { tripId, nickname, destinationAirport });
+    return true;
+}
+
+export async function savePushSubscription(tripId, subscription) {
+    try {
+        await supabase.from('push_subscriptions').upsert({
+            trip_id: tripId,
+            subscription: JSON.stringify(subscription),
+            updated_at: new Date().toISOString()
+        });
+    } catch (e) {
+        console.warn('Push subscription save skipped:', e);
+    }
+}
+
+export async function addParticipant(tripId, { name, homeAirport, destinationAirport, color }) {
+    await setAuthForTrip(tripId);
     const { data: inserted, error } = await supabase
         .from('participants')
         .insert({
             trip_id: tripId,
             name,
-            color: (all?.length || 0) % 6
+            color: color !== undefined ? color : 0,
+            home_airport: homeAirport || null,
+            destination_airport: destinationAirport || null
         })
         .select()
         .single();
 
-    if (error) { console.error('addParticipant error:', error); return null; }
-
-    return { name: inserted.name, joinedAt: inserted.joined_at, color: inserted.color };
-}
-
-export async function updateParticipantDestination(tripId, participantName, destinationAirport) {
-    const { error } = await supabase
-        .from('participants')
-        .update({ destination_airport: destinationAirport || null })
-        .eq('trip_id', tripId)
-        .eq('name', participantName);
-
     if (error) {
-        console.error('updateParticipantDestination error:', error);
-        return false;
+        console.error('addParticipant error:', error);
+        return null;
     }
-    return true;
+    const partObj = {
+        id: inserted.id,
+        name: inserted.name,
+        color: inserted.color,
+        homeAirport: inserted.home_airport,
+        destinationAirport: inserted.destination_airport,
+        joinedAt: inserted.joined_at
+    };
+    emit(EVENTS.PARTICIPANT_ADDED, { tripId, participant: partObj });
+    return partObj;
 }
+
+export const updateParticipantDestination = setParticipantDestinationAirport;
+export const updateParticipantHome = setParticipantHomeAirport;
 
 export async function deleteParticipant(tripId, participantName) {
-    // 1. Delete participant's flights
+    await setAuthForTrip(tripId);
+    await supabase.from('participants').delete().eq('trip_id', tripId).eq('name', participantName);
     await supabase.from('flights').delete().eq('trip_id', tripId).eq('added_by', participantName);
-    
-    // 2. Delete the participant record
-    const { error } = await supabase
-        .from('participants')
-        .delete()
-        .eq('trip_id', tripId)
-        .eq('name', participantName);
-
-    if (error) {
-        console.error('deleteParticipant error:', error);
-        return false;
-    }
-    return true;
-}
-
-// --- Push Notifications ---
-export async function savePushSubscription(tripId, participantName, subscriptionJson) {
-    const { error } = await supabase
-        .from('push_subscriptions')
-        .upsert({
-            trip_id: tripId,
-            participant_name: participantName,
-            subscription_json: subscriptionJson
-        }, { onConflict: 'trip_id,participant_name' });
-
-    if (error) {
-        console.error('savePushSubscription error:', error);
-        return false;
-    }
-    return true;
+    emit(EVENTS.PARTICIPANT_DELETED, { tripId, participantName });
 }
 
 // --- Flight Operations ---
 
 export async function addFlight(tripId, flight) {
+    await setAuthForTrip(tripId);
     const id = generateId();
 
     const { data: inserted, error } = await supabase
@@ -425,7 +399,7 @@ export async function addFlight(tripId, flight) {
 
     if (error) { console.error('addFlight error:', error); return null; }
 
-    return {
+    const flightObj = {
         id: inserted.id,
         flightNumber: inserted.flight_number,
         airline: inserted.airline,
@@ -439,9 +413,13 @@ export async function addFlight(tripId, flight) {
         addedBy: inserted.added_by,
         addedAt: inserted.added_at
     };
+
+    emit(EVENTS.FLIGHT_ADDED, { tripId, flight: flightObj });
+    return flightObj;
 }
 
 export async function updateFlightStatus(tripId, flightId, status) {
+    await setAuthForTrip(tripId);
     const { data, error } = await supabase
         .from('flights')
         .update({ status })
@@ -451,18 +429,27 @@ export async function updateFlightStatus(tripId, flightId, status) {
         .single();
 
     if (error) { console.error('updateFlightStatus error:', error); return null; }
-    return data ? {
+    
+    const updated = data ? {
         id: data.id,
         flightNumber: data.flight_number,
         status: data.status
     } : null;
+
+    if (updated) {
+        emit(EVENTS.FLIGHT_UPDATED, { tripId, flightId, status });
+    }
+    return updated;
 }
 
 export async function deleteFlight(tripId, flightId) {
+    await setAuthForTrip(tripId);
     await supabase.from('flights').delete().eq('id', flightId).eq('trip_id', tripId);
+    emit(EVENTS.FLIGHT_DELETED, { tripId, flightId });
 }
 
 export async function restoreFlight(tripId, flight) {
+    await setAuthForTrip(tripId);
     const { error } = await supabase
         .from('flights')
         .insert({
@@ -482,12 +469,14 @@ export async function restoreFlight(tripId, flight) {
         });
 
     if (error) { console.error('restoreFlight error:', error); return null; }
+    emit(EVENTS.FLIGHT_ADDED, { tripId, flight });
     return flight;
 }
 
 // --- Note Operations ---
 
 export async function addNote(tripId, { content, author }) {
+    await setAuthForTrip(tripId);
     const id = generateId();
 
     const { data: inserted, error } = await supabase
@@ -503,16 +492,21 @@ export async function addNote(tripId, { content, author }) {
 
     if (error) { console.error('addNote error:', error); return null; }
 
-    return {
+    const noteObj = {
         id: inserted.id,
         content: inserted.content,
         author: inserted.author,
         createdAt: inserted.created_at
     };
+
+    emit(EVENTS.NOTE_ADDED, { tripId, note: noteObj });
+    return noteObj;
 }
 
 export async function deleteNote(tripId, noteId) {
+    await setAuthForTrip(tripId);
     await supabase.from('notes').delete().eq('id', noteId).eq('trip_id', tripId);
+    emit(EVENTS.NOTE_DELETED, { tripId, noteId });
 }
 
 // --- Export ---

@@ -1,8 +1,10 @@
 /* ============================================
    PPC: Delay No More — Commercial Notes Screen
+   Features: Real-time Pub/Sub Event Subscription
    ============================================ */
 
 import { getTrip, getUserNickname, addNote, deleteNote, exportTripSummary } from '../data/dataAdapter.js';
+import { subscribe, EVENTS } from '../data/store.js';
 import { navigate } from '../app.js';
 import { showToast } from '../components/toast.js';
 import { getIcon } from '../components/icons.js';
@@ -15,6 +17,13 @@ export async function renderNotes(container, tripId) {
   }
 
   const nickname = getUserNickname(tripId);
+
+  // Subscribe to real-time note creation / deletion events
+  const unsubscribe = subscribe((event, data) => {
+    if (event === EVENTS.NOTE_ADDED || event === EVENTS.NOTE_DELETED) {
+      render();
+    }
+  });
 
   async function render() {
     const currentTrip = await getTrip(tripId);
@@ -69,7 +78,10 @@ export async function renderNotes(container, tripId) {
       </div>
     `;
 
-    container.querySelector('#btn-back').addEventListener('click', () => navigate(`trip/${tripId}`));
+    container.querySelector('#btn-back').addEventListener('click', () => {
+      unsubscribe();
+      navigate(`trip/${tripId}`);
+    });
 
     container.querySelector('#btn-add-note').addEventListener('click', async () => {
       const input = container.querySelector('#note-input');
@@ -105,11 +117,12 @@ export async function renderNotes(container, tripId) {
 }
 
 function formatTime(isoStr) {
+  if (!isoStr) return '';
   try {
     const d = new Date(isoStr);
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ' ' + d.toLocaleDateString([], { month: 'short', day: 'numeric' });
   } catch {
-    return '';
+    return isoStr;
   }
 }
 
