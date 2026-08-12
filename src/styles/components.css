@@ -89,6 +89,64 @@
     color: var(--color-text-primary);
 }
 
+/* --- Overlapping Avatar Group --- */
+.avatar-group {
+    display: flex;
+    align-items: center;
+}
+
+.avatar-ring {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 2px solid #0F172A;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    color: #ffffff;
+    margin-left: -8px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+.avatar-ring:first-child {
+    margin-left: 0;
+}
+
+.avatar-count-ring {
+    background: rgba(30, 41, 59, 0.9);
+    border-color: var(--color-border);
+    color: var(--color-text-secondary);
+    font-family: var(--font-family-mono);
+    font-size: 10px;
+}
+
+/* --- Trip Insights Stat Rows --- */
+.stat-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--color-border-light);
+    font-size: var(--font-size-xs);
+}
+
+.stat-row:last-child {
+    border-bottom: none;
+}
+
+.stat-label {
+    color: var(--color-text-tertiary);
+    font-weight: var(--font-weight-medium);
+}
+
+.stat-value {
+    color: var(--color-text-primary);
+    font-family: var(--font-family-mono);
+    font-weight: var(--font-weight-semibold);
+}
+
 /* --- Button --- */
 .btn {
     display: inline-flex;
