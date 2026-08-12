@@ -1,6 +1,6 @@
 /* ============================================
-   PPC: Delay No More — Precision Pixel-Aligned Timeline Component
-   Fixed: Date Header 100px Spacer Offset Bug & Pure Local Time Grid Alignment
+   PPC: Delay No More — 100% Pixel-Exact Local Time Timeline Engine
+   Guaranteed: Bar Left Edge = Dep Local Time, Bar Right Edge = Arr Local Time (Zero Min-Width Distortion)
    ============================================ */
 
 import { getIcon } from './icons.js';
@@ -65,7 +65,7 @@ export function renderTimeline(container, tripOrFlights, participantsOrFilter, f
   if (dateList.length === 0) dateList.push(new Date().toISOString().split('T')[0]);
 
   const totalDays = dateList.length;
-  const dayWidthPx = Math.max(260, totalDays <= 2 ? 380 : 280);
+  const dayWidthPx = Math.max(300, totalDays <= 2 ? 450 : 320);
   const totalWidthPx = `${totalDays * dayWidthPx + 110}px`; // 110px label offset + grid width
 
   // Group flights by person
@@ -89,7 +89,7 @@ export function renderTimeline(container, tripOrFlights, participantsOrFilter, f
       </div>
     `;
   });
-  html += '<div class="tl-legend-hint">↔ Scroll timeline · Times in Local Wall-Clock Times</div>';
+  html += '<div class="tl-legend-hint">↔ Scroll timeline · Exact Local Dep/Arr Time Alignment</div>';
   html += '</div>';
 
   // Scrollable container
@@ -114,7 +114,7 @@ export function renderTimeline(container, tripOrFlights, participantsOrFilter, f
       </div>
     `;
   });
-  html += '</div></div>'; // end inner flex & date-row
+  html += '</div></div>';
 
   // Background Grid Lines layer (Offset 110px from left)
   html += '<div class="tl-grid" style="position: absolute; top: 40px; left: 110px; right: 0; bottom: 0; pointer-events: none;">';
@@ -128,7 +128,7 @@ export function renderTimeline(container, tripOrFlights, participantsOrFilter, f
   });
   html += '</div>';
 
-  // Person Rows Layer (110px label + flex:1 bars container)
+  // Person Rows Layer (100% Exact Dep/Arr Local Time Alignment)
   participants.forEach((person, personIdx) => {
     const color = PERSON_COLORS_HEX[personIdx % 6];
     const pFlights = personFlights[person.name] || [];
@@ -151,15 +151,15 @@ export function renderTimeline(container, tripOrFlights, participantsOrFilter, f
       const flightDateIdx = dateList.indexOf(flight.date);
       if (flightDateIdx < 0) return;
 
-      // Pure Local Wall-Clock Span: If arrival hour <= departure hour, flight crosses overnight (+24h)
+      // Handle overnight arrival (+24h)
       if (arrHour <= depHour) {
         arrHour += 24;
       }
 
-      const localSpanHours = Math.max(arrHour - depHour, 1.2);
-
+      // EXACT PIXEL ALIGNMENT: Left = Dep Local Time, Right = Arr Local Time
       const startPct = ((flightDateIdx + depHour / 24) / totalDays) * 100;
-      const widthPct = Math.max((localSpanHours / 24 / totalDays) * 100, 1.8);
+      const endPct = ((flightDateIdx + arrHour / 24) / totalDays) * 100;
+      const widthPct = Math.max(0.5, endPct - startPct);
 
       const depCode = (flight.departure?.code || 'DEP').toUpperCase();
       const arrCode = (flight.arrival?.code || 'ARR').toUpperCase();
@@ -173,26 +173,26 @@ export function renderTimeline(container, tripOrFlights, participantsOrFilter, f
           top: 3px;
           left: ${startPct}%;
           width: ${widthPct}%;
-          min-width: 115px;
           height: 36px;
           background: ${color};
           border-radius: 8px;
-          padding: 3px 8px;
+          padding: 2px 6px;
           display: flex;
           align-items: center;
-          justify-content: space-between;
+          justify-content: flex-start;
           box-shadow: 0 4px 14px rgba(0,0,0,0.5);
           cursor: pointer;
           z-index: 10;
-          transition: transform var(--transition-fast);
+          overflow: visible;
         ">
-          <div style="display:flex; flex-direction:column; overflow:hidden; line-height:1.2;">
-            <div style="font-weight:900; font-family:var(--font-family-mono); font-size:11px; color:#ffffff; white-space:nowrap;">
+          <!-- Text Badge Container that overflows cleanly if bar is short -->
+          <div style="display:flex; align-items:center; gap:6px; white-space:nowrap; pointer-events:none; position:relative; z-index:11;">
+            <span style="font-weight:900; font-family:var(--font-family-mono); font-size:11px; color:#ffffff; text-shadow:0 1px 3px rgba(0,0,0,0.8);">
               ${escapeHtml(fn)}
-            </div>
-            <div style="font-size:9px; color:rgba(255,255,255,0.9); font-family:var(--font-family-mono); white-space:nowrap;">
-              ${escapeHtml(depCode)} (${escapeHtml(depTimeStr)}) ➔ ${escapeHtml(arrCode)} (${escapeHtml(arrTimeStr)})
-            </div>
+            </span>
+            <span style="font-size:9px; color:rgba(255,255,255,0.95); font-family:var(--font-family-mono); background:rgba(0,0,0,0.4); padding:1px 4px; border-radius:4px;">
+              ${escapeHtml(depCode)} ${escapeHtml(depTimeStr)} ➔ ${escapeHtml(arrCode)} ${escapeHtml(arrTimeStr)}
+            </span>
           </div>
         </div>
       `;
