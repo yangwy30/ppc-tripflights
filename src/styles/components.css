@@ -49,18 +49,19 @@
     margin-bottom: var(--space-lg);
     backdrop-filter: var(--glass-blur);
     box-shadow: var(--shadow-md);
+    overflow: hidden !important;
 }
 
-.route-map-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: var(--space-sm);
-    padding-bottom: var(--space-xs);
-    border-bottom: 1px solid var(--color-border);
+/* Strict Leaflet Container & Pane Overflows to prevent floating markers outside map box */
+.leaflet-container,
+.leaflet-pane,
+.leaflet-map-pane,
+.leaflet-marker-pane,
+.leaflet-overlay-pane {
+    overflow: hidden !important;
+    border-radius: inherit;
 }
 
-/* Leaflet Tile Overrides to ensure 100% full render */
 .leaflet-container img.leaflet-tile {
     max-width: none !important;
     max-height: none !important;
