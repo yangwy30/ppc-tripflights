@@ -1,7 +1,6 @@
 /* ============================================
-   PPC: Delay No More — Phase-Sensitive Arrow Route Map Engine
-   All: Static Overview Network (No Moving Arrows)
-   Outbound & Return: Original Colored Glowing Arrow Markers (▶) Moving Smoothly
+   PPC: Delay No More — Professional Clean Route Map Engine
+   Zero Emoji Badges + Constant Speed Smooth Arrow Motion (Zero Jitter)
    ============================================ */
 
 import L from 'leaflet';
@@ -82,7 +81,7 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
     activeLeafletMap = null;
   }
 
-  const phaseTitle = phaseName === 'outbound' ? '🛫 Outbound Flow Network' : phaseName === 'return' ? '🛬 Return Flow Network' : '🗺️ Flight Network';
+  const phaseTitle = phaseName === 'outbound' ? 'Outbound Flight Network' : phaseName === 'return' ? 'Return Flight Network' : 'Flight Network';
 
   container.innerHTML = `
     <div class="route-map-hero-card">
@@ -96,7 +95,7 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
           </span>
         </div>
         <div style="font-size: 11px; color: var(--color-text-tertiary); font-family: var(--font-family-mono);">
-          CartoDB Dark Basemap · ${phaseName === 'all' ? 'Static Network' : 'Animated Glowing Arrow (▶)'}
+          CartoDB Dark Basemap · Vector Flight Path
         </div>
       </div>
 
@@ -187,11 +186,13 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
         lineCap: 'round'
       }).addTo(map);
 
-      // Store flow corridor data for original ▶ arrow marker animation
+      // Store flow corridor data with geodesic distance for constant-velocity movement
       if (!isFilteredOut && phaseName !== 'all') {
+        const distKm = getGeodesicDistanceKm(startCoords, endCoords);
         activeCorridors.push({
           points: arcPoints,
           color,
+          distKm,
           depCode,
           arrCode
         });
@@ -200,7 +201,7 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
       polyline.bindTooltip(`
         <div style="padding: 4px 6px;">
           <div style="font-weight:800; font-family:var(--font-family-mono); font-size:12px; color:#fff; display:flex; align-items:center; gap:8px;">
-            <span>✈️ ${escapeHtml(f.flightNumber)}</span>
+            <span>${escapeHtml(f.flightNumber)}</span>
             <span style="color:${color}; font-weight:700;">${escapeHtml(f.addedBy)}</span>
           </div>
           <div style="font-size:11px; color:#94A3B8; margin-top:3px; font-family:var(--font-family-mono);">
@@ -256,29 +257,24 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
 
   const totalGroupCount = participants.length || 1;
 
-  // Render Airport Pins with De-duplicated Shared City Nodes
+  // Render Clean Airport Pins (ZERO EMOJIS)
   airportMap.forEach((data, code) => {
     const { coords, departures, arrivals } = data;
     const allTravelers = [...departures, ...arrivals];
     const isFiltered = activePersonFilter !== 'all' && !allTravelers.some(t => t.name === activePersonFilter);
 
-    let phaseIcon = '📍';
     let travelerList = [];
 
     if (phaseName === 'outbound') {
       if (departures.length > 0 && arrivals.length === 0) {
-        phaseIcon = '🛫';
         travelerList = departures;
       } else if (arrivals.length > 0 && departures.length === 0) {
-        phaseIcon = '🛬';
         travelerList = [];
       }
     } else if (phaseName === 'return') {
       if (departures.length > 0 && arrivals.length === 0) {
-        phaseIcon = '🛫';
         travelerList = [];
       } else if (arrivals.length > 0 && departures.length === 0) {
-        phaseIcon = '🛬';
         travelerList = arrivals;
       }
     } else {
@@ -307,15 +303,15 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
     const offset = pillOffsetsMap.get(code) || { dx: 0, dy: -20 };
     const pillStyle = `top: ${offset.dy}px; left: ${offset.dx}px; transform: translate(-50%, -50%);`;
 
+    // ZERO EMOJI — Clean Minimalist Dark Pill Marker
     const customIcon = L.divIcon({
       className: 'airport-pill-marker',
       html: `
         <div style="position:relative; cursor:pointer; opacity:${isFiltered ? 0.35 : 1};">
           <div style="width:8px; height:8px; border-radius:50%; background:#0A84FF; box-shadow:0 0 10px #0A84FF; border:1.5px solid #ffffff; transform:translate(-50%, -50%);"></div>
           
-          <div style="position:absolute; ${pillStyle} display:inline-flex; align-items:center; gap:5px; background:rgba(15,23,42,0.95); border:1px solid rgba(255,255,255,0.22); border-radius:12px; padding:3px 8px; backdrop-filter:blur(10px); box-shadow:0 4px 18px rgba(0,0,0,0.75); white-space:nowrap; z-index:10;">
-            <span style="font-size:10px;">${phaseIcon}</span>
-            <span style="font-size:11px; font-weight:800; font-family:var(--font-family-mono); color:#ffffff;">${code}</span>
+          <div style="position:absolute; ${pillStyle} display:inline-flex; align-items:center; gap:5px; background:rgba(15,23,42,0.95); border:1px solid rgba(255,255,255,0.22); border-radius:12px; padding:3px 10px; backdrop-filter:blur(10px); box-shadow:0 4px 18px rgba(0,0,0,0.75); white-space:nowrap; z-index:10;">
+            <span style="font-size:11px; font-weight:800; font-family:var(--font-family-mono); color:#ffffff; letter-spacing:0.5px;">${code}</span>
             ${avatarStackHtml ? `
               <div style="display:flex; align-items:center; margin-left:4px;">
                 ${avatarStackHtml}
@@ -332,7 +328,7 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
     const namesList = Array.from(new Set(allTravelers.map(t => escapeHtml(t.name)))).join(', ');
     marker.bindTooltip(`
       <div style="font-size:11px; font-weight:700; color:#fff; font-family:var(--font-family-mono);">
-        ${phaseIcon} Airport ${code}
+        Airport ${code}
       </div>
       <div style="font-size:10px; color:#94A3B8; margin-top:2px;">
         Travelers: ${namesList || 'None'}
@@ -340,34 +336,44 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
     `, { sticky: true, className: 'leaflet-dark-tooltip' });
   });
 
-  // ORIGINAL GLOWING ARROW MARKERS (▶) Strictly Active on Outbound & Return Tabs!
+  // CONSTANT VELOCITY SMOOTH ARROW MARKERS (▶) - ZERO JITTER
   if (phaseName !== 'all' && activeCorridors.length > 0) {
     const flowMarkers = [];
     activeCorridors.forEach(corridor => {
       const icon = L.divIcon({
         className: 'flow-arrow-marker',
         html: `
-          <div style="color:${corridor.color}; font-size:11px; font-weight:900; line-height:1; filter:drop-shadow(0 0 6px ${corridor.color}); transform:translate(-50%, -50%); transition: transform 0.05s linear;">
-            ▶
+          <div class="arrow-wrapper" style="position:relative; width:16px; height:16px; display:flex; align-items:center; justify-content:center;">
+            <span class="arrow-inner" style="display:inline-block; color:${corridor.color}; font-size:11px; font-weight:900; line-height:1; filter:drop-shadow(0 0 6px ${corridor.color}); transform-origin: center center;">
+              ▶
+            </span>
           </div>
         `,
         iconSize: [0, 0]
       });
 
       const flowMarker = L.marker(corridor.points[0], { icon }).addTo(map);
-      flowMarkers.push({ marker: flowMarker, points: corridor.points });
+      flowMarkers.push({
+        marker: flowMarker,
+        points: corridor.points,
+        distKm: corridor.distKm || 1000
+      });
     });
 
-    let progress = 0;
+    let globalTime = 0;
     function animateFlow() {
-      progress = (progress + 0.002) % 1;
+      globalTime += 0.016; // 60fps time delta in seconds
 
       flowMarkers.forEach((item, idx) => {
         const pts = item.points;
         if (!pts || pts.length < 2) return;
 
         const totalPts = pts.length;
-        const offsetProgress = (progress + (idx * 0.3)) % 1;
+
+        // Distance-normalized velocity: 400 km per second constant travel rate
+        const travelRate = 400; // km/sec
+        const cycleDuration = Math.max(2.5, item.distKm / travelRate); // Seconds for 1 full trip
+        const offsetProgress = ((globalTime / cycleDuration) + (idx * 0.35)) % 1;
 
         // Sub-pixel continuous LERP coordinate calculation
         const exactIndex = offsetProgress * (totalPts - 1);
@@ -388,11 +394,12 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
         const pt2 = map.latLngToContainerPoint(pts[i2]);
         const angle = Math.atan2(pt2.y - pt1.y, pt2.x - pt1.x) * (180 / Math.PI);
 
+        // Rotate ONLY the inner span element to leave Leaflet container transform untouched! (Fixes 100% jitter!)
         const el = item.marker.getElement();
         if (el) {
-          const arrowChild = el.querySelector('div');
-          if (arrowChild) {
-            arrowChild.style.transform = `translate(-50%, -50%) rotate(${angle}deg)`;
+          const innerSpan = el.querySelector('.arrow-inner');
+          if (innerSpan) {
+            innerSpan.style.transform = `rotate(${angle}deg)`;
           }
         }
       });
@@ -406,6 +413,20 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
   setTimeout(() => {
     if (map) map.invalidateSize();
   }, 100);
+}
+
+/**
+ * Geodesic Distance Calculation in Kilometers (Haversine formula)
+ */
+function getGeodesicDistanceKm(start, end) {
+  const R = 6371; // Earth radius in km
+  const dLat = (end[0] - start[0]) * Math.PI / 180;
+  const dLon = (end[1] - start[1]) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(start[0] * Math.PI / 180) * Math.cos(end[0] * Math.PI / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
 }
 
 /**
