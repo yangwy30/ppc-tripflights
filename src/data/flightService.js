@@ -9,7 +9,7 @@
    ============================================ */
 
 // --- AeroDataBox Configuration ---
-const RAPIDAPI_KEY = import.meta.env.VITE_RAPIDAPI_KEY || '';
+const RAPIDAPI_KEY = import.meta?.env?.VITE_RAPIDAPI_KEY || '';
 const RAPIDAPI_HOST = 'aerodatabox.p.rapidapi.com';
 const BASE_URL = `https://${RAPIDAPI_HOST}`;
 
@@ -59,16 +59,11 @@ function calcDuration(depTime, arrTime) {
 }
 
 // --- Time extraction ---
-// Extracts HH:MM directly from the ISO string to preserve the AIRPORT's local time.
-// AeroDataBox returns local times like "2026-03-08 19:45+05:00" or "2026-03-08T19:45:00".
-// Using new Date() would convert to the browser's timezone, which is wrong for display.
 function extractTime(isoString) {
     if (!isoString) return '';
     try {
-        // Try to extract HH:MM directly from the string (works for "...T19:45..." or "... 19:45...")
         const timeMatch = isoString.match(/[T ]\s*(\d{2}:\d{2})/);
         if (timeMatch) return timeMatch[1];
-        // Fallback: try Date parsing as last resort
         const d = new Date(isoString);
         if (isNaN(d)) return '';
         return `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`;
@@ -119,7 +114,6 @@ function parseAllApiRoutes(data, flightNumber) {
     const flights = Array.isArray(data) ? data : [data];
     const parsed = flights.map(f => parseSingleFlight(f, flightNumber)).filter(Boolean);
 
-    // Deduplicate by route (same dep+arr codes)
     const seen = new Set();
     const unique = [];
     for (const f of parsed) {
@@ -132,20 +126,10 @@ function parseAllApiRoutes(data, flightNumber) {
     return unique;
 }
 
-/**
- * Look up a flight by number using AeroDataBox API.
- * Returns an ARRAY of route options (may be 1 or more).
- * Falls back to mock data if the API call fails.
- * 
- * @param {string} flightNumber - e.g. "AA100", "DL665"
- * @param {string} [date] - YYYY-MM-DD format, defaults to today
- * @returns {Promise<Array|null>} Array of flight route options, or null
- */
 export async function lookupFlight(flightNumber, date) {
     const cleanNumber = flightNumber.toUpperCase().replace(/\s/g, '');
     const lookupDate = date || new Date().toISOString().split('T')[0];
 
-    // Try the real API first
     try {
         const url = `${BASE_URL}/flights/number/${encodeURIComponent(cleanNumber)}/${lookupDate}?withAircraftImage=false&withLocation=false`;
         const response = await fetch(url, { method: 'GET', headers: API_HEADERS });
@@ -168,7 +152,6 @@ export async function lookupFlight(flightNumber, date) {
         console.warn('⚠️ AeroDataBox API unavailable, using mock data:', error.message);
     }
 
-    // Fallback to mock data
     const mock = MOCK_FLIGHTS[cleanNumber];
     if (!mock) return null;
 
@@ -184,9 +167,6 @@ export async function lookupFlight(flightNumber, date) {
     }];
 }
 
-/**
- * Refresh flight status using the API.
- */
 export async function refreshFlightStatus(flightNumber, date) {
     const cleanNumber = flightNumber.toUpperCase().replace(/\s/g, '');
     const lookupDate = date || new Date().toISOString().split('T')[0];
@@ -206,9 +186,6 @@ export async function refreshFlightStatus(flightNumber, date) {
     return 'scheduled';
 }
 
-/**
- * Get demo flight numbers for the lookup hints.
- */
 export function getDemoFlightNumbers() {
     return Object.keys(MOCK_FLIGHTS);
 }

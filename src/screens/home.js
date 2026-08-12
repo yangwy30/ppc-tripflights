@@ -1,82 +1,69 @@
 /* ============================================
    PPC: Delay No More — Home Screen
+   Aero Precision Commercial SaaS Aesthetic
    ============================================ */
 
 import { getAllTrips } from '../data/dataAdapter.js';
 import { navigate } from '../app.js';
+import { getIcon } from '../components/icons.js';
 
 export async function renderHome(container) {
-  // Show loading state first
   container.innerHTML = `
-    <div class="screen">
-      <div class="screen-header" style="padding-top: var(--space-xl);">
-        <div style="margin-bottom: var(--space-xl);">
-          <div style="font-size: 2.8rem; margin-bottom: var(--space-md);">✈️</div>
-          <h1>PPC: Delay No More</h1>
-          <p>Loading your trips...</p>
+    <div class="screen" style="display:flex; flex-direction:column; justify-content:center; align-items:center; min-height: 85vh;">
+      <div class="card" style="width: 100%; max-width: 420px; padding: var(--space-xl); background: rgba(15, 23, 42, 0.75); border: 1px solid var(--color-border);">
+        <div style="display:flex; align-items:center; gap: 10px; margin-bottom: var(--space-lg);">
+          <span style="color: var(--color-accent); display:flex;">${getIcon('plane')}</span>
+          <span style="font-size: var(--font-size-md); font-weight: var(--font-weight-bold); letter-spacing: -0.02em;">PPC: Delay No More</span>
+        </div>
+        
+        <div style="background: rgba(30, 41, 59, 0.4); border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow: hidden;">
+          <button class="btn btn-ghost" id="btn-create" style="width:100%; justify-flex-start; padding: 14px 18px; border-bottom: 1px solid var(--color-border); border-radius:0;">
+            <span style="color: var(--color-text-secondary); width:20px; display:flex;">${getIcon('plus')}</span>
+            <span style="font-weight: var(--font-weight-medium);">Create New Trip</span>
+          </button>
+          <button class="btn btn-ghost" id="btn-join" style="width:100%; justify-flex-start; padding: 14px 18px; border-radius:0;">
+            <span style="color: var(--color-text-secondary); width:20px; display:flex;">${getIcon('hash')}</span>
+            <span style="font-weight: var(--font-weight-medium);">Join Trip with 6-Digit PIN</span>
+          </button>
         </div>
       </div>
+
+      <div id="trip-list-section" style="width: 100%; max-width: 420px; margin-top: var(--space-xl);"></div>
     </div>
   `;
 
   const trips = await getAllTrips();
+  const listContainer = container.querySelector('#trip-list-section');
 
-  container.innerHTML = `
-    <div class="screen">
-      <div class="screen-header" style="padding-top: var(--space-xl);">
-        <div style="margin-bottom: var(--space-xl);">
-          <div style="font-size: 2.8rem; margin-bottom: var(--space-md);">✈️</div>
-          <h1>PPC: Delay No More</h1>
-          <p>Track group flights together</p>
-        </div>
-        <div class="flex-col" style="gap: var(--space-sm);">
-          <button class="btn btn-primary" id="btn-create">
-            <span>＋</span> Create a Trip
-          </button>
-          <button class="btn btn-secondary" id="btn-join">
-            <span>📌</span> Join with PIN
-          </button>
-        </div>
-      </div>
-
-      ${trips.length > 0 ? `
-        <div class="divider"></div>
-        <h3 style="margin-bottom: var(--space-base);">Your Trips</h3>
-        <div id="trip-list">
-          ${trips.map((trip, i) => `
-            <div class="trip-card stagger-${Math.min(i + 1, 6)}" data-trip-id="${trip.id}">
-              <div class="trip-card-name">${escapeHtml(trip.name)}</div>
-              <div class="trip-card-dates">📅 ${formatDateRange(trip.startDate, trip.endDate)}</div>
-              <div class="trip-card-footer">
-                <div class="trip-card-people">
-                  👥 ${trip.participants.length} traveler${trip.participants.length > 1 ? 's' : ''}
-                </div>
-                <div class="trip-card-flights">
-                  ✈️ ${trip.flights.length} flight${trip.flights.length !== 1 ? 's' : ''}
-                </div>
-              </div>
+  if (trips && trips.length > 0) {
+    listContainer.innerHTML = `
+      <div style="font-size: var(--font-size-xs); font-weight: var(--font-weight-semibold); text-transform: uppercase; letter-spacing: 0.8px; color: var(--color-text-tertiary); margin-bottom: var(--space-sm); padding-left: 4px;">Recent Trips</div>
+      <div class="flex-col" style="gap: var(--space-sm);">
+        ${trips.map((trip) => `
+          <div class="card card-compact trip-card" data-trip-id="${trip.id}" style="cursor:pointer; display:flex; align-items:center; justify-content:space-between; transition: all var(--transition-fast);">
+            <div>
+              <div style="font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); color: var(--color-text-primary);">${escapeHtml(trip.name)}</div>
+              <div style="font-size: var(--font-size-xs); color: var(--color-text-tertiary); margin-top: 2px; font-family: var(--font-family-mono);">${formatDateRange(trip.startDate, trip.endDate)}</div>
             </div>
-          `).join('')}
-        </div>
-      ` : `
-        <div class="empty-state" style="padding-top: var(--space-xl);">
-          <div class="empty-state-icon">🌍</div>
-          <h3>No trips yet</h3>
-          <p>Create a new trip or join one with a PIN code to get started</p>
-        </div>
-      `}
-    </div>
-  `;
+            <div style="display:flex; align-items:center; gap: var(--space-md); font-size: var(--font-size-xs); color: var(--color-text-tertiary);">
+              <span style="display:flex; align-items:center; gap:4px;">${getIcon('user')} ${trip.participants?.length || 0}</span>
+              <span style="display:flex; align-items:center; gap:4px;">${getIcon('plane')} ${trip.flights?.length || 0}</span>
+              <span style="display:flex;">${getIcon('arrowRight')}</span>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    `;
 
-  // Event listeners
+    listContainer.querySelectorAll('.trip-card').forEach(card => {
+      card.addEventListener('click', () => {
+        navigate(`trip/${card.dataset.tripId}`);
+      });
+    });
+  }
+
   container.querySelector('#btn-create').addEventListener('click', () => navigate('create'));
   container.querySelector('#btn-join').addEventListener('click', () => navigate('join'));
-
-  container.querySelectorAll('.trip-card').forEach(card => {
-    card.addEventListener('click', () => {
-      navigate(`trip/${card.dataset.tripId}`);
-    });
-  });
 }
 
 function formatDateRange(start, end) {

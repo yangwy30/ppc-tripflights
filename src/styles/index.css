@@ -1,6 +1,6 @@
 /* ============================================
-   PPC: Delay No More — Design System
-   Apple-inspired, clean & minimal
+   PPC: Delay No More — Aero Precision SaaS Design System
+   Commercial Dark Slate Theme (#090A0F / #0F172A)
    ============================================ */
 
 /* --- Reset --- */
@@ -12,37 +12,41 @@
 
 /* --- Custom Properties --- */
 :root {
-  /* Colors */
-  --color-bg: #F2F2F7;
-  --color-surface: #FFFFFF;
-  --color-surface-secondary: #F9F9FB;
-  --color-text-primary: #1C1C1E;
-  --color-text-secondary: #8E8E93;
-  --color-text-tertiary: #AEAEB2;
-  --color-border: #E5E5EA;
-  --color-border-light: #F0F0F5;
+  /* Colors - Linear & Flighty Inspired Slate Navy Palette */
+  --color-bg: #090A0F;
+  --color-surface: rgba(15, 23, 42, 0.75);
+  --color-surface-secondary: rgba(30, 41, 59, 0.6);
+  --color-surface-hover: rgba(51, 65, 85, 0.5);
+  --color-text-primary: #F8FAFC;
+  --color-text-secondary: #94A3B8;
+  --color-text-tertiary: #64748B;
+  --color-border: rgba(255, 255, 255, 0.08);
+  --color-border-light: rgba(255, 255, 255, 0.05);
+  --color-border-focus: rgba(10, 132, 255, 0.5);
+  
   --color-accent: #0A84FF;
-  --color-accent-light: rgba(10, 132, 255, 0.1);
-  --color-accent-dark: #0070E0;
+  --color-accent-light: rgba(10, 132, 255, 0.15);
+  --color-accent-dark: #0066cc;
   --color-success: #34C759;
-  --color-success-light: rgba(52, 199, 89, 0.1);
-  --color-warning: #FF9500;
-  --color-warning-light: rgba(255, 149, 0, 0.1);
-  --color-danger: #FF3B30;
-  --color-danger-light: rgba(255, 59, 48, 0.1);
-  --color-info: #5AC8FA;
-  --color-info-light: rgba(90, 200, 250, 0.1);
+  --color-success-light: rgba(52, 199, 89, 0.15);
+  --color-warning: #F59E0B;
+  --color-warning-light: rgba(245, 158, 11, 0.15);
+  --color-danger: #EF4444;
+  --color-danger-light: rgba(239, 68, 68, 0.15);
+  --color-info: #38BDF8;
+  --color-info-light: rgba(56, 189, 248, 0.15);
 
-  /* Person colors for timeline */
+  /* Person colors for timeline & avatars */
   --person-1: #0A84FF;
-  --person-2: #FF9500;
-  --person-3: #34C759;
-  --person-4: #AF52DE;
-  --person-5: #FF2D55;
-  --person-6: #5AC8FA;
+  --person-2: #34C759;
+  --person-3: #F59E0B;
+  --person-4: #A855F7;
+  --person-5: #EC4899;
+  --person-6: #38BDF8;
 
   /* Typography */
-  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-family: 'Geist', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-family-mono: 'JetBrains Mono', monospace;
   --font-size-xs: 0.6875rem;   /* 11px */
   --font-size-sm: 0.8125rem;   /* 13px */
   --font-size-base: 0.9375rem; /* 15px */
@@ -55,6 +59,7 @@
   --font-weight-medium: 500;
   --font-weight-semibold: 600;
   --font-weight-bold: 700;
+  --font-weight-extrabold: 800;
   --line-height-tight: 1.2;
   --line-height-normal: 1.5;
 
@@ -66,29 +71,27 @@
   --space-lg: 1.5rem;
   --space-xl: 2rem;
   --space-2xl: 3rem;
-  --space-3xl: 4rem;
 
-  /* Radii */
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 20px;
+  /* Radii — Precision Crisp Radii */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
   --radius-full: 9999px;
 
-  /* Shadows */
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.06);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06), 0 1px 4px rgba(0, 0, 0, 0.04);
-  --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.04);
-  --shadow-xl: 0 24px 60px rgba(0, 0, 0, 0.12);
+  /* Glassmorphism & Shadows */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.6);
+  --glass-blur: blur(16px);
 
   /* Transitions */
   --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
   --transition-base: 250ms cubic-bezier(0.4, 0, 0.2, 1);
   --transition-slow: 400ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-spring: 500ms cubic-bezier(0.34, 1.56, 0.64, 1);
 
   /* Layout */
-  --max-width: 480px;
+  --max-width: 1140px;
   --safe-area-top: env(safe-area-inset-top, 0px);
   --safe-area-bottom: env(safe-area-inset-bottom, 0px);
 }
@@ -98,6 +101,7 @@ html {
   font-size: 16px;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background-color: var(--color-bg);
 }
 
 body {
@@ -116,6 +120,7 @@ body {
   margin: 0 auto;
   min-height: 100dvh;
   position: relative;
+  padding: 0 var(--space-base);
   padding-top: var(--safe-area-top);
   padding-bottom: var(--safe-area-bottom);
 }
@@ -125,10 +130,11 @@ h1, h2, h3, h4 {
   font-weight: var(--font-weight-bold);
   line-height: var(--line-height-tight);
   color: var(--color-text-primary);
+  letter-spacing: -0.02em;
 }
 
-h1 { font-size: var(--font-size-2xl); letter-spacing: -0.5px; }
-h2 { font-size: var(--font-size-xl); letter-spacing: -0.3px; }
+h1 { font-size: var(--font-size-2xl); letter-spacing: -0.03em; }
+h2 { font-size: var(--font-size-xl); letter-spacing: -0.02em; }
 h3 { font-size: var(--font-size-lg); }
 h4 { font-size: var(--font-size-md); font-weight: var(--font-weight-semibold); }
 
@@ -140,7 +146,7 @@ a {
 }
 
 /* --- Scrollbar --- */
-::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
   background: var(--color-border);
@@ -153,46 +159,277 @@ a {
   color: var(--color-accent);
 }
 
-/* --- Tabs --- */
+/* --- Topbar Header --- */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-lg);
+  padding-top: var(--space-xs);
+}
+
+.topbar-back {
+  background: transparent;
+  border: none;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: color var(--transition-fast);
+}
+
+.topbar-back:hover {
+  color: var(--color-text-primary);
+}
+
+/* --- Tab Navigation Container --- */
 .tab-container {
   display: flex;
-  gap: var(--space-sm);
-  margin-bottom: var(--space-md);
-  padding: 4px;
-  background: var(--color-surface);
+  gap: var(--space-xs);
+  margin-bottom: var(--space-lg);
+  padding: 3px;
+  background: rgba(15, 23, 42, 0.8);
   border-radius: var(--radius-md);
   border: 1px solid var(--color-border);
+  backdrop-filter: var(--glass-blur);
 }
 
 .tab-btn {
   flex: 1;
-  padding: 10px 16px;
+  padding: 8px 16px;
   background: transparent;
   border: none;
   border-radius: var(--radius-sm);
   color: var(--color-text-secondary);
-  font-weight: var(--font-weight-bold);
-  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-medium);
+  font-size: var(--font-size-sm);
   cursor: pointer;
   transition: all var(--transition-fast);
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .tab-btn:hover {
   background: var(--color-surface-hover);
-  color: var(--color-text);
+  color: var(--color-text-primary);
 }
 
 .tab-btn.active {
-  background: var(--color-accent);
-  color: white;
-  box-shadow: 0 2px 4px rgba(0, 113, 227, 0.3);
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-semibold);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 /* Utility to hide inactive tabs */
 .hidden-tab {
   display: none !important;
+}
+
+/* --- Chip / Person Selectors --- */
+.chip-group {
+  display: flex;
+  gap: var(--space-xs);
+  align-items: center;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  background: var(--color-surface-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  user-select: none;
+}
+
+.chip:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-text-primary);
+}
+
+.chip.active {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-semibold);
+}
+
+/* --- PIN Display Bar --- */
+.pin-display {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-sm) var(--space-base);
+  backdrop-filter: var(--glass-blur);
+}
+
+.pin-label {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  font-weight: var(--font-weight-semibold);
+}
+
+.pin-code {
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  letter-spacing: 3px;
+}
+
+.pin-copy {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.pin-copy:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-text-primary);
+}
+
+/* --- Empty State --- */
+.empty-state {
+  text-align: center;
+  padding: var(--space-2xl) var(--space-lg);
+  background: var(--color-surface);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.empty-state-icon {
+  font-size: 2rem;
+  color: var(--color-text-tertiary);
+  margin-bottom: var(--space-sm);
+  display: inline-flex;
+}
+
+.empty-state h3 {
+  font-size: var(--font-size-md);
+  margin-bottom: 4px;
+}
+
+.empty-state p {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+}
+
+/* --- Note Card --- */
+.note-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-base);
+  margin-bottom: var(--space-sm);
+  backdrop-filter: var(--glass-blur);
+}
+
+.note-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-xs);
+}
+
+.note-card-author {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-accent);
+}
+
+.note-card-time {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+  font-family: var(--font-family-mono);
+}
+
+.note-card-content {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.textarea {
+  width: 100%;
+  padding: var(--space-sm) var(--space-base);
+  font-family: var(--font-family);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  background: rgba(15, 23, 42, 0.9);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  outline: none;
+  resize: vertical;
+}
+
+.textarea:focus {
+  border-color: var(--color-accent);
+}
+
+/* --- Layout Utility Classes --- */
+.flex { display: flex; }
+.flex-col { display: flex; flex-direction: column; }
+.flex-half { flex: 1; }
+
+.mt-xs { margin-top: var(--space-xs); }
+.mt-sm { margin-top: var(--space-sm); }
+.mt-md { margin-top: var(--space-md); }
+.mt-lg { margin-top: var(--space-lg); }
+
+.mb-xs { margin-bottom: var(--space-xs); }
+.mb-sm { margin-bottom: var(--space-sm); }
+.mb-base { margin-bottom: var(--space-base); }
+.mb-md { margin-bottom: var(--space-md); }
+.mb-lg { margin-bottom: var(--space-lg); }
+.mb-xl { margin-bottom: var(--space-xl); }
+
+@media (max-width: 480px) {
+  .hide-mobile { display: none !important; }
+}
+
+/* --- Animations --- */
+@keyframes fadeSlideIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulseGlow {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
 }

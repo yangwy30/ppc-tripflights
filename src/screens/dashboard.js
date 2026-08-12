@@ -1,5 +1,6 @@
 /* ============================================
-   PPC: Delay No More — Dashboard Screen
+   PPC: Delay No More — Commercial SaaS Dashboard
+   Aero Precision Dark Slate Theme (#090A0F / #0F172A)
    ============================================ */
 
 import { getTrip, getUserNickname, deleteFlight, restoreFlight, deleteTrip, exportTripSummary, deleteParticipant } from '../data/dataAdapter.js';
@@ -12,11 +13,14 @@ import { renderTimeline } from '../components/timeline.js';
 import { renderFlightCard } from '../components/flightCard.js';
 import { renderCoordinationTab } from '../components/coordinationTab.js';
 import { startPolling, stopPolling, requestNotificationPermission, isPolling, getAutoRefreshPref, setAutoRefreshPref } from '../data/alertService.js';
+import { getIcon } from '../components/icons.js';
 
 const PERSON_COLORS = [
   'var(--person-1)', 'var(--person-2)', 'var(--person-3)',
   'var(--person-4)', 'var(--person-5)', 'var(--person-6)'
 ];
+
+let activeDashboardUnsubscribe = null;
 
 export async function renderDashboard(container, tripId) {
   const trip = await getTrip(tripId);
@@ -30,18 +34,22 @@ export async function renderDashboard(container, tripId) {
   let activeTab = 'flights';
   let filterPerson = 'all';
 
-  // Start auto-refresh polling for this trip if enabled
   if (getAutoRefreshPref(tripId)) {
     startPolling(tripId);
   }
 
-  // Listen for status changes from the alert service to auto-update the UI
+  if (activeDashboardUnsubscribe) {
+    activeDashboardUnsubscribe();
+    activeDashboardUnsubscribe = null;
+  }
+
   const unsubscribe = subscribe(EVENTS.FLIGHT_STATUS_CHANGED, (data) => {
     if (data.tripId === tripId) {
-      showToast(`${data.flightId ? '✈️' : ''} Flight status changed to ${data.newStatus}`, 'flight');
+      showToast(`${data.flightId ? getIcon('plane') : ''} Flight status updated to ${data.newStatus}`, 'flight');
       render();
     }
   });
+  activeDashboardUnsubscribe = unsubscribe;
 
   async function render() {
     const currentTrip = await getTrip(tripId);
@@ -51,7 +59,6 @@ export async function renderDashboard(container, tripId) {
       ? currentTrip.flights
       : currentTrip.flights.filter(f => f.addedBy === filterPerson);
 
-    // Sort flights by date then departure time
     const sortedFlights = [...filteredFlights].sort((a, b) => {
       const dateCompare = (a.date || '').localeCompare(b.date || '');
       if (dateCompare !== 0) return dateCompare;
@@ -59,123 +66,138 @@ export async function renderDashboard(container, tripId) {
     });
 
     const alertsActive = isPolling(tripId);
-    const notifPermission = 'Notification' in window ? Notification.permission : 'unsupported';
 
     container.innerHTML = `
       <div class="screen">
+        <!-- Topbar Header -->
         <div class="topbar">
-          <button class="topbar-back" id="btn-back">← Trips</button>
-          <div class="topbar-actions" style="display: flex; gap: var(--space-xs); flex-wrap: nowrap; justify-content: flex-end; align-items: center;">
+          <button class="topbar-back" id="btn-back">
+            <span style="display:flex;">${getIcon('arrowLeft')}</span> Trips
+          </button>
+          <div style="display: flex; gap: var(--space-xs); align-items: center;">
+            <button class="btn btn-sm btn-ghost" id="btn-toggle-refresh" style="font-size: var(--font-size-xs); color: ${alertsActive ? 'var(--color-success)' : 'var(--color-text-tertiary)'};">
+              <span class="live-dot" style="background:${alertsActive ? 'var(--color-success)' : 'var(--color-text-tertiary)'}; margin-right:4px;"></span>
+              ${alertsActive ? 'Live Sync' : 'Offline'}
+            </button>
             <button class="btn btn-sm btn-ghost" id="btn-subscribe" title="Add to Calendar">
-              <span style="font-size: 1.1em;">📅</span> <span class="hide-mobile">Subscribe</span>
+              <span style="display:flex;">${getIcon('calendar')}</span> <span class="hide-mobile">Subscribe</span>
             </button>
             <button class="btn btn-sm btn-ghost" id="btn-notes" title="Notes">
-              <span style="font-size: 1.1em;">📝</span> <span class="hide-mobile">Notes</span>
+              <span style="display:flex;">${getIcon('notes')}</span> <span class="hide-mobile">Notes</span>
             </button>
-            <button class="btn btn-sm btn-ghost" id="btn-share" title="Share">
-              <span style="font-size: 1.1em;">📤</span> <span class="hide-mobile">Share</span>
+            <button class="btn btn-sm btn-ghost" id="btn-share" title="Share Summary">
+              <span style="display:flex;">${getIcon('share')}</span> <span class="hide-mobile">Share</span>
             </button>
             <button class="btn btn-sm btn-ghost" id="btn-delete-trip" title="Delete Trip" style="color: var(--color-danger);">
-              <span style="font-size: 1.1em;">🗑</span> <span class="hide-mobile">Delete</span>
+              <span style="display:flex;">${getIcon('trash')}</span> <span class="hide-mobile">Delete</span>
             </button>
           </div>
         </div>
 
-        <div class="screen-header" style="margin-bottom: var(--space-base);">
-          <h2>${escapeHtml(currentTrip.name)}</h2>
-          <p style="font-size: var(--font-size-sm);">📅 ${formatDateRange(currentTrip.startDate, currentTrip.endDate)}</p>
-        </div>
-
-        <!-- Main Navigation Tabs -->
-        <div class="tab-container">
-          <button class="tab-btn ${activeMainTab === 'tracking' ? 'active' : ''}" data-maintab="tracking">
-            📍 Tracking
-          </button>
-          <button class="tab-btn ${activeMainTab === 'coordination' ? 'active' : ''}" data-maintab="coordination">
-            🗓️ Coordination
-          </button>
-        </div>
-
-        <!-- Tracking Tab Content -->
-        <div id="tracking-tab-content" class="${activeMainTab === 'tracking' ? '' : 'hidden-tab'}">
-          <!-- PIN Display -->
-          <div class="pin-display mb-base">
-            <div>
-              <div class="pin-label">Share PIN</div>
-              <div class="pin-code">${currentTrip.pin}</div>
+        <!-- Dashboard Grid (2-Column Desktop / 1-Column Mobile Layout) -->
+        <div class="dashboard-grid mb-xl">
+          
+          <!-- Main Content Column (Left Column on Desktop) -->
+          <div>
+            <!-- Hero Trip Title -->
+            <div style="margin-bottom: var(--space-lg);">
+              <h1 style="font-size: 2.2rem; font-weight: 800; letter-spacing: -0.03em;">${escapeHtml(currentTrip.name)}</h1>
+              <p style="font-size: var(--font-size-xs); color: var(--color-text-tertiary); margin-top: 4px; font-family: var(--font-family-mono);">
+                📅 ${formatDateRange(currentTrip.startDate, currentTrip.endDate)}
+                ${currentTrip.destinationAirport ? ` · Dest: ${escapeHtml(currentTrip.destinationAirport)}` : ''}
+              </p>
             </div>
-            <button class="pin-copy" id="btn-copy-pin" title="Copy PIN">📋</button>
-          </div>
 
-          <!-- Alerts Status -->
-          <div class="card mb-base" style="padding: var(--space-sm) var(--space-base); display:flex; align-items:center; justify-content:space-between;">
-            <div style="display:flex; align-items:center; gap: var(--space-sm); flex:1;">
-              <span style="font-size: var(--font-size-md);">🔔</span>
-              <div>
-                <div style="font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold);">
-                  Auto-Refresh ${alertsActive ? '● Active' : '○ Off'}
-                </div>
-                <div style="font-size: var(--font-size-xs); color: var(--color-text-tertiary);">
-                  ${alertsActive ? 'Checking every 15 min' : 'Flight status updates paused'}
-                  ${notifPermission === 'granted' ? ' · Notifications on' : notifPermission === 'denied' ? ' · Notifications blocked' : ''}
-                </div>
-              </div>
-            </div>
-            <div style="display:flex; gap: var(--space-xs);">
-              <button class="btn btn-sm ${alertsActive ? 'btn-ghost' : 'btn-secondary'}" id="btn-toggle-refresh" style="color: ${alertsActive ? 'var(--color-danger)' : 'var(--color-accent)'};">
-                ${alertsActive ? 'Turn Off' : 'Turn On'}
+            <!-- Main Navigation Tabs -->
+            <div class="tab-container mb-base">
+              <button class="tab-btn ${activeMainTab === 'tracking' ? 'active' : ''}" data-maintab="tracking">
+                <span style="display:flex;">${getIcon('plane')}</span> Tracking
               </button>
-              ${!alertsActive && notifPermission !== 'granted' && notifPermission !== 'denied' ? `
-                <button class="btn btn-sm btn-secondary" id="btn-enable-notif">🔔 Alerts</button>
-              ` : ''}
+              <button class="tab-btn ${activeMainTab === 'coordination' ? 'active' : ''}" data-maintab="coordination">
+                <span style="display:flex;">${getIcon('sparkles')}</span> Coordination
+              </button>
+            </div>
+
+            <!-- Tracking Tab -->
+            <div id="tracking-tab-content" class="${activeMainTab === 'tracking' ? '' : 'hidden-tab'}">
+              <!-- Traveler Filter Chips -->
+              <div class="chip-group mb-base">
+                <button class="chip ${filterPerson === 'all' ? 'active' : ''}" data-person="all">All Travelers (${currentTrip.participants.length})</button>
+                ${currentTrip.participants.map((p, i) => `
+                  <div class="chip ${filterPerson === p.name ? 'active' : ''}" data-person="${escapeHtml(p.name)}">
+                    <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${PERSON_COLORS[i % 6]};margin-right:4px;"></span>
+                    ${escapeHtml(p.name)}
+                    <button class="chip-delete-btn" data-person-del="${escapeHtml(p.name)}" style="all:unset; cursor:pointer; font-size:12px; opacity:0.4; margin-left:4px;" title="Remove Profile">×</button>
+                  </div>
+                `).join('')}
+              </div>
+
+              <!-- Sub Tabs (Flights / Timeline) -->
+              <div class="tabs mb-base">
+                <button class="tab ${activeTab === 'flights' ? 'active' : ''}" data-tab="flights">Flights (${sortedFlights.length})</button>
+                <button class="tab ${activeTab === 'timeline' ? 'active' : ''}" data-tab="timeline">Timeline</button>
+              </div>
+
+              <!-- Content Stream -->
+              <div id="tab-content">
+                ${activeTab === 'flights' ? renderFlightsList(sortedFlights, currentTrip) : ''}
+              </div>
+            </div>
+
+            <!-- Coordination Tab -->
+            <div id="coordination-tab-content" class="${activeMainTab === 'coordination' ? '' : 'hidden-tab'}">
+              <!-- Rendered by renderCoordinationTab -->
             </div>
           </div>
 
-          <!-- Travelers -->
-          <div class="chip-group mb-base" style="align-items: center; flex-wrap: wrap;">
-            <button class="chip ${filterPerson === 'all' ? 'active' : ''}" data-person="all">All</button>
-            ${currentTrip.participants.map((p, i) => `
-              <div class="chip ${filterPerson === p.name ? 'active' : ''}" style="display:inline-flex; align-items:center; gap:4px; padding-right:8px; cursor:pointer;" data-person="${escapeHtml(p.name)}">
-                <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${PERSON_COLORS[i % 6]};margin-right:2px;"></span>
-                ${escapeHtml(p.name)}
-                <button class="chip-delete-btn" data-person-del="${escapeHtml(p.name)}" style="all:unset; cursor:pointer; font-size:14px; opacity:0.5; display:flex; align-items:center; justify-content:center; width:18px; height:18px; border-radius:50%; transition: opacity 0.2s;" onmouseover="this.style.opacity=1; this.style.background='var(--color-surface-hover)'" onmouseout="this.style.opacity=0.5; this.style.background='transparent'" title="Remove Profile">×</button>
+          <!-- Sidebar Column (Right Column on Desktop) -->
+          <div class="side-card-stack">
+            <!-- Share PIN Widget -->
+            <div class="pin-display">
+              <div>
+                <div class="pin-label">Share PIN</div>
+                <div class="pin-code">${currentTrip.pin}</div>
               </div>
-            `).join('')}
-          </div>
+              <button class="pin-copy" id="btn-copy-pin" title="Copy PIN">${getIcon('copy')}</button>
+            </div>
 
-          <!-- Sub Tabs -->
-          <div class="tabs">
-            <button class="tab ${activeTab === 'flights' ? 'active' : ''}" data-tab="flights">✈️ Flights</button>
-            <button class="tab ${activeTab === 'timeline' ? 'active' : ''}" data-tab="timeline">📊 Timeline</button>
-          </div>
+            <!-- Group Members Card -->
+            <div class="card card-compact">
+              <div style="font-size: var(--font-size-xs); font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--color-text-tertiary); margin-bottom: var(--space-sm);">
+                Group Travelers (${currentTrip.participants.length})
+              </div>
+              <div class="flex-col" style="gap: var(--space-xs);">
+                ${currentTrip.participants.map((p, i) => `
+                  <div style="display:flex; align-items:center; justify-content:space-between; font-size: var(--font-size-sm); padding: 4px 0;">
+                    <div style="display:flex; align-items:center; gap: 8px;">
+                      <span style="width:24px; height:24px; border-radius:50%; background:${PERSON_COLORS[i % 6]}; color:#fff; display:inline-flex; align-items:center; justify-content:center; font-weight:700; font-size:11px;">
+                        ${(p.name || '?').charAt(0).toUpperCase()}
+                      </span>
+                      <span style="font-weight: var(--font-weight-medium);">${escapeHtml(p.name)}</span>
+                    </div>
+                    <span style="font-size: var(--font-size-xs); color: var(--color-text-tertiary); font-family: var(--font-family-mono);">
+                      ${currentTrip.flights.filter(f => f.addedBy === p.name).length} flights
+                    </span>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
 
-          <!-- Content -->
-          <div id="tab-content">
-            ${activeTab === 'flights' ? renderFlightsList(sortedFlights, currentTrip) : ''}
-          </div>
-
-          <!-- Add Flight FAB -->
-          <div style="position: fixed; bottom: calc(var(--space-xl) + var(--safe-area-bottom)); left:50%; transform:translateX(-50%); width: calc(var(--max-width) - var(--space-2xl));">
-            <button class="btn btn-primary" id="btn-add-flight" style="box-shadow: var(--shadow-lg);">
-              ＋ Add Flight
+            <!-- Quick Add Flight Button -->
+            <button class="btn btn-primary" id="btn-add-flight">
+              <span style="display:flex;">${getIcon('plus')}</span> Add Flight
             </button>
           </div>
-        </div>
 
-        <!-- Coordination Tab Content -->
-        <div id="coordination-tab-content" class="${activeMainTab === 'coordination' ? '' : 'hidden-tab'}">
-          <!-- Dynamically injected by renderCoordinationTab -->
         </div>
       </div>
     `;
 
-    // Render Coordination Tab
     const coordContainer = container.querySelector('#coordination-tab-content');
     if (coordContainer) {
       renderCoordinationTab(coordContainer, currentTrip);
     }
 
-    // Render timeline if active main tab is tracking and sub tab is timeline
     if (activeMainTab === 'tracking' && activeTab === 'timeline') {
       const timelineContainer = container.querySelector('#tab-content');
       renderTimeline(timelineContainer, sortedFlights, currentTrip.participants);
@@ -191,15 +213,9 @@ export async function renderDashboard(container, tripId) {
     container.querySelector('#btn-notes').addEventListener('click', () => navigate(`notes/${tripId}`));
 
     container.querySelector('#btn-subscribe').addEventListener('click', async () => {
-      // Use the project reference of the Supabase API to direct to Edge Functions
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://vckjllpsswmbqicbllav.supabase.co';
-      
-      // Pin is hashed by simply combining it with a salt over SHA-256 for a basic token:
-      // But we can also pass the raw pin as fallback for now.
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://zgqjctiuycrhwrstorxw.supabase.co';
       const baseUrl = supabaseUrl.replace(/^https?:\/\//, 'webcal://');
       const subscribeUrl = `${baseUrl}/functions/v1/calendar-feed?tripId=${tripId}&token=${currentTrip.pin}`;
-      
-      // On mobile/macOS, opening a webcal link forces the default calendar app to Subscribe (auto-update)
       window.location.href = subscribeUrl;
     });
 
@@ -232,7 +248,6 @@ export async function renderDashboard(container, tripId) {
       }
     });
 
-    // Toggle auto-refresh
     const toggleBtn = container.querySelector('#btn-toggle-refresh');
     if (toggleBtn) {
       toggleBtn.addEventListener('click', () => {
@@ -249,31 +264,13 @@ export async function renderDashboard(container, tripId) {
       });
     }
 
-    // Enable notifications button
-    const enableNotifBtn = container.querySelector('#btn-enable-notif');
-    if (enableNotifBtn) {
-      enableNotifBtn.addEventListener('click', async () => {
-        const granted = await requestNotificationPermission();
-        if (granted) {
-          // Trigger the Web Push subscription and Service Worker registration
-          await startPolling(tripId);
-          showToast('✅ Delay alerts enabled!', 'success');
-        } else {
-          showToast('Notifications were blocked', 'warning');
-        }
-        render();
-      });
-    }
-
-    // Main Tab switching
-    container.querySelectorAll('.tab-btn').forEach(btn => {
+    container.querySelectorAll('.tab-btn[data-maintab]').forEach(btn => {
       btn.addEventListener('click', () => {
         activeMainTab = btn.dataset.maintab;
         render();
       });
     });
 
-    // Sub Tab switching
     container.querySelectorAll('.tab').forEach(tab => {
       tab.addEventListener('click', () => {
         activeTab = tab.dataset.tab;
@@ -281,7 +278,6 @@ export async function renderDashboard(container, tripId) {
       });
     });
 
-    // Person filter
     container.querySelectorAll('.chip').forEach(chip => {
       chip.addEventListener('click', (e) => {
         if (e.target.closest('.chip-delete-btn')) return;
@@ -290,7 +286,6 @@ export async function renderDashboard(container, tripId) {
       });
     });
 
-    // Person deletion
     container.querySelectorAll('.chip-delete-btn').forEach(btn => {
       btn.addEventListener('click', async (e) => {
         e.stopPropagation();
@@ -312,12 +307,10 @@ export async function renderDashboard(container, tripId) {
       });
     });
 
-    // Flight card actions — delete with undo
     container.querySelectorAll('.flight-delete').forEach(btn => {
       btn.addEventListener('click', async (e) => {
         e.stopPropagation();
         const flightId = btn.dataset.flightId;
-        // Save the flight before deleting so we can restore it
         const removedFlight = currentTrip.flights.find(f => f.id === flightId);
         await deleteFlight(tripId, flightId);
         render();
@@ -334,7 +327,6 @@ export async function renderDashboard(container, tripId) {
       });
     });
 
-    // Refresh status
     container.querySelectorAll('.flight-refresh').forEach(btn => {
       btn.addEventListener('click', async (e) => {
         e.stopPropagation();
@@ -357,9 +349,9 @@ function renderFlightsList(flights, trip) {
   if (flights.length === 0) {
     return `
       <div class="empty-state">
-        <div class="empty-state-icon">✈️</div>
-        <h3>No flights yet</h3>
-        <p>Add your first flight to start tracking</p>
+        <div class="empty-state-icon" style="display:flex; justify-content:center;">${getIcon('plane')}</div>
+        <h3>No flights added yet</h3>
+        <p>Click "+ Add Flight" to start tracking group flights</p>
       </div>
     `;
   }
@@ -381,6 +373,7 @@ function formatStatus(status) {
 }
 
 function escapeHtml(str) {
+  if (!str) return '';
   const div = document.createElement('div');
   div.textContent = str;
   return div.innerHTML;

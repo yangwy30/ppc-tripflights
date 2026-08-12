@@ -4,11 +4,11 @@
    ============================================ */
 
 // --- SerpAPI Credentials (from .env) ---
-const SERPAPI_KEY = import.meta.env.VITE_SERPAPI_KEY;
+const SERPAPI_KEY = import.meta?.env?.VITE_SERPAPI_KEY || '';
 
 // --- Amadeus Credentials (from .env) ---
-const AMADEUS_API_KEY = import.meta.env.VITE_AMADEUS_API_KEY;
-const AMADEUS_API_SECRET = import.meta.env.VITE_AMADEUS_API_SECRET;
+const AMADEUS_API_KEY = import.meta?.env?.VITE_AMADEUS_API_KEY || '';
+const AMADEUS_API_SECRET = import.meta?.env?.VITE_AMADEUS_API_SECRET || '';
 const AMADEUS_BASE = 'https://test.api.amadeus.com'; // Use test environment
 
 // --- Token Cache ---
@@ -82,7 +82,7 @@ export async function searchFlights(originIata, destinationIata, outboundDate, r
 //  SerpAPI (Google Flights) via Supabase Edge Function
 // =============================================
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_URL = import.meta?.env?.VITE_SUPABASE_URL || '';
 
 /**
  * Search Google Flights via SerpAPI (proxied through Supabase Edge Function to avoid CORS).
