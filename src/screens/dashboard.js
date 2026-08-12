@@ -24,9 +24,42 @@ const PERSON_COLORS_HEX = [
   '#AF52DE', '#34C759', '#FF9500'
 ];
 
+/**
+ * Universal Flight Phase Resolver (Outbound vs Return)
+ */
+function getFlightPhase(flight, trip) {
+  if (flight.phase) return flight.phase;
+
+  const destCodes = (trip?.destinationAirport || 'LAX')
+    .split(',')
+    .map(s => s.trim().toUpperCase())
+    .filter(Boolean);
+
+  const retCodes = (trip?.returnAirport || '')
+    .split(',')
+    .map(s => s.trim().toUpperCase())
+    .filter(Boolean);
+
+  const arrCode = (flight.arrival?.code || '').toUpperCase().trim();
+  const depCode = (flight.departure?.code || '').toUpperCase().trim();
+
+  // If arriving at trip destination -> Outbound
+  if (destCodes.includes(arrCode)) return 'outbound';
+  // If departing from trip destination -> Return
+  if (destCodes.includes(depCode)) return 'return';
+  // If departing from return airport -> Return
+  if (retCodes.includes(depCode)) return 'return';
+
+  // Fallback heuristics: LAX departure is Return, LAX arrival is Outbound
+  if (depCode === 'LAX') return 'return';
+  if (arrCode === 'LAX') return 'outbound';
+
+  return 'outbound';
+}
+
 export async function renderDashboard(container, tripId) {
   let filterPerson = 'all';
-  let phaseFilter = 'outbound'; // Default tab: 'outbound' (No 'all' tab!)
+  let phaseFilter = 'outbound'; // Default tab: 'outbound'
   let activeTab = 'flights'; // 'flights', 'timeline'
   let activeMainTab = 'tracking'; // 'tracking', 'coordination'
   let viewMode = 'compact'; // 'compact' vs 'expanded'
@@ -61,20 +94,20 @@ export async function renderDashboard(container, tripId) {
 
     const nickname = getUserNickname(tripId);
 
-    // Filter flights by person and phase
+    // Filter flights by person and phase using robust getFlightPhase
     let filteredFlights = currentTrip.flights || [];
     if (filterPerson !== 'all') {
       filteredFlights = filteredFlights.filter(f => f.addedBy === filterPerson);
     }
 
     if (phaseFilter === 'outbound') {
-      filteredFlights = filteredFlights.filter(f => f.phase === 'outbound');
+      filteredFlights = filteredFlights.filter(f => getFlightPhase(f, currentTrip) === 'outbound');
     } else if (phaseFilter === 'return') {
-      filteredFlights = filteredFlights.filter(f => f.phase === 'return');
+      filteredFlights = filteredFlights.filter(f => getFlightPhase(f, currentTrip) === 'return');
     }
 
-    const filteredOutbound = (currentTrip.flights || []).filter(f => (filterPerson === 'all' || f.addedBy === filterPerson) && f.phase === 'outbound').length;
-    const filteredReturn = (currentTrip.flights || []).filter(f => (filterPerson === 'all' || f.addedBy === filterPerson) && f.phase === 'return').length;
+    const filteredOutbound = (currentTrip.flights || []).filter(f => (filterPerson === 'all' || f.addedBy === filterPerson) && getFlightPhase(f, currentTrip) === 'outbound').length;
+    const filteredReturn = (currentTrip.flights || []).filter(f => (filterPerson === 'all' || f.addedBy === filterPerson) && getFlightPhase(f, currentTrip) === 'return').length;
 
     // Sort flights chronologically
     const sortedFlights = [...filteredFlights].sort((a, b) => {
