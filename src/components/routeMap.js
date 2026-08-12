@@ -1,12 +1,12 @@
 /* ============================================
-   PPC: Delay No More — Professional Flight Route Map Engine
-   Distinct Neon High-Contrast Traveler Palette + High/Low Arc Separation
+   PPC: Delay No More — Scalable Algorithmic Flight Route Map Engine
+   Zero Hardcoding: Screen Point Collision Auto-Layout + Algorithmic Arc Fan-Out
    ============================================ */
 
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
-// High-Contrast Neon Palette tuned for Dark Basemaps (Cyan, Hot Coral, Amber Gold, Electric Violet, Mint Green, Bright Orange)
+// High-Contrast Neon Palette tuned for Dark Basemaps
 const PERSON_COLORS_HEX = [
   '#38BDF8', // Person 1: Sky Cyan
   '#FF2D55', // Person 2: Neon Coral Red
@@ -66,16 +66,6 @@ const AIRPORT_COORDS = {
   BNE: [-27.3842, 153.1175]
 };
 
-// Precise Diagonal Pill Offsets for close airports
-const AIRPORT_PILL_STYLING = {
-  EWR: 'top: -24px; left: -42px; transform: translate(-50%, -50%);',
-  JFK: 'top: 24px; left: 42px; transform: translate(-50%, -50%);',
-  LGA: 'top: -30px; left: 0px; transform: translate(-50%, -50%);',
-  SJC: 'top: -22px; left: -35px; transform: translate(-50%, -50%);',
-  LAX: 'top: 22px; left: -10px; transform: translate(-50%, -50%);',
-  SFO: 'top: -22px; left: 35px; transform: translate(-50%, -50%);'
-};
-
 let activeLeafletMap = null;
 
 export function renderRouteMap(container, flights = [], participants = [], trip = {}, activePersonFilter = 'all', phaseName = 'All') {
@@ -100,7 +90,7 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
           </span>
         </div>
         <div style="font-size: 11px; color: var(--color-text-tertiary); font-family: var(--font-family-mono);">
-          CartoDB Dark Basemap · Hover Lines for Details
+          CartoDB Dark Basemap · Algorithmic Auto-Layout
         </div>
       </div>
 
@@ -130,60 +120,131 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
   const bounds = [];
   const airportMap = new Map();
 
-  // Distinct Arc Heights & Contrast Palette per Flight
-  flights.forEach((f, idx) => {
+  // Normalized traveler color resolution helper
+  const normalizedParticipants = participants.map(p => p.name.trim().toLowerCase());
+  const getTravelerColor = (name) => {
+    const norm = (name || '').trim().toLowerCase();
+    const idx = normalizedParticipants.indexOf(norm);
+    if (idx >= 0) return PERSON_COLORS_HEX[idx % PERSON_COLORS_HEX.length];
+    // Deterministic Hash Fallback for non-listed participants
+    let hash = 0;
+    for (let i = 0; i < norm.length; i++) hash = norm.charCodeAt(i) + ((hash << 5) - hash);
+    return PERSON_COLORS_HEX[Math.abs(hash) % PERSON_COLORS_HEX.length];
+  };
+
+  // Group flights along route corridors for algorithmic arc fan-out
+  const corridorGroups = new Map();
+
+  flights.forEach(f => {
     const depCode = (f.departure?.code || 'JFK').toUpperCase().trim();
     const arrCode = (f.arrival?.code || 'LAX').toUpperCase().trim();
+    const corridorKey = [depCode, arrCode].sort().join('-');
 
-    // Find person index in trip participants array
-    const pIndex = participants.findIndex(p => p.name === f.addedBy);
-    const color = PERSON_COLORS_HEX[pIndex >= 0 ? pIndex % 6 : idx % 6];
-    const isFilteredOut = activePersonFilter !== 'all' && activePersonFilter !== f.addedBy;
-
-    const startCoords = AIRPORT_COORDS[depCode] || [40.6413, -73.7781];
-    const endCoords = AIRPORT_COORDS[arrCode] || [33.9416, -118.4085];
-
-    bounds.push(startCoords);
-    bounds.push(endCoords);
-
-    // Track airports and traveler details
-    if (!airportMap.has(depCode)) airportMap.set(depCode, { code: depCode, coords: startCoords, departures: [], arrivals: [] });
-    if (!airportMap.has(arrCode)) airportMap.set(arrCode, { code: arrCode, coords: endCoords, departures: [], arrivals: [] });
-
-    airportMap.get(depCode).departures.push({ name: f.addedBy, color, flight: f });
-    airportMap.get(arrCode).arrivals.push({ name: f.addedBy, color, flight: f });
-
-    // Distinct Arc Height Factors for High North (EWR) vs Low South (JFK)
-    let arcHeightFactor = 0.15;
-    if (depCode === 'EWR') arcHeightFactor = 0.38; // Curves High North
-    else if (depCode === 'JFK') arcHeightFactor = 0.06 + (idx * 0.05); // Curves Low South
-    else if (depCode === 'SJC' || arrCode === 'SJC') arcHeightFactor = -0.22; // Curves West
-
-    const arcPoints = getGreatCircleArcOffset(startCoords, endCoords, 60, arcHeightFactor);
-
-    // Draw Sleek Polyline Arc
-    const polyline = L.polyline(arcPoints, {
-      color: color,
-      weight: isFilteredOut ? 1.5 : 3.5,
-      opacity: isFilteredOut ? 0.2 : 0.9,
-      lineCap: 'round'
-    }).addTo(map);
-
-    // Tooltip on Hover
-    polyline.bindTooltip(`
-      <div style="padding: 4px 6px;">
-        <div style="font-weight:800; font-family:var(--font-family-mono); font-size:12px; color:#fff; display:flex; align-items:center; gap:8px;">
-          <span>✈️ ${escapeHtml(f.flightNumber)}</span>
-          <span style="color:${color}; font-weight:700;">${escapeHtml(f.addedBy)}</span>
-        </div>
-        <div style="font-size:11px; color:#94A3B8; margin-top:3px; font-family:var(--font-family-mono);">
-          ${escapeHtml(depCode)} ➔ ${escapeHtml(arrCode)} (${escapeHtml(f.departure?.time || '')} ➔ ${escapeHtml(f.arrival?.time || '')})
-        </div>
-      </div>
-    `, { sticky: true, className: 'leaflet-dark-tooltip' });
+    if (!corridorGroups.has(corridorKey)) corridorGroups.set(corridorKey, []);
+    corridorGroups.get(corridorKey).push(f);
   });
 
-  // Render UNIFIED Pill Pins with High-Contrast Avatar Badges
+  // Render Flights with Algorithmic Arc Fan-Out
+  corridorGroups.forEach((flightList, corridorKey) => {
+    const totalInCorridor = flightList.length;
+
+    flightList.forEach((f, idxInCorridor) => {
+      const depCode = (f.departure?.code || 'JFK').toUpperCase().trim();
+      const arrCode = (f.arrival?.code || 'LAX').toUpperCase().trim();
+      const color = getTravelerColor(f.addedBy);
+      const isFilteredOut = activePersonFilter !== 'all' && activePersonFilter !== f.addedBy;
+
+      const startCoords = AIRPORT_COORDS[depCode] || [40.6413, -73.7781];
+      const endCoords = AIRPORT_COORDS[arrCode] || [33.9416, -118.4085];
+
+      bounds.push(startCoords);
+      bounds.push(endCoords);
+
+      // Track airports and traveler details
+      if (!airportMap.has(depCode)) airportMap.set(depCode, { code: depCode, coords: startCoords, departures: [], arrivals: [] });
+      if (!airportMap.has(arrCode)) airportMap.set(arrCode, { code: arrCode, coords: endCoords, departures: [], arrivals: [] });
+
+      airportMap.get(depCode).departures.push({ name: f.addedBy, color, flight: f });
+      airportMap.get(arrCode).arrivals.push({ name: f.addedBy, color, flight: f });
+
+      // Algorithmic Arc Fan-out Formula (0 hardcoding)
+      const isReversed = depCode > arrCode;
+      const fanOffset = totalInCorridor > 1 ? (idxInCorridor - (totalInCorridor - 1) / 2) * 0.16 : 0.12;
+      const arcHeightFactor = (isReversed ? -1 : 1) * fanOffset;
+
+      const arcPoints = getGreatCircleArcOffset(startCoords, endCoords, 60, arcHeightFactor);
+
+      // Draw Polyline Arc
+      const polyline = L.polyline(arcPoints, {
+        color: color,
+        weight: isFilteredOut ? 1.5 : 3.5,
+        opacity: isFilteredOut ? 0.2 : 0.9,
+        lineCap: 'round'
+      }).addTo(map);
+
+      // Tooltip on Hover
+      polyline.bindTooltip(`
+        <div style="padding: 4px 6px;">
+          <div style="font-weight:800; font-family:var(--font-family-mono); font-size:12px; color:#fff; display:flex; align-items:center; gap:8px;">
+            <span>✈️ ${escapeHtml(f.flightNumber)}</span>
+            <span style="color:${color}; font-weight:700;">${escapeHtml(f.addedBy)}</span>
+          </div>
+          <div style="font-size:11px; color:#94A3B8; margin-top:3px; font-family:var(--font-family-mono);">
+            ${escapeHtml(depCode)} ➔ ${escapeHtml(arrCode)} (${escapeHtml(f.departure?.time || '')} ➔ ${escapeHtml(f.arrival?.time || '')})
+          </div>
+        </div>
+      `, { sticky: true, className: 'leaflet-dark-tooltip' });
+    });
+  });
+
+  // Fit bounds first so Leaflet establishes container pixel coordinates
+  if (bounds.length > 0) {
+    try {
+      map.fitBounds(bounds, { padding: [50, 50], maxZoom: 7 });
+    } catch (e) { }
+  }
+
+  // ALGORITHMIC DYNAMIC COLLISION AUTO-LAYOUT FOR AIRPORT PINS (Zero Hardcoding!)
+  const airportList = Array.from(airportMap.values());
+  const pillOffsetsMap = new Map();
+
+  airportList.forEach((ap, i) => {
+    pillOffsetsMap.set(ap.code, { dx: 0, dy: -20 });
+  });
+
+  // Screen Point Collision Detection Loop
+  for (let i = 0; i < airportList.length; i++) {
+    for (let j = i + 1; j < airportList.length; j++) {
+      const apA = airportList[i];
+      const apB = airportList[j];
+
+      const ptA = map.latLngToContainerPoint(apA.coords);
+      const ptB = map.latLngToContainerPoint(apB.coords);
+
+      const dx = ptB.x - ptA.x;
+      const dy = ptB.y - ptA.y;
+      const dist = Math.hypot(dx, dy);
+
+      // If screen pixel distance < 50px, compute 2D repulsion vector
+      if (dist < 50) {
+        const angle = Math.atan2(dy, dx);
+        const pushDistance = 32; // px
+
+        // Repel A in opposite angle (-angle), B in angle
+        pillOffsetsMap.set(apA.code, {
+          dx: Math.round(-Math.cos(angle) * pushDistance),
+          dy: Math.round(-Math.sin(angle) * pushDistance)
+        });
+
+        pillOffsetsMap.set(apB.code, {
+          dx: Math.round(Math.cos(angle) * pushDistance),
+          dy: Math.round(Math.sin(angle) * pushDistance)
+        });
+      }
+    }
+  }
+
+  // Render UNIFIED Pill Pins with Algorithmic Auto-Layout Offsets
   airportMap.forEach((data, code) => {
     const { coords, departures, arrivals } = data;
     const allTravelers = [...departures, ...arrivals];
@@ -205,7 +266,8 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
       </span>
     `).join('');
 
-    const pillStyle = AIRPORT_PILL_STYLING[code] || 'top: -20px; left: 0px; transform: translate(-50%, -50%);';
+    const offset = pillOffsetsMap.get(code) || { dx: 0, dy: -20 };
+    const pillStyle = `top: ${offset.dy}px; left: ${offset.dx}px; transform: translate(-50%, -50%);`;
 
     const customIcon = L.divIcon({
       className: 'airport-pill-marker',
@@ -214,7 +276,7 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
           <!-- Exact Airport Location Dot -->
           <div style="width:8px; height:8px; border-radius:50%; background:#0A84FF; box-shadow:0 0 10px #0A84FF; border:1.5px solid #ffffff; transform:translate(-50%, -50%);"></div>
           
-          <!-- Diagonally Uncoupled Pill Badge -->
+          <!-- Algorithmically Repelled Pill Badge -->
           <div style="position:absolute; ${pillStyle} display:inline-flex; align-items:center; gap:5px; background:rgba(15,23,42,0.95); border:1px solid rgba(255,255,255,0.22); border-radius:12px; padding:3px 8px; backdrop-filter:blur(10px); box-shadow:0 4px 18px rgba(0,0,0,0.75); white-space:nowrap; z-index:10;">
             <span style="font-size:11px; font-weight:800; font-family:var(--font-family-mono); color:#ffffff;">${code}</span>
             ${uniqueTravelers.length > 0 ? `
@@ -240,13 +302,6 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
       </div>
     `, { sticky: true, className: 'leaflet-dark-tooltip' });
   });
-
-  // Fit bounds if valid points exist
-  if (bounds.length > 0) {
-    try {
-      map.fitBounds(bounds, { padding: [50, 50], maxZoom: 7 });
-    } catch (e) { }
-  }
 
   setTimeout(() => {
     if (map) map.invalidateSize();
