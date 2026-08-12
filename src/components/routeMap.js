@@ -1,6 +1,6 @@
 /* ============================================
-   PPC: Delay No More — Fly.io Style Real Dark World Basemap Route Map
-   Uses ESRI World Dark Gray Canvas & CartoDB Dark Labels
+   PPC: Delay No More — Professional Flight Route Map Engine
+   Single-Layer CartoDB Dark Matter @2x Retina Basemap + Dynamic Multi-Arc Fan Offset
    ============================================ */
 
 import L from 'leaflet';
@@ -85,21 +85,11 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
           </span>
         </div>
         <div style="font-size: 11px; color: var(--color-text-tertiary); font-family: var(--font-family-mono);">
-          Real ESRI/Fly.io Dark Basemap · Drag to Pan · Scroll to Zoom
+          CartoDB Dark Retina Basemap · Scroll to Zoom · Drag to Pan
         </div>
       </div>
 
-      <div id="hero-leaflet-map" style="width:100%; height:360px; border-radius: var(--radius-md); overflow:hidden; border: 1px solid var(--color-border); z-index:1; background:#07090E; position:relative;"></div>
-
-      <!-- Map Legend Drawer -->
-      <div class="route-map-legend">
-        ${participants.map((p, i) => `
-          <div class="legend-chip ${activePersonFilter !== 'all' && activePersonFilter !== p.name ? 'dimmed' : ''}" data-legend-person="${escapeHtml(p.name)}">
-            <span class="legend-dot" style="background:${PERSON_COLORS_HEX[i % 6]};"></span>
-            <span style="font-weight:600;">${escapeHtml(p.name)}</span>
-          </div>
-        `).join('')}
-      </div>
+      <div id="hero-leaflet-map" style="width:100%; height:380px; border-radius: var(--radius-md); overflow:hidden; border: 1px solid var(--color-border); z-index:1; background:#090A0F; position:relative;"></div>
     </div>
   `;
 
@@ -114,17 +104,10 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
 
   activeLeafletMap = map;
 
-  // Add ESRI World Dark Gray Canvas Base Tile Layer (Fly.io / ArcGIS Dark Basemap)
-  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
-    maxZoom: 16,
-    subdomains: ['a', 'b', 'c']
-  }).addTo(map);
-
-  // Add CartoDB Labels Reference Layer for Crisp City Names
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/dark_only_labels/{z}/{x}/{y}@2x.png', {
+  // Single-Layer CartoDB Dark Matter @2x Retina Basemap (Zero double-text overlap!)
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}@2x.png', {
     maxZoom: 19,
-    subdomains: 'abcd',
-    opacity: 0.8
+    subdomains: 'abcd'
   }).addTo(map);
 
   // Add Zoom Control at top right
@@ -133,61 +116,81 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
   const bounds = [];
   const airportMap = new Map();
 
-  // Draw Great Circle Arcs for Flights
+  // Group Flights by Route Pair to Compute Dynamic Curvature Fan Offsets
+  const routeGroups = new Map();
   flights.forEach(f => {
     const depCode = (f.departure?.code || 'JFK').toUpperCase().trim();
     const arrCode = (f.arrival?.code || 'LAX').toUpperCase().trim();
-    const pIndex = participants.findIndex(p => p.name === f.addedBy);
-    const color = PERSON_COLORS_HEX[pIndex >= 0 ? pIndex % 6 : 0];
-    const isFilteredOut = activePersonFilter !== 'all' && activePersonFilter !== f.addedBy;
+    const routeKey = `${depCode}-${arrCode}`;
 
-    const startCoords = AIRPORT_COORDS[depCode] || [40.6413, -73.7781];
-    const endCoords = AIRPORT_COORDS[arrCode] || [33.9416, -118.4085];
-
-    bounds.push(startCoords);
-    bounds.push(endCoords);
-
-    if (!airportMap.has(depCode)) airportMap.set(depCode, { coords: startCoords, people: [] });
-    if (!airportMap.has(arrCode)) airportMap.set(arrCode, { coords: endCoords, people: [] });
-    airportMap.get(depCode).people.push(f.addedBy);
-
-    // Compute Great Circle Arc Points
-    const arcPoints = getGreatCircleArc(startCoords, endCoords, 60);
-
-    // Polyline Glow
-    const polyline = L.polyline(arcPoints, {
-      color: color,
-      weight: isFilteredOut ? 2 : 4,
-      opacity: isFilteredOut ? 0.25 : 0.9,
-      lineCap: 'round'
-    }).addTo(map);
-
-    polyline.bindTooltip(`
-      <div style="font-weight:800; font-family:var(--font-family-mono); font-size:12px; color:#fff;">
-        ${escapeHtml(f.flightNumber)} · ${escapeHtml(depCode)} ➔ ${escapeHtml(arrCode)}
-      </div>
-      <div style="font-size:11px; color:#94A3B8; margin-top:2px;">
-        Traveler: <strong style="color:${color}">${escapeHtml(f.addedBy)}</strong>
-      </div>
-      <div style="font-size:10px; color:#64748B; margin-top:2px; font-family:var(--font-family-mono);">
-        ${escapeHtml(f.departure?.time || '')} ➔ ${escapeHtml(f.arrival?.time || '')}
-      </div>
-    `, { sticky: true, className: 'leaflet-dark-tooltip' });
+    if (!routeGroups.has(routeKey)) routeGroups.set(routeKey, []);
+    routeGroups.get(routeKey).push(f);
   });
 
-  // Add Airport Beacons with Avatar Pills
+  // Render Flights with Dynamic Arc Fan Offsets
+  routeGroups.forEach((flightList, routeKey) => {
+    const totalInGroup = flightList.length;
+
+    flightList.forEach((f, idxInGroup) => {
+      const depCode = (f.departure?.code || 'JFK').toUpperCase().trim();
+      const arrCode = (f.arrival?.code || 'LAX').toUpperCase().trim();
+      const pIndex = participants.findIndex(p => p.name === f.addedBy);
+      const color = PERSON_COLORS_HEX[pIndex >= 0 ? pIndex % 6 : 0];
+      const isFilteredOut = activePersonFilter !== 'all' && activePersonFilter !== f.addedBy;
+
+      const startCoords = AIRPORT_COORDS[depCode] || [40.6413, -73.7781];
+      const endCoords = AIRPORT_COORDS[arrCode] || [33.9416, -118.4085];
+
+      bounds.push(startCoords);
+      bounds.push(endCoords);
+
+      if (!airportMap.has(depCode)) airportMap.set(depCode, { coords: startCoords, people: new Set() });
+      if (!airportMap.has(arrCode)) airportMap.set(arrCode, { coords: endCoords, people: new Set() });
+      airportMap.get(depCode).people.add(f.addedBy);
+
+      // Compute Dynamic Fan Offset Factor so lines never overlap!
+      // Center the fan: e.g. for 3 flights -> offsets: -0.12, 0, +0.12
+      const offsetMultiplier = totalInGroup > 1
+        ? (idxInGroup - (totalInGroup - 1) / 2) * 0.14
+        : 0;
+
+      const arcPoints = getGreatCircleArcOffset(startCoords, endCoords, 60, offsetMultiplier);
+
+      const polyline = L.polyline(arcPoints, {
+        color: color,
+        weight: isFilteredOut ? 2 : 4,
+        opacity: isFilteredOut ? 0.2 : 0.9,
+        lineCap: 'round'
+      }).addTo(map);
+
+      polyline.bindTooltip(`
+        <div style="font-weight:800; font-family:var(--font-family-mono); font-size:12px; color:#fff;">
+          ${escapeHtml(f.flightNumber)} · ${escapeHtml(depCode)} ➔ ${escapeHtml(arrCode)}
+        </div>
+        <div style="font-size:11px; color:#94A3B8; margin-top:2px;">
+          Traveler: <strong style="color:${color}">${escapeHtml(f.addedBy)}</strong>
+        </div>
+        <div style="font-size:10px; color:#64748B; margin-top:2px; font-family:var(--font-family-mono);">
+          ${escapeHtml(f.departure?.time || '')} ➔ ${escapeHtml(f.arrival?.time || '')}
+        </div>
+      `, { sticky: true, className: 'leaflet-dark-tooltip' });
+    });
+  });
+
+  // Add Airport Beacons with Clean Aggregated Labels
   airportMap.forEach((data, code) => {
     const { coords, people } = data;
-    const isFiltered = activePersonFilter !== 'all' && !people.includes(activePersonFilter);
-    const label = people.length > 0 ? `(${people[0]})` : '';
+    const peopleArr = Array.from(people);
+    const isFiltered = activePersonFilter !== 'all' && !peopleArr.includes(activePersonFilter);
+    const peopleLabel = peopleArr.length > 0 ? ` (${peopleArr.join(', ')})` : '';
 
     const customIcon = L.divIcon({
       className: 'airport-beacon-marker',
       html: `
         <div style="display:flex; align-items:center; gap:5px; transform: translate(-50%, -50%); cursor:pointer;">
           <div style="width:12px; height:12px; border-radius:50%; background:#0A84FF; box-shadow:0 0 12px #0A84FF; border:2px solid #fff;"></div>
-          <div style="font-size:11px; font-weight:800; font-family:var(--font-family-mono); color:${isFiltered ? '#64748B' : '#ffffff'}; text-shadow:0 1px 4px #000; white-space:nowrap; background:rgba(15,23,42,0.9); padding:2px 7px; border-radius:4px; border:1px solid rgba(255,255,255,0.2);">
-            ${code} <span style="font-size:9px; font-weight:500; color:#38BDF8;">${label}</span>
+          <div style="font-size:11px; font-weight:800; font-family:var(--font-family-mono); color:${isFiltered ? '#64748B' : '#ffffff'}; text-shadow:0 1px 4px #000; white-space:nowrap; background:rgba(15,23,42,0.9); padding:2px 8px; border-radius:6px; border:1px solid rgba(255,255,255,0.2);">
+            ${code} <span style="font-size:9px; font-weight:500; color:#38BDF8;">${peopleLabel}</span>
           </div>
         </div>
       `,
@@ -209,21 +212,12 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
   setTimeout(() => {
     if (map) map.invalidateSize();
   }, 100);
-
-  // Legend Filter Click Listener
-  container.querySelectorAll('.legend-chip').forEach(chip => {
-    chip.addEventListener('click', () => {
-      const personName = chip.dataset.legendPerson;
-      const chipBtn = document.querySelector(`.chip[data-person="${personName}"]`);
-      if (chipBtn) chipBtn.click();
-    });
-  });
 }
 
 /**
- * Great Circle Arc Geodesic Interpolation
+ * Great Circle Arc Geodesic Interpolation with Curvature Offset
  */
-function getGreatCircleArc(start, end, numPoints = 50) {
+function getGreatCircleArcOffset(start, end, numPoints = 50, offsetFactor = 0) {
   const lat1 = start[0] * Math.PI / 180;
   const lon1 = start[1] * Math.PI / 180;
   const lat2 = end[0] * Math.PI / 180;
@@ -236,6 +230,12 @@ function getGreatCircleArc(start, end, numPoints = 50) {
 
   if (d === 0) return [start, end];
 
+  // Perpendicular vector for arc curvature offset
+  const dLat = end[0] - start[0];
+  const dLon = end[1] - start[1];
+  const perpLat = -dLon * 0.15 * offsetFactor;
+  const perpLon = dLat * 0.15 * offsetFactor;
+
   const points = [];
   for (let i = 0; i <= numPoints; i++) {
     const f = i / numPoints;
@@ -246,8 +246,13 @@ function getGreatCircleArc(start, end, numPoints = 50) {
     const y = A * Math.cos(lat1) * Math.sin(lon1) + B * Math.cos(lat2) * Math.sin(lon2);
     const z = A * Math.sin(lat1) + B * Math.sin(lat2);
 
-    const lat = Math.atan2(z, Math.sqrt(x * x + y * y)) * 180 / Math.PI;
-    const lon = Math.atan2(y, x) * 180 / Math.PI;
+    let lat = Math.atan2(z, Math.sqrt(x * x + y * y)) * 180 / Math.PI;
+    let lon = Math.atan2(y, x) * 180 / Math.PI;
+
+    // Apply smooth parabolic offset along arc
+    const arcHeight = Math.sin(f * Math.PI);
+    lat += perpLat * arcHeight;
+    lon += perpLon * arcHeight;
 
     points.push([lat, lon]);
   }
