@@ -1,6 +1,6 @@
 /* ============================================
-   PPC: Delay No More — State of the Art Flight Timeline Component
-   Apple / Flighty 3.0 Inspired Slate Dark Glassmorphic Timeline
+   PPC: Delay No More — Apple Flighty Slate Timeline Engine
+   Fixed: Elimination of outer row container box ("box-in-a-box" artifact) + Unified Flight Card
    ============================================ */
 
 import { getIcon } from './icons.js';
@@ -130,18 +130,20 @@ export function renderTimeline(container, tripOrFlights, participantsOrFilter, f
   });
   html += '</div>';
 
-  // Person Rows Layer — SOTA State of the Art Flight Capsule Styling
+  // Person Rows Layer — Clean Transparent Tracks (NO outer track box!)
   participants.forEach((person, personIdx) => {
     const color = PERSON_COLORS_HEX[personIdx % 6];
     const pFlights = personFlights[person.name] || [];
     if (pFlights.length === 0) return;
 
-    html += `<div class="tl-person-row" style="display: flex; align-items: center; height: 52px; margin-bottom: 12px; position: relative; z-index: 2;">`;
+    html += `<div class="tl-person-row" style="display: flex; align-items: center; height: 48px; margin-bottom: 12px; position: relative; z-index: 2; border-bottom: 1px solid rgba(255, 255, 255, 0.03);">`;
     html += `<div class="tl-person-label" style="width: 120px; flex-shrink: 0; font-size: 12px; font-weight: 700; color: #E2E8F0; display: flex; align-items: center; gap: 8px; padding-right: 12px;">
       <span class="tl-person-dot" style="width: 10px; height: 10px; border-radius: 50%; background:${color}; box-shadow: 0 0 10px ${color}; flex-shrink: 0;"></span>
       <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(person.name)}</span>
     </div>`;
-    html += `<div class="tl-person-bars" style="flex: 1; position: relative; height: 46px; background: rgba(15, 23, 42, 0.4); border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.05);">`;
+
+    // TRANSPARENT row track without any enclosing dark box!
+    html += `<div class="tl-person-bars" style="flex: 1; position: relative; height: 44px;">`;
 
     pFlights.forEach((flight) => {
       const depTimeStr = flight.departure?.time || '00:00';
@@ -169,21 +171,21 @@ export function renderTimeline(container, tripOrFlights, participantsOrFilter, f
 
       const flightData = encodeURIComponent(JSON.stringify(flight));
 
-      // SOTA Flight Pill Design: Integrated Glass Pill with Left Color Accent Ribbon
+      // Elegant Unified Glass Capsule (THE ONLY BOX ON THE ROW!)
       html += `
         <div class="tl-bar" data-flight="${flightData}" style="
           position: absolute;
-          top: 4px;
+          top: 3px;
           left: ${startPct}%;
           width: ${widthPct}%;
-          min-width: 140px;
+          min-width: 155px;
           height: 38px;
-          background: rgba(15, 23, 42, 0.92);
+          background: rgba(15, 23, 42, 0.95);
           border-left: 4px solid ${color};
-          border-top: 1px solid rgba(255, 255, 255, 0.12);
-          border-right: 1px solid rgba(255, 255, 255, 0.12);
-          border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6), 0 0 12px ${hexToRgba(color, 0.25)};
+          border-top: 1px solid rgba(255, 255, 255, 0.15);
+          border-right: 1px solid rgba(255, 255, 255, 0.15);
+          border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.7), 0 0 14px ${hexToRgba(color, 0.3)};
           border-radius: 8px;
           padding: 0 10px;
           display: flex;
@@ -222,7 +224,7 @@ export function renderTimeline(container, tripOrFlights, participantsOrFilter, f
             font-weight: 700;
             color: #94A3B8;
             font-family: var(--font-family-mono);
-            background: rgba(255, 255, 255, 0.06);
+            background: rgba(255, 255, 255, 0.08);
             padding: 2px 6px;
             border-radius: 4px;
             margin-left: 6px;
