@@ -54,6 +54,7 @@
     transition: all var(--transition-fast);
     box-shadow: var(--shadow-md);
     position: relative;
+    z-index: 100;
 }
 
 .hero-insights-card:hover {
@@ -112,6 +113,7 @@
 .avatar-group-wrapper {
     position: relative;
     display: inline-block;
+    z-index: 1000;
 }
 
 .avatar-group {
@@ -156,14 +158,13 @@
     position: absolute;
     top: calc(100% + 10px);
     right: 0;
-    width: 230px;
-    background: rgba(15, 23, 42, 0.95);
-    border: 1px solid var(--color-border);
+    width: 240px;
+    background: #0F172A;
+    border: 1px solid rgba(255, 255, 255, 0.2);
     border-radius: var(--radius-md);
     padding: 12px;
-    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6);
-    backdrop-filter: blur(20px);
-    z-index: 200;
+    box-shadow: 0 20px 45px rgba(0, 0, 0, 0.85);
+    z-index: 99999;
     opacity: 1;
     transform: translateY(0);
     transition: all var(--transition-fast);
@@ -202,6 +203,7 @@
     padding: 6px 8px;
     border-radius: var(--radius-sm);
     cursor: pointer;
+    background: transparent;
     transition: background var(--transition-fast);
 }
 
