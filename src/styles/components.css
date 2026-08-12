@@ -50,16 +50,14 @@
     backdrop-filter: var(--glass-blur);
     box-shadow: var(--shadow-md);
     overflow: hidden !important;
+    position: relative;
 }
 
-/* Strict Leaflet Container & Pane Overflows to prevent floating markers outside map box */
-.leaflet-container,
-.leaflet-pane,
-.leaflet-map-pane,
-.leaflet-marker-pane,
-.leaflet-overlay-pane {
+/* Ensure Leaflet main container clips to border-radius */
+.leaflet-container {
     overflow: hidden !important;
-    border-radius: inherit;
+    border-radius: var(--radius-md);
+    position: relative;
 }
 
 .leaflet-container img.leaflet-tile {

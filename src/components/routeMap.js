@@ -98,14 +98,11 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
     mapEl.style.height = '360px';
   }
 
-  // Initialize Leaflet Map with NO zoom controls and STRICT bounds clipping
+  // Initialize Leaflet Map
   const map = L.map(mapEl, {
     zoomControl: false,
     attributionControl: false,
-    scrollWheelZoom: false,
-    minZoom: 2,
-    maxZoom: 9,
-    maxBoundsViscosity: 1.0
+    scrollWheelZoom: false
   }).setView([38, -96], 4);
 
   activeLeafletMap = map;
@@ -211,10 +208,6 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
       const isMobile = window.innerWidth < 640;
       const fitPadding = isMobile ? [24, 24] : [45, 45];
       map.fitBounds(bounds, { padding: fitPadding, maxZoom: 6 });
-      
-      // Lock dragging bounds so user cannot drag map outside world view
-      const mapBounds = map.getBounds();
-      map.setMaxBounds(mapBounds.pad(isMobile ? 0.8 : 0.5));
     } catch (e) { }
   }
 
