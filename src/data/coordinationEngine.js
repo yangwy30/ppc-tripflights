@@ -35,23 +35,26 @@ export async function generateGroupOptions(trip, currentUserName) {
         return depCode === destIata.toUpperCase() || depCode === returnIata.toUpperCase();
     });
 
-    // Use booked flight dates if available, otherwise fall back to trip dates
-    const outboundDate = (outboundFlights.length > 0 && outboundFlights[0].date) ? outboundFlights[0].date : startDate;
+    // Use booked flight dates if available, otherwise fall back to trip dates or today
+    const outboundDate = (outboundFlights.length > 0 && outboundFlights[0].date) ? outboundFlights[0].date : (startDate || new Date().toISOString().split('T')[0]);
     const returnDate = (returnFlights.length > 0 && returnFlights[0].date) ? returnFlights[0].date : endDate;
 
-    if (!destIata || !outboundDate) return [];
+    if (!destIata) return [];
 
-    const validParticipants = participants.filter(p => p.homeAirport);
-    if (!validParticipants || validParticipants.length === 0) return [];
+    // Fall back homeAirport to common hub or destination if missing
+    const preparedParticipants = participants.map(p => {
+        const hasBooked = existingFlights.some(f => f.addedBy === p.name);
+        return {
+            ...p,
+            homeAirport: p.homeAirport || (hasBooked ? (existingFlights.find(f => f.addedBy === p.name)?.departure?.code) : 'JFK')
+        };
+    });
 
-    // Only include participants who have booked OR are the current user
-    const relevantParticipants = validParticipants.filter(p => {
+    // Filter relevant participants (those who booked OR current user OR participants with home airports)
+    const relevantParticipants = preparedParticipants.filter(p => {
         const hasBooked = existingFlights.some(f => f.addedBy === p.name);
         const isCurrentUser = p.name === currentUserName;
-        if (!hasBooked && !isCurrentUser) {
-            console.log(`[CoordinationEngine] Skipping ${p.name} — no booked flight and not the coordinating user.`);
-        }
-        return hasBooked || isCurrentUser;
+        return hasBooked || isCurrentUser || p.homeAirport;
     });
 
     if (relevantParticipants.length === 0) return [];

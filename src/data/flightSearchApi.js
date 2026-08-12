@@ -391,22 +391,36 @@ function _searchMock(originIata, destinationIata) {
         f => f.origin === originIata && f.destination === destinationIata
     );
 
-    // If no exact match in mocks, generate a plausible random flight
-    if (results.length === 0) {
-        console.warn(`[Mock API] No static mock for ${originIata} → ${destinationIata}. Generating fallback.`);
-        return [{
-            id: `mock-gen-${Date.now()}`,
-            origin: originIata,
-            destination: destinationIata,
-            airline: 'Global Airways',
-            flightNumber: `GA ${Math.floor(Math.random() * 900) + 100}`,
-            departureTime: '10:00',
-            arrivalTime: '14:30',
-            duration: '4h 30m',
-            price: Math.floor(Math.random() * 400) + 200,
-            stops: 0
-        }];
-    }
+    if (results.length > 0) return results;
 
-    return results;
+    // Generate 2 plausible flight offers (Morning & Afternoon) for any pair
+    const orig = (originIata || 'JFK').toUpperCase();
+    const dest = (destinationIata || 'LAX').toUpperCase();
+
+    return [
+        {
+            id: `mock-gen-1-${orig}-${dest}`,
+            origin: orig,
+            destination: dest,
+            airline: 'Skyline Airways',
+            flightNumber: `SL ${Math.floor(Math.random() * 800) + 100}`,
+            departureTime: '09:15',
+            arrivalTime: '13:45',
+            duration: '4h 30m',
+            price: 320,
+            stops: 0
+        },
+        {
+            id: `mock-gen-2-${orig}-${dest}`,
+            origin: orig,
+            destination: dest,
+            airline: 'Pacific Jet',
+            flightNumber: `PJ ${Math.floor(Math.random() * 800) + 200}`,
+            departureTime: '14:30',
+            arrivalTime: '19:00',
+            duration: '4h 30m',
+            price: 410,
+            stops: 0
+        }
+    ];
 }
