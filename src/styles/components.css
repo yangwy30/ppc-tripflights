@@ -82,6 +82,21 @@
     border-top-color: rgba(15, 23, 42, 0.95) !important;
 }
 
+/* GPU-Accelerated Phase Flow Animation */
+@keyframes flowDash {
+    from {
+        stroke-dashoffset: 32;
+    }
+    to {
+        stroke-dashoffset: 0;
+    }
+}
+
+.gpu-animated-flow-line {
+    animation: flowDash 2.5s linear infinite;
+    will-change: stroke-dashoffset;
+}
+
 /* Single Master Arc Avatar Ring Stack Badge */
 .arc-avatar-pill {
     display: inline-flex;

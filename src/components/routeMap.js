@@ -1,6 +1,7 @@
 /* ============================================
-   PPC: Delay No More — Sub-Pixel Butter-Smooth Slow Flow Arrow Engine
-   Includes Continuous LERP Interpolation + 8-Second Relaxing Flow Pace
+   PPC: Delay No More — GPU-Accelerated Phase Flow Route Map Engine
+   All: Static Network (Zero Motion)
+   Outbound & Return: GPU-Accelerated Smooth Flow Arrows (stroke-dashoffset)
    ============================================ */
 
 import L from 'leaflet';
@@ -67,13 +68,8 @@ const AIRPORT_COORDS = {
 };
 
 let activeLeafletMap = null;
-let animFrameId = null;
 
 export function renderRouteMap(container, flights = [], participants = [], trip = {}, activePersonFilter = 'all', phaseName = 'All') {
-  if (animFrameId) {
-    cancelAnimationFrame(animFrameId);
-    animFrameId = null;
-  }
   if (activeLeafletMap) {
     try {
       activeLeafletMap.remove();
@@ -95,7 +91,7 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
           </span>
         </div>
         <div style="font-size: 11px; color: var(--color-text-tertiary); font-family: var(--font-family-mono);">
-          CartoDB Dark Basemap · Butter-Smooth Flow Pace
+          CartoDB Dark Basemap · ${phaseName === 'all' ? 'Static Overview Network' : 'GPU-Accelerated Phase Flow'}
         </div>
       </div>
 
@@ -124,7 +120,6 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
 
   const bounds = [];
   const airportMap = new Map();
-  const activeCorridors = [];
 
   // Normalized traveler color resolution helper
   const normalizedParticipants = participants.map(p => p.name.trim().toLowerCase());
@@ -165,6 +160,7 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
       bounds.push(startCoords);
       bounds.push(endCoords);
 
+      // Track airports and traveler details
       if (!airportMap.has(depCode)) airportMap.set(depCode, { code: depCode, coords: startCoords, departures: [], arrivals: [] });
       if (!airportMap.has(arrCode)) airportMap.set(arrCode, { code: arrCode, coords: endCoords, departures: [], arrivals: [] });
 
@@ -176,9 +172,9 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
       const fanOffset = totalInCorridor > 1 ? (idxInCorridor - (totalInCorridor - 1) / 2) * 0.16 : 0.12;
       const arcHeightFactor = (isReversed ? -1 : 1) * fanOffset;
 
-      const arcPoints = getGreatCircleArcOffset(startCoords, endCoords, 100, arcHeightFactor);
+      const arcPoints = getGreatCircleArcOffset(startCoords, endCoords, 60, arcHeightFactor);
 
-      // Draw Polyline Arc
+      // Draw Base Polyline Arc
       const polyline = L.polyline(arcPoints, {
         color: color,
         weight: isFilteredOut ? 1.5 : 3.5,
@@ -186,14 +182,15 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
         lineCap: 'round'
       }).addTo(map);
 
-      // Store flow corridor data for butter-smooth 60fps LERP arrow animation
-      if (!isFilteredOut) {
-        activeCorridors.push({
-          points: arcPoints,
-          color,
-          depCode,
-          arrCode
-        });
+      // RULE: Only animate flow dashes when on Outbound or Return tab! (STATIC on 'all' tab!)
+      if (phaseName !== 'all' && !isFilteredOut) {
+        L.polyline(arcPoints, {
+          color: '#ffffff',
+          weight: 2.5,
+          opacity: 0.9,
+          dashArray: '8, 24',
+          className: 'gpu-animated-flow-line'
+        }).addTo(map);
       }
 
       polyline.bindTooltip(`
@@ -339,80 +336,15 @@ export function renderRouteMap(container, flights = [], participants = [], trip 
     `, { sticky: true, className: 'leaflet-dark-tooltip' });
   });
 
-  // SUB-PIXEL CONTINUOUS LERP ANIMATED FLOW ARROWS (Relaxing 8-Second Pace)
-  const flowMarkers = [];
-  activeCorridors.forEach(corridor => {
-    const icon = L.divIcon({
-      className: 'flow-arrow-marker',
-      html: `
-        <div style="color:${corridor.color}; font-size:11px; font-weight:900; line-height:1; filter:drop-shadow(0 0 6px ${corridor.color}); transform:translate(-50%, -50%); transition: transform 0.05s linear;">
-          ▶
-        </div>
-      `,
-      iconSize: [0, 0]
-    });
-
-    const flowMarker = L.marker(corridor.points[0], { icon }).addTo(map);
-    flowMarkers.push({ marker: flowMarker, points: corridor.points });
-  });
-
-  let progress = 0;
-  function animateFlow() {
-    // Relaxing 8-second slow travel pace (0.002 instead of 0.006)
-    progress = (progress + 0.002) % 1;
-
-    flowMarkers.forEach((item, idx) => {
-      const pts = item.points;
-      if (!pts || pts.length < 2) return;
-
-      const totalPts = pts.length;
-      const offsetProgress = (progress + (idx * 0.3)) % 1;
-
-      // Sub-pixel continuous LERP coordinate calculation
-      const exactIndex = offsetProgress * (totalPts - 1);
-      const i1 = Math.floor(exactIndex);
-      const i2 = Math.min(totalPts - 1, i1 + 1);
-      const weight = exactIndex - i1;
-
-      const lat1 = pts[i1][0], lon1 = pts[i1][1];
-      const lat2 = pts[i2][0], lon2 = pts[i2][1];
-
-      const currentLat = lat1 + (lat2 - lat1) * weight;
-      const currentLon = lon1 + (lon2 - lon1) * weight;
-      const interpolatedCoords = [currentLat, currentLon];
-
-      item.marker.setLatLng(interpolatedCoords);
-
-      // Compute Angle Vector for Arrow Rotation
-      const pt1 = map.latLngToContainerPoint(pts[i1]);
-      const pt2 = map.latLngToContainerPoint(pts[i2]);
-      const angle = Math.atan2(pt2.y - pt1.y, pt2.x - pt1.x) * (180 / Math.PI);
-
-      const el = item.marker.getElement();
-      if (el) {
-        const arrowChild = el.querySelector('div');
-        if (arrowChild) {
-          arrowChild.style.transform = `translate(-50%, -50%) rotate(${angle}deg)`;
-        }
-      }
-    });
-
-    animFrameId = requestAnimationFrame(animateFlow);
-  }
-
-  if (activeCorridors.length > 0) {
-    animateFlow();
-  }
-
   setTimeout(() => {
     if (map) map.invalidateSize();
   }, 100);
 }
 
 /**
- * Great Circle Arc Interpolation with Curvature Offset (100 High-Res Interpolation Points)
+ * Great Circle Arc Interpolation
  */
-function getGreatCircleArcOffset(start, end, numPoints = 100, arcHeightFactor = 0.15) {
+function getGreatCircleArcOffset(start, end, numPoints = 60, arcHeightFactor = 0.15) {
   const lat1 = start[0] * Math.PI / 180;
   const lon1 = start[1] * Math.PI / 180;
   const lat2 = end[0] * Math.PI / 180;
@@ -438,7 +370,6 @@ function getGreatCircleArcOffset(start, end, numPoints = 100, arcHeightFactor = 
     let lat = Math.atan2(z, Math.sqrt(x * x + y * y)) * 180 / Math.PI;
     let lon = Math.atan2(y, x) * 180 / Math.PI;
 
-    // Apply smooth arc curve height
     const curveOffset = Math.sin(f * Math.PI) * arcHeightFactor * 25;
     lat += curveOffset * 0.15;
 
