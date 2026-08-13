@@ -166,11 +166,12 @@ export function renderFlightCard(flight, participants, index, trip, isExpandedIn
         </div>
 
         <div class="ticket-flight-vector">
-          <div class="flight-vector-line"></div>
-          <div class="flight-icon-center">
-            <span style="display:flex; transform: rotate(90deg); font-size:12px;">✈</span>
+          ${flight.duration ? `<div class="flight-duration-badge">${escapeHtml(flight.duration)}</div>` : ''}
+          <div class="flight-vector-line">
+            <div class="flight-icon-center">
+              <span style="display:flex; transform: rotate(90deg); font-size:11px;">✈</span>
+            </div>
           </div>
-          ${flight.duration ? `<div class="flight-duration-text">${escapeHtml(flight.duration)}</div>` : ''}
         </div>
 
         <div class="ticket-airport-node align-right">

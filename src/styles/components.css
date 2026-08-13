@@ -1172,6 +1172,20 @@
   justify-content: center;
   position: relative;
   width: 100%;
+  padding: 0 12px;
+}
+
+.flight-duration-badge {
+  font-size: 11px;
+  font-family: var(--font-family-mono);
+  font-weight: 700;
+  color: #38BDF8;
+  background: rgba(56, 189, 248, 0.1);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  padding: 2px 8px;
+  border-radius: 999px;
+  margin-bottom: 6px;
+  white-space: nowrap;
 }
 
 .flight-vector-line {
@@ -1179,7 +1193,10 @@
   height: 2px;
   background: linear-gradient(90deg, rgba(255,255,255,0.1) 0%, rgba(56,189,248,0.6) 50%, rgba(255,255,255,0.1) 100%);
   position: relative;
-  margin: 6px 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 4px 0;
 }
 
 .flight-vector-line::before,
@@ -1197,28 +1214,17 @@
 .flight-vector-line::after { right: 0; }
 
 .flight-icon-center {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
   background: #0E131F;
   border: 1px solid rgba(56, 189, 248, 0.4);
   color: #38BDF8;
-  width: 26px;
-  height: 26px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   box-shadow: 0 0 10px rgba(56, 189, 248, 0.3);
-}
-
-.flight-duration-text {
-  font-size: 10px;
-  font-family: var(--font-family-mono);
-  color: var(--color-text-tertiary);
-  font-weight: 600;
-  margin-top: 2px;
+  z-index: 2;
 }
 
 /* Live Flight Progress Bar (In-Air) */
