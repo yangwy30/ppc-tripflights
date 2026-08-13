@@ -41,8 +41,8 @@ export async function generateGroupOptions(trip, currentUserName) {
 
     if (!destIata) return [];
 
-    // Safely normalize participants (handling both string array and object array forms)
-    const rawParticipants = (participants && participants.length > 0) ? participants : [{ name: currentUserName || 'Traveler', homeAirport: 'JFK' }];
+    // Safely normalize participants
+    const rawParticipants = (participants && participants.length > 0) ? participants : [{ name: currentUserName || 'Traveler', homeAirport: null }];
     
     const preparedParticipants = rawParticipants.map(p => {
         const name = typeof p === 'string' ? p : p.name || 'Traveler';
@@ -52,15 +52,25 @@ export async function generateGroupOptions(trip, currentUserName) {
         const bookedDepCode = existingFlights.find(f => (f.addedBy || '').trim().toLowerCase() === normName)?.departure?.code;
         return {
             name,
-            homeAirport: home || bookedDepCode || 'JFK',
+            homeAirport: home || bookedDepCode || null,
+            hasBooked,
             destinationAirport: typeof p === 'object' && p ? p.destinationAirport : null
         };
     });
 
-    const relevantParticipants = preparedParticipants;
-    if (relevantParticipants.length === 0) return [];
+    // Strictly filter candidates: only travelers who have booked a flight OR set a home airport!
+    let relevantParticipants = preparedParticipants.filter(p => p.hasBooked || p.homeAirport);
+    
+    // If nobody has set a home airport or booked a flight yet, fall back to current user so they can search
+    if (relevantParticipants.length === 0) {
+        const fallbackUser = preparedParticipants.find(p => p.name.trim().toLowerCase() === (currentUserName || '').trim().toLowerCase()) || preparedParticipants[0];
+        relevantParticipants = [{
+            ...fallbackUser,
+            homeAirport: fallbackUser.homeAirport || 'JFK'
+        }];
+    }
 
-    console.log(`[CoordinationEngine] Finding options for ${relevantParticipants.map(p => `${p.name}(${p.homeAirport})`).join(', ')} -> ${destIata} (Return from ${returnIata})`);
+    console.log(`[CoordinationEngine] Finding options for ${relevantParticipants.map(p => `${p.name}(${p.homeAirport || 'JFK'})`).join(', ')} -> ${destIata} (Return from ${returnIata})`);
 
     // 2. Fetch flights for each participant
     const flightPromises = relevantParticipants.map(async participant => {

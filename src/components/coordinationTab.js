@@ -228,13 +228,13 @@ function renderStatusHeader(trip, origins, currentUser, participantList, current
             </div>
 
             <div style="font-size: var(--font-size-xs); color: var(--color-text-secondary); margin-bottom: 0.85rem;">
-                ${originsSet === totalParticipants
-                    ? `All ${totalParticipants} travelers have set their departure airport.`
-                    : `${originsSet} of ${totalParticipants} travelers set departure. Unassigned travelers will search from JFK.`}
+                ${missing === 0
+                    ? `All ${totalParticipants} travelers have designated their departure airport or booked a flight.`
+                    : `<strong style="color:#38BDF8;">${originsSet} travelers ready for coordination.</strong> <span style="color:var(--color-warning);">(${missing} traveler(s) without origin info will be skipped until set)</span>`}
             </div>
             
             <button id="btn-find-flights" class="btn btn-primary" style="width: 100%; font-size: var(--font-size-sm); padding: 0.75rem var(--space-base);">
-                <span style="display:flex;">${getIcon('sparkles')}</span> Find Coordinated Group Flights (${totalParticipants} Travelers)
+                <span style="display:flex;">${getIcon('sparkles')}</span> Find Coordinated Flights (${originsSet} Ready Travelers)
             </button>
         </div>
     `;
