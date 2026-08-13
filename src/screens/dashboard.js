@@ -154,7 +154,7 @@ export async function renderDashboard(container, tripId) {
 
             <!-- Calendar Feed / Sync Action -->
             <button class="btn btn-secondary btn-sm" id="btn-calendar" title="Export & Sync Flights to Apple/Google Calendar">
-              <span style="display:flex;">${getIcon('calendar')}</span> Calendar
+              <span style="display:flex;">${getIcon('calendar')}</span> Add to Calendar
             </button>
 
             <!-- Share PIN Trigger -->
