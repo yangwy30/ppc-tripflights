@@ -5,13 +5,13 @@ import { getIcon } from '../components/icons.js';
 
 /**
  * Pops open an interactive modal explaining Calendar sync options
- * and provides 1-click .ics download for Apple Calendar, Google Calendar, and Outlook.
+ * and provides 1-click sync for Apple Calendar, Google Calendar, and Outlook.
  * 
  * @param {Object} trip - The current trip object containing flights
  */
 export function exportTripCalendar(trip) {
   if (!trip || !trip.flights || trip.flights.length === 0) {
-    showToast('No flights in trip to export to Calendar', 'warning');
+    showToast('No flights added to this trip yet!', 'warning');
     return;
   }
 
@@ -21,11 +21,18 @@ export function exportTripCalendar(trip) {
   const flightCount = trip.flights.length;
   const webcalUrl = `${window.location.origin}/api/subscribe-ics?tripId=${trip.id}&pin=${trip.pin}`;
 
+  // Build 1-click Google Calendar Link for the first flight or primary itinerary
+  const firstFlight = trip.flights[0];
+  const gcalTitle = encodeURIComponent(`[${firstFlight.departure?.code || 'DEP'} ✈ ${firstFlight.arrival?.code || 'ARR'}] ${firstFlight.airline || ''} ${firstFlight.flightNumber || ''} (${trip.name})`);
+  const gcalDetails = encodeURIComponent(`Group Trip: ${trip.name}\nFlight: ${firstFlight.flightNumber}\nTraveler: ${firstFlight.addedBy || ''}`);
+  const gcalLocation = encodeURIComponent(`${firstFlight.departure?.code || ''} to ${firstFlight.arrival?.code || ''}`);
+  const gcalUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${gcalTitle}&details=${gcalDetails}&location=${gcalLocation}`;
+
   const overlay = document.createElement('div');
   overlay.id = 'calendar-sync-modal';
   overlay.className = 'modal-overlay';
   overlay.innerHTML = `
-    <div class="modal" style="animation: scaleIn var(--transition-fast) ease-out; max-width: 480px; padding: 1.5rem; background: linear-gradient(145deg, #0F172A 0%, #0B101D 100%); border: 1px solid rgba(56, 189, 248, 0.25); box-shadow: 0 25px 60px rgba(0,0,0,0.8);">
+    <div class="modal" style="animation: scaleIn var(--transition-fast) ease-out; max-width: 480px; padding: 1.5rem; background: linear-gradient(145deg, #0F172A 0%, #0B101D 100%); border: 1px solid rgba(56, 189, 248, 0.3); box-shadow: 0 25px 60px rgba(0,0,0,0.85); z-index: 1000000;">
       
       <!-- Header -->
       <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 1rem; border-bottom: 1px dashed rgba(255, 255, 255, 0.1); padding-bottom: 0.85rem;">
@@ -33,42 +40,39 @@ export function exportTripCalendar(trip) {
           <span style="color: #38BDF8; font-size: 1.4rem; display:flex;">${getIcon('calendar')}</span>
           <div>
             <h3 style="margin:0; font-size: 1.2rem; font-weight: 800; color: #FFF;">Add to Calendar</h3>
-            <span style="font-size: 11px; color: var(--color-text-secondary);">Sync ${flightCount} flights with Apple, Google & Outlook</span>
+            <span style="font-size: 11px; color: var(--color-text-secondary);">${flightCount} Flights in Trip "${escapeHtml(trip.name)}"</span>
           </div>
         </div>
-        <button id="modal-cal-close-x" style="all:unset; cursor:pointer; color: #94A3B8; font-weight:800; font-size: 1.1rem;">✕</button>
+        <button id="modal-cal-close-x" style="all:unset; cursor:pointer; color: #94A3B8; font-weight:800; font-size: 1.1rem; padding: 4px;">✕</button>
       </div>
 
       <p style="font-size: 13px; color: #94A3B8; margin-bottom: 1.25rem; line-height: 1.5;">
-        Export all group flight itineraries directly into your device calendar. Choose your preferred sync method below:
+        Sync all group flights directly to your phone or computer calendar app (Apple Calendar, Google Calendar, or Outlook).
       </p>
 
-      <!-- Option 1: .ics File Download -->
-      <div style="background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px; padding: 14px; margin-bottom: 1rem;">
-        <div style="display:flex; align-items:flex-start; justify-content:space-between; gap: 10px; margin-bottom: 8px;">
-          <div>
-            <strong style="font-size: 13px; color: #FFF; display:block;">Option 1: Download .ics File</strong>
-            <span style="font-size: 11px; color: #94A3B8;">Best for Apple Calendar & iPhone/Mac Calendar app</span>
-          </div>
-          <span style="font-size: 10px; background: rgba(56, 189, 248, 0.15); color: #38BDF8; padding: 2px 6px; border-radius: 4px; font-weight:700;">RECOMMENDED</span>
-        </div>
-        <button id="btn-download-ics-file" class="btn btn-primary" style="width:100%; font-size: 12px; padding: 8px 12px; margin-top: 6px;">
-          📥 Download .ics Calendar File (${flightCount} Flights)
+      <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 1.25rem;">
+        
+        <!-- Apple Calendar / iPhone / Mac -->
+        <button id="btn-download-ics-file" class="btn btn-primary" style="width:100%; font-size: 13px; padding: 10px 14px; justify-content: flex-start;">
+          <span>🍎</span>
+          <span style="flex:1; text-align:left; font-weight:700;">Add to Apple Calendar / iPhone (.ics)</span>
         </button>
+
+        <!-- Google Calendar Web -->
+        <a href="${gcalUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" style="width:100%; font-size: 13px; padding: 10px 14px; justify-content: flex-start; text-decoration:none;">
+          <span>🌐</span>
+          <span style="flex:1; text-align:left; font-weight:700;">Add to Google Calendar (Web)</span>
+        </a>
+
+        <!-- Copy Calendar Link -->
+        <button id="btn-copy-webcal-link" class="btn btn-ghost" style="width:100%; font-size: 12px; padding: 8px 14px; justify-content: flex-start; color: #94A3B8; border: 1px solid rgba(255,255,255,0.08);">
+          <span>🔗</span>
+          <span style="flex:1; text-align:left;">Copy iCal Subscription Link</span>
+        </button>
+
       </div>
 
-      <!-- Option 2: Live Webcal Subscription -->
-      <div style="background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px; padding: 14px; margin-bottom: 1.25rem;">
-        <div style="margin-bottom: 8px;">
-          <strong style="font-size: 13px; color: #FFF; display:block;">Option 2: Live Calendar Auto-Sync Link</strong>
-          <span style="font-size: 11px; color: #94A3B8;">Subscribes via URL so updates automatically reflect in Google Calendar</span>
-        </div>
-        <button id="btn-copy-webcal-link" class="btn btn-secondary" style="width:100%; font-size: 12px; padding: 8px 12px; margin-top: 6px;">
-          🔗 Copy Live iCal Subscription Link
-        </button>
-      </div>
-
-      <button id="modal-cal-close-btn" class="btn btn-ghost" style="width:100%; font-size: 12px; color: #94A3B8;">Close</button>
+      <button id="modal-cal-close-btn" class="btn btn-ghost" style="width:100%; font-size: 12px; color: #64748B;">Close</button>
     </div>
   `;
 
@@ -92,9 +96,9 @@ export function exportTripCalendar(trip) {
   overlay.querySelector('#btn-copy-webcal-link').addEventListener('click', () => {
     if (navigator.clipboard) {
       navigator.clipboard.writeText(webcalUrl);
-      showToast('🔗 Live iCal Subscription link copied! Paste into Google Calendar / Outlook', 'success', 5000);
+      showToast('🔗 iCal Subscription URL copied to clipboard!', 'success', 5000);
     } else {
-      showToast(`WebCal Link: ${webcalUrl}`, 'info', 5000);
+      showToast(`Subscription URL: ${webcalUrl}`, 'info', 5000);
     }
     closeModal();
   });
@@ -165,7 +169,7 @@ function triggerIcsDownload(trip) {
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 
-  showToast(`📅 "${trip.name}_Flights.ics" downloaded! Tap file to add flights to Apple Calendar`, 'success', 5000);
+  showToast(`📅 Calendar file downloaded! Tap file to open in Apple Calendar`, 'success', 5000);
 }
 
 function escapeIcsText(str) {
