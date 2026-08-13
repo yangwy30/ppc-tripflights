@@ -26,11 +26,21 @@ export function getTokenForTrip(tripId) {
     return tokens[tripId] || null;
 }
 
-export function getUserNickname(tripId) {
+export function getUserNickname(tripId, trip = null) {
     try {
         const raw = localStorage.getItem(NICKNAME_KEY);
         const map = raw ? JSON.parse(raw) : {};
-        return map[tripId] || '';
+        if (map[tripId]) return map[tripId];
+        
+        if (trip && trip.participants && trip.participants.length > 0) {
+            const first = trip.participants[0];
+            const fallback = typeof first === 'string' ? first : first.name;
+            if (fallback) {
+                saveNickname(tripId, fallback);
+                return fallback;
+            }
+        }
+        return '';
     } catch {
         return '';
     }

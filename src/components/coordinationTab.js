@@ -1,9 +1,9 @@
-/* Coordination Tab */
+/* Coordination Tab — Group Flight Engine */
 
 import { generateGroupOptions } from '../data/coordinationEngine.js';
 import { generateConciergeSummary } from '../data/aiService.js';
 import { renderRecommendationCard } from './recommendationCard.js';
-import { getUserNickname, addFlight, setParticipantHomeAirport } from '../data/dataAdapter.js';
+import { getUserNickname, saveNickname, addFlight, setParticipantHomeAirport } from '../data/dataAdapter.js';
 import { showToast } from './toast.js';
 import { emit, EVENTS } from '../data/store.js';
 import { getIcon } from './icons.js';
@@ -26,19 +26,27 @@ export async function renderCoordinationTab(container, trip) {
     let aiSummary = cached?.aiSummary || '';
     let searchDate = cached?.searchDate || trip.startDate || new Date().toISOString().split('T')[0];
 
-    // We need the trip destination and each participant's origin
+    // Ensure current nickname is resolved with automatic fallback to trip participants
+    let currentNickname = getUserNickname(trip.id, trip);
+    
+    // Fallback if trip participants exist but none matched
+    const participantList = (trip.participants || []).map(p => typeof p === 'string' ? { name: p } : p);
+    let currentUser = participantList.find(p => p.name.trim().toLowerCase() === (currentNickname || '').trim().toLowerCase());
+    
+    if (!currentUser && participantList.length > 0) {
+        currentUser = participantList[0];
+        currentNickname = currentUser.name;
+        saveNickname(trip.id, currentNickname);
+    }
+
     const destination = trip.destinationAirport;
-    const origins = trip.participants.map(p => p.homeAirport).filter(Boolean); // Filter out empty ones
-
-    const currentNickname = getUserNickname(trip.id);
-    const currentUser = trip.participants.find(p => p.name === currentNickname);
-
-    const hasBookedFlight = trip.flights && trip.flights.some(f => f.addedBy === currentNickname);
+    const origins = participantList.map(p => p.homeAirport).filter(Boolean);
+    const hasBookedFlight = trip.flights && trip.flights.some(f => (f.addedBy || '').trim().toLowerCase() === (currentNickname || '').trim().toLowerCase());
 
     const render = () => {
         container.innerHTML = `
             <div class="coordination-panel">
-                ${renderStatusHeader(trip, origins, currentUser)}
+                ${renderStatusHeader(trip, origins, currentUser, participantList, currentNickname)}
                 ${hasBookedFlight ? renderBookedSuccessState(trip, origins, currentNickname) : ''}
                 
                 ${state === 'idle' ? renderIdleState() : ''}
@@ -46,6 +54,20 @@ export async function renderCoordinationTab(container, trip) {
                 ${state === 'results' ? renderResultsState(options, aiSummary, currentNickname, searchDate) : ''}
             </div>
         `;
+
+        // Switch Active Traveler Profile Trigger
+        const travelerSelect = container.querySelector('#select-active-traveler');
+        if (travelerSelect) {
+            travelerSelect.addEventListener('change', (e) => {
+                const newName = e.target.value;
+                if (!newName) return;
+                saveNickname(trip.id, newName);
+                currentNickname = newName;
+                currentUser = participantList.find(p => p.name === newName) || { name: newName };
+                showToast(`Operating as ${newName}`, 'info');
+                render();
+            });
+        }
 
         // Home airport save trigger
         const homeSaveBtn = container.querySelector('#btn-save-home-airport');
@@ -57,16 +79,17 @@ export async function renderCoordinationTab(container, trip) {
                 homeSaveBtn.disabled = true;
                 homeSaveBtn.textContent = 'Saving...';
                 await setParticipantHomeAirport(trip.id, currentNickname, val);
-                showToast(`Origin set to ${val}`, 'success');
-                // Refresh trip object
-                trip.participants.forEach(p => {
+                showToast(`Departure airport for ${currentNickname} set to ${val}`, 'success');
+                
+                // Refresh local participant list
+                participantList.forEach(p => {
                     if (p.name === currentNickname) p.homeAirport = val;
                 });
                 render();
             });
         }
 
-        // Attach event listeners after render
+        // Search Group Flights Trigger
         const fetchBtn = container.querySelector('#btn-find-flights');
         if (fetchBtn) {
             fetchBtn.addEventListener('click', async () => {
@@ -103,6 +126,7 @@ export async function renderCoordinationTab(container, trip) {
                     btn.disabled = true;
                     btn.textContent = 'Adding...';
                     const entry = JSON.parse(decodeURIComponent(entryStr));
+                    const targetTraveler = entry.passengerName || currentNickname;
 
                     if (entry.outbound && entry.outbound.airline) {
                         await addFlight(trip.id, {
@@ -110,9 +134,9 @@ export async function renderCoordinationTab(container, trip) {
                             airline: entry.outbound.airline,
                             departure: { code: entry.outbound.origin, time: entry.outbound.departureTime },
                             arrival: { code: entry.outbound.destination, time: entry.outbound.arrivalTime },
-                            date: entry.outbound.date,
+                            date: entry.outbound.date || searchDate,
                             duration: entry.outbound.duration,
-                            addedBy: currentNickname,
+                            addedBy: targetTraveler,
                             status: 'scheduled'
                         });
                     }
@@ -123,15 +147,15 @@ export async function renderCoordinationTab(container, trip) {
                             airline: entry.inbound.airline,
                             departure: { code: entry.inbound.origin, time: entry.inbound.departureTime },
                             arrival: { code: entry.inbound.destination, time: entry.inbound.arrivalTime },
-                            date: entry.inbound.date,
+                            date: entry.inbound.date || searchDate,
                             duration: entry.inbound.duration,
-                            addedBy: currentNickname,
+                            addedBy: targetTraveler,
                             status: 'scheduled'
                         });
                     }
 
                     emit(EVENTS.FLIGHT_ADDED);
-                    showToast('Flights added to your timeline!', 'success');
+                    showToast(`Flight added for ${targetTraveler}!`, 'success');
 
                     // Switch to timeline tab automatically
                     const timelineTabBtn = document.querySelector('.tab-btn[data-tab="timeline"]');
@@ -150,45 +174,47 @@ export async function renderCoordinationTab(container, trip) {
     render();
 }
 
-function renderStatusHeader(trip, origins, currentUser) {
-    const totalParticipants = trip.participants.length;
+function renderStatusHeader(trip, origins, currentUser, participantList, currentNickname) {
+    const totalParticipants = participantList.length;
     const originsSet = origins.length;
     const missing = totalParticipants - originsSet;
     const currentHome = currentUser?.homeAirport || '';
 
-    const overrides = trip.participants
-        .filter(p => p.destinationAirport && p.destinationAirport !== trip.destinationAirport)
-        .map(p => `${p.name} → ${p.destinationAirport}`);
-
     let destHtml = `<strong style="font-family:var(--font-family-mono); color: #38BDF8;">${trip.destinationAirport || 'LAX'}</strong>`;
     let retHtml = trip.returnAirport ? ` • Return: <strong style="font-family:var(--font-family-mono); color: #60A5FA;">${trip.returnAirport}</strong>` : '';
 
-    if (overrides.length > 0) {
-        const overrideStr = `<span style="font-size: 0.85em; color: var(--color-text-secondary); margin-left: 4px;">(${overrides.join(', ')})</span>`;
-        destHtml += overrideStr;
-        if (trip.returnAirport) retHtml += overrideStr;
-    }
-
     return `
         <div class="card mb-base" style="padding: 1.25rem;">
-            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 0.75rem;">
+            <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-bottom: 0.85rem;">
                 <div style="display:flex; align-items:center; gap: 8px;">
                     <span style="color: #38BDF8; display:flex;">${getIcon('sparkles')}</span>
                     <h3 style="margin:0; font-size: 1.15rem; font-weight: 800; letter-spacing: -0.02em;">Group Flight Search Engine</h3>
                 </div>
+
+                <!-- Traveler Profile Switcher Dropdown -->
+                <div style="display:flex; align-items:center; gap: 6px; background: rgba(255,255,255,0.05); padding: 4px 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);">
+                    <span style="font-size: 11px; color: var(--color-text-tertiary); font-weight: 600;">Operating as:</span>
+                    <select id="select-active-traveler" style="all:unset; cursor:pointer; font-family: var(--font-family-mono); font-size: 12px; font-weight: 800; color: #38BDF8;">
+                        ${participantList.map(p => `
+                            <option value="${escapeHtml(p.name)}" ${p.name === currentNickname ? 'selected' : ''} style="background:#0F172A; color:#FFF;">
+                                ${escapeHtml(p.name)} ${p.homeAirport ? `(${p.homeAirport})` : ''}
+                            </option>
+                        `).join('')}
+                    </select>
+                </div>
             </div>
 
-            <p style="font-size: var(--font-size-sm); margin-bottom: 0.75rem; color: var(--color-text-secondary);">
+            <p style="font-size: var(--font-size-sm); margin-bottom: 0.85rem; color: var(--color-text-secondary);">
                 Target Destination: ${destHtml} ${retHtml}
             </p>
 
-            <!-- Inline Home/Origin Airport Editor for Current User -->
+            <!-- Inline Departure Airport Editor for Currently Selected Traveler -->
             <div style="background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 10px; padding: 10px 14px; margin-bottom: 1rem;">
                 <div style="display:flex; align-items:center; justify-content:space-between; gap: 10px; flex-wrap:wrap;">
                     <div>
-                        <span style="font-size: 11px; font-weight: 700; color: var(--color-text-tertiary); text-transform: uppercase; letter-spacing: 0.05em;">Your Departure Airport (${escapeHtml(currentUser?.name || 'You')})</span>
+                        <span style="font-size: 11px; font-weight: 700; color: var(--color-text-tertiary); text-transform: uppercase; letter-spacing: 0.05em;">Departure Airport for ${escapeHtml(currentNickname)}</span>
                         <div style="font-family: var(--font-family-mono); font-size: 13px; font-weight: 700; color: #FFFFFF; margin-top: 2px;">
-                            ${currentHome ? `<span style="color: #38BDF8;">${escapeHtml(currentHome)}</span>` : '<span style="color: var(--color-warning);">Not Set Yet</span>'}
+                            ${currentHome ? `<span style="color: #38BDF8;">${escapeHtml(currentHome)}</span>` : '<span style="color: var(--color-warning);">Not Set (Defaulting to JFK)</span>'}
                         </div>
                     </div>
 
@@ -202,13 +228,13 @@ function renderStatusHeader(trip, origins, currentUser) {
             </div>
 
             <div style="font-size: var(--font-size-xs); color: var(--color-text-secondary); margin-bottom: 0.85rem;">
-                ${missing === 0
-            ? `All ${totalParticipants} travelers have designated their departure airport.`
-            : `${originsSet} of ${totalParticipants} travelers have set their origin (${missing} unassigned fallback to JFK).`}
+                ${originsSet === totalParticipants
+                    ? `All ${totalParticipants} travelers have set their departure airport.`
+                    : `${originsSet} of ${totalParticipants} travelers set departure. Unassigned travelers will search from JFK.`}
             </div>
             
             <button id="btn-find-flights" class="btn btn-primary" style="width: 100%; font-size: var(--font-size-sm); padding: 0.75rem var(--space-base);">
-                <span style="display:flex;">${getIcon('sparkles')}</span> Find Coordinated Group Flights
+                <span style="display:flex;">${getIcon('sparkles')}</span> Find Coordinated Group Flights (${totalParticipants} Travelers)
             </button>
         </div>
     `;
@@ -217,26 +243,22 @@ function renderStatusHeader(trip, origins, currentUser) {
 function renderIdleState() {
     return `
         <div class="empty-state" style="padding: var(--space-xl) 0;">
-            <div class="empty-state-icon" style="display:flex; justify-content:center;">${getIcon('sparkles')}</div>
+            <div class="empty-state-icon" style="display:flex; justify-content:center; color: #38BDF8;">${getIcon('sparkles')}</div>
             <h3>Ready to Coordinate</h3>
-            <p>Click the button above to search group flight options.</p>
+            <p>Click the button above to search flight combinations for all group travelers.</p>
         </div>
     `;
 }
 
 function renderBookedSuccessState(trip, origins, currentNickname) {
-    const totalParticipants = trip.participants.length;
-    const originsSet = origins.length;
-    const missing = totalParticipants - originsSet;
-
     return `
-        <div class="card mb-base" style="padding: var(--space-lg); display: flex; align-items: center; justify-content: space-between; gap: var(--space-md);">
+        <div class="card mb-base" style="padding: 1rem 1.25rem; display: flex; align-items: center; justify-content: space-between; gap: var(--space-md); border-left: 3px solid var(--color-success);">
             <div style="display:flex; align-items:center; gap: 12px;">
                 <span style="color: var(--color-success); display:flex;">${getIcon('plane')}</span>
                 <div>
-                    <div style="font-weight: 700; font-size: var(--font-size-base); color: var(--color-text-primary);">Flight Added (${escapeHtml(currentNickname)})</div>
+                    <div style="font-weight: 700; font-size: var(--font-size-sm); color: var(--color-text-primary);">Flight Booked / Added for ${escapeHtml(currentNickname)}</div>
                     <div style="font-size: var(--font-size-xs); color: var(--color-text-secondary); margin-top: 2px;">
-                        ${missing === 0 ? 'All traveler home airports set' : `Waiting on ${missing} traveler(s)`}
+                        Check the Flights tab to view your active boarding pass.
                     </div>
                 </div>
             </div>
@@ -247,9 +269,9 @@ function renderBookedSuccessState(trip, origins, currentNickname) {
 function renderLoadingState() {
     return `
         <div class="empty-state" style="padding: var(--space-xl) 0;">
-            <div style="font-size: 2rem; animation: pulse 1.5s infinite; display:flex; justify-content:center;">${getIcon('sparkles')}</div>
+            <div style="font-size: 2rem; animation: pulse 1.5s infinite; display:flex; justify-content:center; color: #38BDF8;">${getIcon('sparkles')}</div>
             <h3 style="margin-top: var(--space-md); font-weight: 800;">Analyzing Flight Combinations...</h3>
-            <p>Fetching flights and calculating optimal arrival alignments.</p>
+            <p style="color: var(--color-text-secondary);">Fetching live flight schedules and calculating optimal group arrival alignment.</p>
         </div>
     `;
 }
@@ -257,30 +279,37 @@ function renderLoadingState() {
 function renderResultsState(options, aiSummary, currentNickname, searchDate) {
     if (options.length === 0) {
         return `
-            <div class="empty-state">
-                <div class="empty-state-icon" style="display:flex; justify-content:center;">${getIcon('plane')}</div>
+            <div class="empty-state" style="padding: var(--space-xl) 0;">
+                <div class="empty-state-icon" style="display:flex; justify-content:center; color: var(--color-warning);">${getIcon('plane')}</div>
                 <h3>No Group Matches Found</h3>
-                <p>We couldn't find flights that get everyone to the destination on the same day.</p>
+                <p>We couldn't find flight combinations for all travelers on the specified date.</p>
             </div>
         `;
     }
 
     return `
         <!-- AI Concierge Summary -->
-        <div class="card mb-base" style="background: var(--color-accent-light); border: 1px solid rgba(10, 132, 255, 0.2); padding: var(--space-md);">
-            <div style="display:flex; align-items:center; gap: 8px; margin-bottom: var(--space-sm);">
-                <span style="display:flex; color: var(--color-accent);">${getIcon('sparkles')}</span>
-                <strong style="color: var(--color-accent); font-weight:700;">AI Concierge Summary</strong>
+        <div class="card mb-base" style="background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.25); padding: 1rem 1.25rem;">
+            <div style="display:flex; align-items:center; gap: 8px; margin-bottom: 6px;">
+                <span style="display:flex; color: #38BDF8;">${getIcon('sparkles')}</span>
+                <strong style="color: #38BDF8; font-weight:700; font-size: 13px;">AI Concierge Summary</strong>
             </div>
-            <p style="font-size: var(--font-size-sm); font-style: italic; color: var(--color-text-primary);">
+            <p style="font-size: var(--font-size-sm); font-style: italic; color: var(--color-text-primary); margin: 0;">
                 "${aiSummary}"
             </p>
         </div>
 
-        <h3 style="margin-bottom: var(--space-sm); font-weight: 800; letter-spacing: -0.02em;">Top Options for your Group</h3>
+        <h3 style="margin-bottom: var(--space-md); font-weight: 800; letter-spacing: -0.02em;">Top Coordinated Flight Combinations</h3>
         
         <div class="recommendations-list" style="display: flex; flex-direction: column; gap: var(--space-md);">
             ${options.map((opt, i) => renderRecommendationCard(opt, i + 1, currentNickname, searchDate)).join('')}
         </div>
     `;
+}
+
+function escapeHtml(str) {
+    if (!str) return '';
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
 }
