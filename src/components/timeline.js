@@ -1,14 +1,14 @@
-/* Timeline Engine */
+/* Timeline Engine — Smart Auto-Zoom & Arrival Cluster Redesign */
 
 import { getIcon } from './icons.js';
 
 const PERSON_COLORS_HEX = [
   '#38BDF8', // Person 1: Sky Cyan
-  '#FF2D55', // Person 2: Neon Coral Red
+  '#F43F5E', // Person 2: Neon Coral Red
   '#F59E0B', // Person 3: Amber Gold
-  '#AF52DE', // Person 4: Electric Violet
-  '#34C759', // Person 5: Mint Green
-  '#FF9500'  // Person 6: Bright Orange
+  '#A855F7', // Person 4: Electric Violet
+  '#10B981', // Person 5: Mint Green
+  '#FB923C'  // Person 6: Bright Orange
 ];
 
 export function renderTimeline(container, tripOrFlights, participantsOrFilter, filterPerson = 'all') {
@@ -36,229 +36,294 @@ export function renderTimeline(container, tripOrFlights, participantsOrFilter, f
 
   if (!flights || flights.length === 0) {
     container.innerHTML = `
-      <div class="empty-state card text-center" style="padding: var(--space-2xl) var(--space-lg);">
-        <div class="empty-state-icon" style="display:flex; justify-content:center; margin-bottom: var(--space-sm); font-size: 2.5rem;">${getIcon('timeline')}</div>
-        <h3 style="margin-bottom: var(--space-xs); font-weight: 700;">No flights on timeline</h3>
+      <div class="empty-state card text-center" style="padding: var(--space-2xl) var(--space-lg); background: var(--color-surface); border-radius: 16px;">
+        <div class="empty-state-icon" style="display:flex; justify-content:center; margin-bottom: var(--space-sm); font-size: 2.5rem; color: var(--color-accent);">${getIcon('timeline')}</div>
+        <h3 style="margin-bottom: var(--space-xs); font-weight: 800;">No flights on timeline</h3>
         <p style="color: var(--color-text-secondary); font-size: var(--font-size-sm);">Add flights to see them visualized across dates</p>
       </div>
     `;
     return;
   }
 
-  // Determine total date range from flights
-  const allDates = flights.map(f => f.date).filter(Boolean).sort();
-  const startDate = allDates[0];
-  const endDate = allDates[allDates.length - 1];
-
-  const dateList = [];
-  if (startDate && endDate) {
-    let d = new Date(startDate + 'T00:00:00');
-    const end = new Date(endDate + 'T00:00:00');
-    while (d <= end) {
-      dateList.push(d.toISOString().split('T')[0]);
-      d.setDate(d.getDate() + 1);
-    }
-  }
+  // Extract all distinct dates sorted chronologically
+  const dateList = Array.from(new Set(flights.map(f => f.date).filter(Boolean))).sort();
   if (dateList.length === 0) dateList.push(new Date().toISOString().split('T')[0]);
 
-  const totalDays = dateList.length;
-  const dayWidthPx = Math.max(380, totalDays <= 2 ? 550 : 400);
-  const totalWidthPx = `${totalDays * dayWidthPx + 120}px`; // 120px label offset + grid width
+  // Selected active date tab (defaults to first date)
+  let activeDate = dateList[0];
 
-  // Group flights by person
-  const personFlights = {};
-  participants.forEach(p => { personFlights[p.name] = []; });
-  flights.forEach(f => {
-    const name = f.addedBy || 'Unknown';
-    if (!personFlights[name]) personFlights[name] = [];
-    personFlights[name].push(f);
-  });
+  function renderInner() {
+    const activeFlights = flights.filter(f => f.date === activeDate);
+    const renderFlights = activeFlights.length > 0 ? activeFlights : flights;
 
-  let html = '<div class="tl-wrapper" style="background: #090A0F; border-radius: 16px; padding: 16px; border: 1px solid rgba(255, 255, 255, 0.08); box-shadow: 0 20px 40px rgba(0,0,0,0.6);">';
+    // 1. SMART AUTO-CROP TIME WINDOW CALCULATIONS
+    let minHour = 24;
+    let maxHour = 0;
 
-  // Legend Header
-  html += '<div class="tl-legend" style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.06);">';
-  html += '<div style="display:flex; align-items:center; gap: 12px; flex-wrap:wrap;">';
-  participants.forEach((p, i) => {
-    html += `
-      <div class="tl-legend-item" style="display:flex; align-items:center; gap: 6px; font-size: 11px; font-weight: 600; color: #94A3B8; font-family: var(--font-family-mono);">
-        <span class="tl-legend-dot" style="width: 8px; height: 8px; border-radius: 50%; background:${PERSON_COLORS_HEX[i % 6]}; box-shadow: 0 0 8px ${PERSON_COLORS_HEX[i % 6]};"></span>
-        <span>${escapeHtml(p.name)}</span>
-      </div>
-    `;
-  });
-  html += '</div>';
-  html += '</div>';
+    renderFlights.forEach(f => {
+      const depH = parseTime(f.departure?.time);
+      let arrH = parseTime(f.arrival?.time);
+      if (arrH <= depH) arrH += 24; // overnight flight
 
-  // Scrollable container
-  html += `<div class="tl-scroll" style="overflow-x: auto; scrollbar-width: thin;">`;
-  html += `<div class="tl-canvas" style="min-width: ${totalWidthPx}; position: relative; padding-bottom: 10px;">`;
+      minHour = Math.min(minHour, depH);
+      maxHour = Math.max(maxHour, arrH);
+    });
 
-  // Date Header Row with 120px Label Spacer Alignment
-  html += '<div class="tl-date-row" style="display: flex; align-items: center; border-bottom: 1px solid rgba(255, 255, 255, 0.08); margin-bottom: 16px; padding-bottom: 8px;">';
-  html += '<div style="width: 120px; flex-shrink: 0; padding: 4px 8px; font-size: 10px; font-weight: 800; letter-spacing: 1.2px; color: #64748B; font-family: var(--font-family-mono); text-transform: uppercase;">MEMBER</div>';
-  html += '<div style="flex: 1; display: flex;">';
-  dateList.forEach((date) => {
-    const widthPct = (100 / totalDays);
-    html += `
-      <div class="tl-date-cell" style="width:${widthPct}%; border-right: 1px dashed rgba(255, 255, 255, 0.06); padding: 0 8px;">
-        <div class="tl-date-label" style="font-size: 12px; font-weight: 800; color: #F8FAFC; font-family: var(--font-family-mono); text-align: center; letter-spacing: 0.5px;">${formatDateShort(date)}</div>
-        <div class="tl-hour-subrow" style="display: flex; justify-content: space-between; font-size: 9px; font-weight: 700; color: #64748B; font-family: var(--font-family-mono); margin-top: 6px; opacity: 0.85;">
-          <span>00:00</span>
-          <span>06:00</span>
-          <span>12:00</span>
-          <span>18:00</span>
-        </div>
-      </div>
-    `;
-  });
-  html += '</div></div>';
-
-  // Background Grid Lines layer (Offset 120px from left)
-  html += '<div class="tl-grid" style="position: absolute; top: 48px; left: 120px; right: 0; bottom: 0; pointer-events: none;">';
-  dateList.forEach((date, dayIdx) => {
-    const dayStartPct = (dayIdx / totalDays) * 100;
-    const dayWidthPct = 100 / totalDays;
-    for (let h = 0; h <= 24; h += 6) {
-      const xPct = dayStartPct + (h / 24) * dayWidthPct;
-      html += `<div class="tl-grid-line" style="position: absolute; top: 0; bottom: 0; width: 1px; background: rgba(255, 255, 255, 0.04); left:${xPct}%;"></div>`;
+    // Fallbacks if single point or invalid
+    if (minHour >= maxHour) {
+      minHour = 8;
+      maxHour = 22;
     }
-  });
-  html += '</div>';
 
-  // Person Rows Layer — Clean Transparent Tracks (NO outer track box!)
-  participants.forEach((person, personIdx) => {
-    const color = PERSON_COLORS_HEX[personIdx % 6];
-    const pFlights = personFlights[person.name] || [];
-    if (pFlights.length === 0) return;
+    // Smart Padding: 1 hour before earliest dep, 1 hour after latest arr
+    minHour = Math.max(0, Math.floor(minHour - 1));
+    maxHour = Math.min(30, Math.ceil(maxHour + 1));
 
-    html += `<div class="tl-person-row" style="display: flex; align-items: center; height: 48px; margin-bottom: 12px; position: relative; z-index: 2; border-bottom: 1px solid rgba(255, 255, 255, 0.03);">`;
-    html += `<div class="tl-person-label" style="width: 120px; flex-shrink: 0; font-size: 12px; font-weight: 700; color: #E2E8F0; display: flex; align-items: center; gap: 8px; padding-right: 12px;">
-      <span class="tl-person-dot" style="width: 10px; height: 10px; border-radius: 50%; background:${color}; box-shadow: 0 0 10px ${color}; flex-shrink: 0;"></span>
-      <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(person.name)}</span>
-    </div>`;
+    // Ensure minimum 5-hour span for visual breathing room
+    if (maxHour - minHour < 5) {
+      maxHour = Math.min(30, minHour + 5);
+    }
 
-    // TRANSPARENT row track without any enclosing dark box!
-    html += `<div class="tl-person-bars" style="flex: 1; position: relative; height: 44px;">`;
+    const totalHoursSpan = maxHour - minHour;
 
-    pFlights.forEach((flight) => {
-      const depTimeStr = flight.departure?.time || '00:00';
-      const arrTimeStr = flight.arrival?.time || '00:00';
+    // 2. ARRIVAL CLUSTER HEATMAP DETECTION
+    const arrivalClusters = detectArrivalClusters(renderFlights);
+    const topCluster = arrivalClusters.length > 0 ? arrivalClusters[0] : null;
 
-      const depHour = parseTime(depTimeStr);
-      let arrHour = parseTime(arrTimeStr);
+    // Generate Hourly Grid Labels
+    const hourlyLabels = [];
+    for (let h = minHour; h <= maxHour; h += (totalHoursSpan > 12 ? 2 : 1)) {
+      const displayH = h % 24;
+      const timeStr = `${String(displayH).padStart(2, '0')}:00`;
+      hourlyLabels.push({ hour: h, label: timeStr });
+    }
 
-      const flightDateIdx = dateList.indexOf(flight.date);
-      if (flightDateIdx < 0) return;
-
-      // Handle overnight arrival (+24h)
-      if (arrHour <= depHour) {
-        arrHour += 24;
-      }
-
-      // EXACT PIXEL ALIGNMENT: Left = Dep Local Time, Right = Arr Local Time
-      const startPct = ((flightDateIdx + depHour / 24) / totalDays) * 100;
-      const endPct = ((flightDateIdx + arrHour / 24) / totalDays) * 100;
-      const widthPct = Math.max(0.8, endPct - startPct);
-
-      const depCode = (flight.departure?.code || 'DEP').toUpperCase();
-      const arrCode = (flight.arrival?.code || 'ARR').toUpperCase();
-      const fn = flight.flightNumber || 'FLIGHT';
-
-      const flightData = encodeURIComponent(JSON.stringify(flight));
-
-      // Elegant Unified Glass Capsule (THE ONLY BOX ON THE ROW!)
-      html += `
-        <div class="tl-bar" data-flight="${flightData}" style="
-          position: absolute;
-          top: 3px;
-          left: ${startPct}%;
-          width: ${widthPct}%;
-          min-width: 155px;
-          height: 38px;
-          background: rgba(15, 23, 42, 0.95);
-          border-left: 4px solid ${color};
-          border-top: 1px solid rgba(255, 255, 255, 0.15);
-          border-right: 1px solid rgba(255, 255, 255, 0.15);
-          border-bottom: 1px solid rgba(255, 255, 255, 0.15);
-          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.7), 0 0 14px ${hexToRgba(color, 0.3)};
-          border-radius: 8px;
-          padding: 0 10px;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          box-sizing: border-box;
-          cursor: pointer;
-          z-index: 10;
-          backdrop-filter: blur(12px);
-          transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease;
-        ">
-          <!-- Flight Number & Airline Code -->
-          <div style="display: flex; align-items: center; gap: 8px;">
-            <span style="
-              font-weight: 900;
-              font-family: var(--font-family-mono);
-              font-size: 11px;
-              color: #FFFFFF;
-              letter-spacing: 0.5px;
-            ">
-              ${escapeHtml(fn)}
-            </span>
-            <span style="
-              font-size: 10px;
-              font-weight: 700;
-              color: ${color};
-              font-family: var(--font-family-mono);
-            ">
-              ${escapeHtml(depCode)}➔${escapeHtml(arrCode)}
-            </span>
+    let html = `
+      <div class="smart-timeline-card" style="background: linear-gradient(145deg, rgba(14, 20, 32, 0.9) 0%, rgba(8, 12, 20, 0.95) 100%); border-radius: 20px; padding: 1.25rem; border: 1px solid rgba(255, 255, 255, 0.1); box-shadow: 0 20px 50px rgba(0,0,0,0.7); backdrop-filter: blur(20px);">
+        
+        <!-- Header Controls & Date Switcher Tabs -->
+        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom: 1rem; border-bottom: 1px dashed rgba(255, 255, 255, 0.08); padding-bottom: 1rem;">
+          <div style="display:flex; align-items:center; gap: 8px;">
+            <span style="color:#38BDF8; display:flex;">${getIcon('timeline')}</span>
+            <h3 style="margin:0; font-size:1.15rem; font-weight:800; letter-spacing:-0.03em; color:#FFFFFF;">
+              Flight Timeline
+            </h3>
           </div>
 
-          <!-- Departure & Arrival Local Times -->
-          <div style="
-            font-size: 10px;
-            font-weight: 700;
-            color: #94A3B8;
-            font-family: var(--font-family-mono);
-            background: rgba(255, 255, 255, 0.08);
-            padding: 2px 6px;
-            border-radius: 4px;
-            margin-left: 6px;
-            white-space: nowrap;
-          ">
-            ${escapeHtml(depTimeStr)} - ${escapeHtml(arrTimeStr)}
+          <!-- Multi-Date Switcher Pills -->
+          <div style="display:flex; align-items:center; gap:6px; background:rgba(255,255,255,0.04); padding:3px; border-radius:999px; border:1px solid rgba(255,255,255,0.08);">
+            ${dateList.map(date => `
+              <button class="tl-date-tab ${date === activeDate ? 'active' : ''}" data-date="${date}" style="all:unset; cursor:pointer; padding:4px 12px; border-radius:999px; font-size:11px; font-weight:700; font-family:var(--font-family-mono); color:${date === activeDate ? '#06070B' : '#94A3B8'}; background:${date === activeDate ? '#38BDF8' : 'transparent'}; transition:all 0.2s ease;">
+                ${formatDateShort(date)}
+              </button>
+            `).join('')}
           </div>
         </div>
-      `;
+
+        <!-- Arrival Cluster Heatmap Pill -->
+        ${topCluster ? `
+          <div class="arrival-cluster-pill" style="background: linear-gradient(90deg, rgba(56, 189, 248, 0.12) 0%, rgba(16, 185, 129, 0.12) 100%); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 12px; padding: 8px 14px; margin-bottom: 1.25rem; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;">
+            <div style="display:flex; align-items:center; gap: 8px;">
+              <span style="font-size: 14px;">🛬</span>
+              <span style="font-size: 12px; font-weight: 700; color: #38BDF8; font-family: var(--font-family-mono);">
+                ${topCluster.count} Travelers Landing at <strong style="color:#FFF;">${topCluster.airport}</strong> between ${topCluster.minTime} - ${topCluster.maxTime}
+              </span>
+            </div>
+            <div style="display:flex; align-items:center; gap: 4px;">
+              ${topCluster.travelers.map(t => `
+                <span style="font-size:10px; font-weight:700; background:rgba(255,255,255,0.1); padding:2px 8px; border-radius:999px; color:#F8FAFC;">${escapeHtml(t)}</span>
+              `).join('')}
+            </div>
+          </div>
+        ` : ''}
+
+        <!-- Smart Auto-Cropped Canvas -->
+        <div style="position: relative; overflow-x: auto; scrollbar-width: none; padding: 0.5rem 0;">
+          
+          <!-- Timeline Time Axis Header -->
+          <div style="display:flex; align-items:center; border-bottom:1px solid rgba(255,255,255,0.08); padding-bottom:8px; margin-bottom:12px;">
+            <div style="width: 110px; flex-shrink: 0; font-size: 10px; font-weight: 800; color: #64748B; font-family: var(--font-family-mono); letter-spacing: 1px; text-transform: uppercase;">
+              TRAVELER
+            </div>
+            <div style="flex: 1; position: relative; height: 20px;">
+              ${hourlyLabels.map(item => {
+                const pct = ((item.hour - minHour) / totalHoursSpan) * 100;
+                return `
+                  <div style="position: absolute; left: ${pct}%; transform: translateX(-50%); font-size: 11px; font-weight: 700; color: ${item.hour % 24 === 22 ? '#34D399' : '#94A3B8'}; font-family: var(--font-family-mono);">
+                    ${item.label}
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          </div>
+
+          <!-- Timeline Background Vertical Dashed Lines -->
+          <div style="position: absolute; top: 38px; left: 110px; right: 0; bottom: 0; pointer-events: none; z-index: 1;">
+            ${hourlyLabels.map(item => {
+              const pct = ((item.hour - minHour) / totalHoursSpan) * 100;
+              return `
+                <div style="position: absolute; top: 0; bottom: 0; left: ${pct}%; width: 1px; border-left: 1px dashed rgba(255, 255, 255, 0.05);"></div>
+              `;
+            }).join('')}
+          </div>
+
+          <!-- Traveler Rows Stream -->
+          <div style="display: flex; flex-direction: column; gap: 12px; position: relative; z-index: 2;">
+            ${participants.map((person, personIdx) => {
+              const personColor = PERSON_COLORS_HEX[personIdx % 6];
+              const pFlights = renderFlights.filter(f => f.addedBy === person.name);
+              if (pFlights.length === 0) return '';
+
+              return `
+                <div style="display: flex; align-items: center; min-height: 48px;">
+                  
+                  <!-- Traveler Label Pill -->
+                  <div style="width: 110px; flex-shrink: 0; display: flex; align-items: center; gap: 8px; padding-right: 8px;">
+                    <span style="width: 8px; height: 8px; border-radius: 50%; background: ${personColor}; box-shadow: 0 0 10px ${personColor}; flex-shrink: 0;"></span>
+                    <span style="font-size: 12px; font-weight: 700; color: #F8FAFC; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(person.name)}</span>
+                  </div>
+
+                  <!-- Timeline Flight Bar Container -->
+                  <div style="flex: 1; position: relative; height: 46px;">
+                    ${pFlights.map(flight => {
+                      const depHour = parseTime(flight.departure?.time);
+                      let arrHour = parseTime(flight.arrival?.time);
+                      if (arrHour <= depHour) arrHour += 24;
+
+                      // Calculate percentage position along cropped time axis
+                      const startPct = Math.max(0, ((depHour - minHour) / totalHoursSpan) * 100);
+                      const endPct = Math.min(100, ((arrHour - minHour) / totalHoursSpan) * 100);
+                      const widthPct = Math.max(8, endPct - startPct);
+
+                      const depCode = (flight.departure?.code || 'DEP').toUpperCase();
+                      const arrCode = (flight.arrival?.code || 'ARR').toUpperCase();
+                      const flightNo = flight.flightNumber || 'FLIGHT';
+                      const flightData = encodeURIComponent(JSON.stringify(flight));
+
+                      return `
+                        <div class="tl-bar" data-flight="${flightData}" style="
+                          position: absolute;
+                          top: 2px;
+                          left: ${startPct}%;
+                          width: ${widthPct}%;
+                          min-width: 160px;
+                          height: 42px;
+                          background: linear-gradient(135deg, rgba(18, 24, 38, 0.95) 0%, rgba(10, 14, 24, 0.98) 100%);
+                          border-left: 4px solid ${personColor};
+                          border-top: 1px solid rgba(255, 255, 255, 0.12);
+                          border-right: 1px solid rgba(255, 255, 255, 0.12);
+                          border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+                          border-radius: 10px;
+                          padding: 0 10px;
+                          display: flex;
+                          align-items: center;
+                          justify-content: space-between;
+                          box-sizing: border-box;
+                          cursor: pointer;
+                          z-index: 10;
+                          backdrop-filter: blur(16px);
+                          box-shadow: 0 6px 18px rgba(0, 0, 0, 0.6), 0 0 12px ${hexToRgba(personColor, 0.25)};
+                          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+                        ">
+                          
+                          <!-- Left: Flight IATA & Flight Number -->
+                          <div style="display: flex; align-items: center; gap: 6px; overflow: hidden;">
+                            <span style="font-weight: 800; font-family: var(--font-family-mono); font-size: 11px; color: #FFFFFF; letter-spacing: 0.05em; background: rgba(255,255,255,0.08); padding: 2px 6px; border-radius: 4px;">
+                              ${escapeHtml(flightNo)}
+                            </span>
+                            <span style="font-family: var(--font-family-mono); font-size: 12px; font-weight: 800; color: ${personColor}; white-space: nowrap;">
+                              ${escapeHtml(depCode)} ✈ ${escapeHtml(arrCode)}
+                            </span>
+                          </div>
+
+                          <!-- Right: Local Time -->
+                          <div style="font-family: var(--font-family-mono); font-size: 11px; font-weight: 700; color: #94A3B8; white-space: nowrap; margin-left: 6px;">
+                            ${escapeHtml(flight.departure?.time || '')} - ${escapeHtml(flight.arrival?.time || '')}
+                          </div>
+                        </div>
+                      `;
+                    }).join('')}
+                  </div>
+
+                </div>
+              `;
+            }).join('')}
+          </div>
+
+        </div>
+
+      </div>
+    `;
+
+    container.innerHTML = html;
+
+    // Date Switcher Tab Listeners
+    container.querySelectorAll('.tl-date-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        activeDate = tab.getAttribute('data-date');
+        renderInner();
+      });
     });
 
-    html += '</div></div>'; // tl-person-bars, tl-person-row
+    // Bar hover & click handlers
+    container.querySelectorAll('.tl-bar').forEach(bar => {
+      bar.addEventListener('mouseenter', () => {
+        bar.style.transform = 'translateY(-2px) scale(1.02)';
+        bar.style.zIndex = '30';
+      });
+      bar.addEventListener('mouseleave', () => {
+        bar.style.transform = 'none';
+        bar.style.zIndex = '10';
+      });
+      bar.addEventListener('click', () => {
+        try {
+          const flight = JSON.parse(decodeURIComponent(bar.dataset.flight));
+          showFlightDetailModal(flight, participants);
+        } catch (e) {
+          console.warn('Could not parse flight data', e);
+        }
+      });
+    });
+  }
+
+  renderInner();
+}
+
+/**
+ * Detects group arrival clusters (passengers landing within 60 mins of each other)
+ */
+function detectArrivalClusters(flights) {
+  if (!flights || flights.length < 2) return [];
+
+  const airportGroups = {};
+  flights.forEach(f => {
+    const arrCode = (f.arrival?.code || '').toUpperCase().trim();
+    if (!arrCode) return;
+    if (!airportGroups[arrCode]) airportGroups[arrCode] = [];
+    airportGroups[arrCode].push(f);
   });
 
-  html += '</div></div>'; // tl-canvas, tl-scroll
-  html += '</div>'; // tl-wrapper
+  const clusters = [];
+  Object.keys(airportGroups).forEach(code => {
+    const fList = airportGroups[code];
+    if (fList.length < 2) return;
 
-  container.innerHTML = html;
+    // Sort by arrival time
+    const sorted = [...fList].sort((a, b) => parseTime(a.arrival?.time) - parseTime(b.arrival?.time));
+    const minTime = sorted[0].arrival?.time || '18:00';
+    const maxTime = sorted[sorted.length - 1].arrival?.time || '22:00';
+    const travelers = Array.from(new Set(sorted.map(f => f.addedBy)));
 
-  // Click handler for flight detail modal & hover animation
-  container.querySelectorAll('.tl-bar').forEach(bar => {
-    bar.addEventListener('mouseenter', () => {
-      bar.style.transform = 'translateY(-2px) scale(1.02)';
-      bar.style.zIndex = '30';
-    });
-    bar.addEventListener('mouseleave', () => {
-      bar.style.transform = 'none';
-      bar.style.zIndex = '10';
-    });
-    bar.addEventListener('click', () => {
-      try {
-        const flight = JSON.parse(decodeURIComponent(bar.dataset.flight));
-        showFlightDetailModal(flight, participants);
-      } catch (e) {
-        console.warn('Could not parse flight data', e);
-      }
+    clusters.push({
+      airport: code,
+      count: travelers.length,
+      travelers,
+      minTime,
+      maxTime
     });
   });
+
+  return clusters.sort((a, b) => b.count - a.count);
 }
 
 function showFlightDetailModal(flight, participants) {
