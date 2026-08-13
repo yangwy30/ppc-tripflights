@@ -217,6 +217,10 @@ export async function renderAddFlight(container, tripId) {
 
     // --- Event Listeners ---
     container.querySelector('#btn-back').addEventListener('click', () => navigate(`trip/${tripId}`));
+    container.querySelector('#btn-back')?.addEventListener('click', () => {
+      navigate(`trip/${tripId}`);
+    });
+
     container.querySelector('#btn-lookup').addEventListener('click', doLookup);
 
     // Enter key on lookup input

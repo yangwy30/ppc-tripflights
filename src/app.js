@@ -11,21 +11,30 @@ import { loadAirports } from './data/airports.js';
 
 const app = document.getElementById('app');
 
-const routes = {
-    '': renderHome,
-    'home': renderHome,
-    'create': renderCreateTrip,
-    'join': renderJoinTrip,
-    'trip': renderDashboard,
-    'add-flight': renderAddFlight,
-    'notes': renderNotes
-};
-
 function getRoute() {
     const hash = window.location.hash.slice(1) || '';
-    const [path, ...paramParts] = hash.split('/');
-    const params = paramParts.join('/');
-    return { path, params };
+    const parts = hash.split('/').filter(Boolean);
+
+    // Route matching for #trip/:tripId/add-flight, #trip/:tripId/notes, #trip/:tripId
+    if (parts[0] === 'trip' && parts[1]) {
+        const tripId = parts[1];
+        const subRoute = parts[2];
+
+        if (subRoute === 'add-flight') {
+            return { renderFn: renderAddFlight, params: tripId };
+        }
+        if (subRoute === 'notes') {
+            return { renderFn: renderNotes, params: tripId };
+        }
+        return { renderFn: renderDashboard, params: tripId };
+    }
+
+    if (parts[0] === 'create') return { renderFn: renderCreateTrip };
+    if (parts[0] === 'join') return { renderFn: renderJoinTrip };
+    if (parts[0] === 'add-flight') return { renderFn: renderAddFlight, params: parts[1] };
+    if (parts[0] === 'notes') return { renderFn: renderNotes, params: parts[1] };
+
+    return { renderFn: renderHome };
 }
 
 export function navigate(path) {
@@ -33,13 +42,11 @@ export function navigate(path) {
 }
 
 function render() {
-    const { path, params } = getRoute();
-    const routeKey = path.split('/')[0];
-    const renderFn = routes[routeKey] || routes[''];
+    const { renderFn, params } = getRoute();
 
-    // Clear and render
+    // Clear and render target screen
     app.innerHTML = '';
-    renderFn(app, params || path.split('/').slice(1).join('/'));
+    renderFn(app, params);
 }
 
 export function initRouter() {
