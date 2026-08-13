@@ -11,6 +11,8 @@ import { renderRouteMap, destroyRouteMap } from '../components/routeMap.js';
 import { startPolling, stopPolling, isPolling, setAutoRefreshPref, getAutoRefreshPref } from '../data/alertService.js';
 import { getIcon } from '../components/icons.js';
 
+import { exportTripCalendar } from '../data/calendarService.js';
+
 const PERSON_COLORS = [
   'var(--person-1)', 'var(--person-2)', 'var(--person-3)',
   'var(--person-4)', 'var(--person-5)', 'var(--person-6)'
@@ -148,6 +150,11 @@ export async function renderDashboard(container, tripId) {
             <!-- Add Flight Action -->
             <button class="btn btn-primary btn-sm" id="btn-add-flight">
               <span style="display:flex;">${getIcon('plus')}</span> Add Flight
+            </button>
+
+            <!-- Calendar Feed / Sync Action -->
+            <button class="btn btn-secondary btn-sm" id="btn-calendar" title="Export & Sync Flights to Apple/Google Calendar">
+              <span style="display:flex;">${getIcon('calendar')}</span> Calendar
             </button>
 
             <!-- Share PIN Trigger -->
@@ -372,6 +379,11 @@ export async function renderDashboard(container, tripId) {
 
     copyPinTrigger?.addEventListener('click', handleShare);
     shareBtn?.addEventListener('click', handleShare);
+
+    // Calendar Sync Export
+    container.querySelector('#btn-calendar')?.addEventListener('click', () => {
+      exportTripCalendar(currentTrip);
+    });
 
     // Toggle Live Refresh Polling
     container.querySelector('#btn-toggle-refresh')?.addEventListener('click', () => {
