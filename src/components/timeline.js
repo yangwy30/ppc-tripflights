@@ -206,7 +206,7 @@ export function renderTimeline(container, tripOrFlights, participantsOrFilter, f
                           top: 2px;
                           left: ${startPct}%;
                           width: ${widthPct}%;
-                          min-width: 160px;
+                          min-width: 235px;
                           height: 42px;
                           background: linear-gradient(135deg, rgba(18, 24, 38, 0.95) 0%, rgba(10, 14, 24, 0.98) 100%);
                           border-left: 4px solid ${personColor};
@@ -227,17 +227,17 @@ export function renderTimeline(container, tripOrFlights, participantsOrFilter, f
                         ">
                           
                           <!-- Left: Flight IATA & Flight Number -->
-                          <div style="display: flex; align-items: center; gap: 6px; overflow: hidden;">
-                            <span style="font-weight: 800; font-family: var(--font-family-mono); font-size: 11px; color: #FFFFFF; letter-spacing: 0.05em; background: rgba(255,255,255,0.08); padding: 2px 6px; border-radius: 4px;">
+                          <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0; white-space: nowrap;">
+                            <span style="font-weight: 800; font-family: var(--font-family-mono); font-size: 11px; color: #FFFFFF; letter-spacing: 0.05em; background: rgba(255,255,255,0.08); padding: 2px 6px; border-radius: 4px; white-space: nowrap; flex-shrink: 0;">
                               ${escapeHtml(flightNo)}
                             </span>
-                            <span style="font-family: var(--font-family-mono); font-size: 12px; font-weight: 800; color: ${personColor}; white-space: nowrap;">
+                            <span style="font-family: var(--font-family-mono); font-size: 12px; font-weight: 800; color: ${personColor}; white-space: nowrap; flex-shrink: 0;">
                               ${escapeHtml(depCode)} ✈ ${escapeHtml(arrCode)}
                             </span>
                           </div>
 
                           <!-- Right: Local Time -->
-                          <div style="font-family: var(--font-family-mono); font-size: 11px; font-weight: 700; color: #94A3B8; white-space: nowrap; margin-left: 6px;">
+                          <div style="font-family: var(--font-family-mono); font-size: 11px; font-weight: 700; color: #94A3B8; white-space: nowrap; flex-shrink: 0; margin-left: 8px;">
                             ${escapeHtml(flight.departure?.time || '')} - ${escapeHtml(flight.arrival?.time || '')}
                           </div>
                         </div>
