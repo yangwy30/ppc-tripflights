@@ -1,4 +1,4 @@
-/* Timeline Engine — Smart Auto-Zoom & Arrival Cluster Redesign */
+/* Timeline Engine — Smart Auto-Zoom & 100% Precise Grid-Aligned Redesign */
 
 import { getIcon } from './icons.js';
 
@@ -79,9 +79,9 @@ export function renderTimeline(container, tripOrFlights, participantsOrFilter, f
     minHour = Math.max(0, Math.floor(minHour - 1));
     maxHour = Math.min(30, Math.ceil(maxHour + 1));
 
-    // Ensure minimum 5-hour span for visual breathing room
-    if (maxHour - minHour < 5) {
-      maxHour = Math.min(30, minHour + 5);
+    // Ensure minimum 6-hour span for visual breathing room
+    if (maxHour - minHour < 6) {
+      maxHour = Math.min(30, minHour + 6);
     }
 
     const totalHoursSpan = maxHour - minHour;
@@ -99,7 +99,7 @@ export function renderTimeline(container, tripOrFlights, participantsOrFilter, f
     }
 
     let html = `
-      <div class="smart-timeline-card" style="background: linear-gradient(145deg, rgba(14, 20, 32, 0.9) 0%, rgba(8, 12, 20, 0.95) 100%); border-radius: 20px; padding: 1.25rem; border: 1px solid rgba(255, 255, 255, 0.1); box-shadow: 0 20px 50px rgba(0,0,0,0.7); backdrop-filter: blur(20px);">
+      <div class="smart-timeline-card" style="background: linear-gradient(145deg, rgba(14, 20, 32, 0.92) 0%, rgba(8, 12, 20, 0.96) 100%); border-radius: 20px; padding: 1.25rem; border: 1px solid rgba(255, 255, 255, 0.1); box-shadow: 0 20px 50px rgba(0,0,0,0.7); backdrop-filter: blur(20px);">
         
         <!-- Header Controls & Date Switcher Tabs -->
         <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom: 1rem; border-bottom: 1px dashed rgba(255, 255, 255, 0.08); padding-bottom: 1rem;">
@@ -137,11 +137,18 @@ export function renderTimeline(container, tripOrFlights, participantsOrFilter, f
           </div>
         ` : ''}
 
-        <!-- Smart Auto-Cropped Canvas -->
-        <div style="position: relative; overflow-x: auto; scrollbar-width: none; padding: 0.5rem 0;">
+        <!-- Canvas Container with Interactive Hover Guide Lines -->
+        <div class="tl-canvas-wrapper" style="position: relative; overflow-x: auto; scrollbar-width: none; padding: 0.5rem 0;">
           
+          <!-- Interactive Vertical Arrival Alignment Line -->
+          <div id="tl-arrival-guide" style="position: absolute; top: 0; bottom: 0; width: 2px; background: linear-gradient(180deg, #34D399 0%, rgba(52, 211, 153, 0.2) 100%); pointer-events: none; opacity: 0; transition: opacity 0.15s ease, left 0.15s ease; z-index: 50; box-shadow: 0 0 10px #34D399;">
+            <div id="tl-arrival-guide-tag" style="position: absolute; top: -4px; transform: translate(-50%, -100%); background: #34D399; color: #06070B; font-family: var(--font-family-mono); font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 4px; white-space: nowrap; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">
+              Arrival
+            </div>
+          </div>
+
           <!-- Timeline Time Axis Header -->
-          <div style="display:flex; align-items:center; border-bottom:1px solid rgba(255,255,255,0.08); padding-bottom:8px; margin-bottom:12px;">
+          <div style="display:flex; align-items:center; border-bottom:1px solid rgba(255,255,255,0.08); padding-bottom:8px; margin-bottom:14px;">
             <div style="width: 110px; flex-shrink: 0; font-size: 10px; font-weight: 800; color: #64748B; font-family: var(--font-family-mono); letter-spacing: 1px; text-transform: uppercase;">
               TRAVELER
             </div>
@@ -157,7 +164,7 @@ export function renderTimeline(container, tripOrFlights, participantsOrFilter, f
             </div>
           </div>
 
-          <!-- Timeline Background Vertical Dashed Lines -->
+          <!-- Timeline Background Vertical Grid Lines -->
           <div style="position: absolute; top: 38px; left: 110px; right: 0; bottom: 0; pointer-events: none; z-index: 1;">
             ${hourlyLabels.map(item => {
               const pct = ((item.hour - minHour) / totalHoursSpan) * 100;
@@ -168,14 +175,14 @@ export function renderTimeline(container, tripOrFlights, participantsOrFilter, f
           </div>
 
           <!-- Traveler Rows Stream -->
-          <div style="display: flex; flex-direction: column; gap: 12px; position: relative; z-index: 2;">
+          <div style="display: flex; flex-direction: column; gap: 14px; position: relative; z-index: 2;">
             ${participants.map((person, personIdx) => {
               const personColor = PERSON_COLORS_HEX[personIdx % 6];
               const pFlights = renderFlights.filter(f => f.addedBy === person.name);
               if (pFlights.length === 0) return '';
 
               return `
-                <div style="display: flex; align-items: center; min-height: 48px;">
+                <div style="display: flex; align-items: center; min-height: 44px;">
                   
                   <!-- Traveler Label Pill -->
                   <div style="width: 110px; flex-shrink: 0; display: flex; align-items: center; gap: 8px; padding-right: 8px;">
@@ -183,38 +190,46 @@ export function renderTimeline(container, tripOrFlights, participantsOrFilter, f
                     <span style="font-size: 12px; font-weight: 700; color: #F8FAFC; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(person.name)}</span>
                   </div>
 
-                  <!-- Timeline Flight Bar Container -->
-                  <div style="flex: 1; position: relative; height: 46px;">
+                  <!-- Timeline Flight Bar Track (100% MATHEMATICALLY PRECISE PROPORTIONAL WIDTH) -->
+                  <div style="flex: 1; position: relative; height: 42px;">
                     ${pFlights.map(flight => {
                       const depHour = parseTime(flight.departure?.time);
                       let arrHour = parseTime(flight.arrival?.time);
                       if (arrHour <= depHour) arrHour += 24;
 
-                      // Calculate percentage position along cropped time axis
+                      // Exact percentage position along cropped time axis
                       const startPct = Math.max(0, ((depHour - minHour) / totalHoursSpan) * 100);
                       const endPct = Math.min(100, ((arrHour - minHour) / totalHoursSpan) * 100);
-                      const widthPct = Math.max(8, endPct - startPct);
+                      
+                      // NO ARTIFICIAL MIN-WIDTH! Exact proportional width matching departure to arrival
+                      const widthPct = Math.max(1.5, endPct - startPct);
 
                       const depCode = (flight.departure?.code || 'DEP').toUpperCase();
                       const arrCode = (flight.arrival?.code || 'ARR').toUpperCase();
                       const flightNo = flight.flightNumber || 'FLIGHT';
+                      const depTime = flight.departure?.time || '';
+                      const arrTime = flight.arrival?.time || '';
                       const flightData = encodeURIComponent(JSON.stringify(flight));
 
                       return `
-                        <div class="tl-bar" data-flight="${flightData}" style="
+                        <div class="tl-bar" 
+                          data-flight="${flightData}" 
+                          data-arr-pct="${endPct}"
+                          data-arr-time="${arrTime}"
+                          data-traveler="${escapeHtml(person.name)}"
+                          style="
                           position: absolute;
-                          top: 2px;
+                          top: 1px;
                           left: ${startPct}%;
                           width: ${widthPct}%;
-                          min-width: 235px;
-                          height: 42px;
+                          height: 40px;
                           background: linear-gradient(135deg, rgba(18, 24, 38, 0.95) 0%, rgba(10, 14, 24, 0.98) 100%);
                           border-left: 4px solid ${personColor};
                           border-top: 1px solid rgba(255, 255, 255, 0.12);
-                          border-right: 1px solid rgba(255, 255, 255, 0.12);
+                          border-right: 2px solid ${personColor};
                           border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-                          border-radius: 10px;
-                          padding: 0 10px;
+                          border-radius: 8px;
+                          padding: 0 8px;
                           display: flex;
                           align-items: center;
                           justify-content: space-between;
@@ -222,23 +237,25 @@ export function renderTimeline(container, tripOrFlights, participantsOrFilter, f
                           cursor: pointer;
                           z-index: 10;
                           backdrop-filter: blur(16px);
-                          box-shadow: 0 6px 18px rgba(0, 0, 0, 0.6), 0 0 12px ${hexToRgba(personColor, 0.25)};
-                          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+                          box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6), 0 0 10px ${hexToRgba(personColor, 0.25)};
+                          transition: transform 0.15s ease, box-shadow 0.15s ease;
+                          overflow: hidden;
+                          white-space: nowrap;
                         ">
                           
-                          <!-- Left: Flight IATA & Flight Number -->
-                          <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0; white-space: nowrap;">
-                            <span style="font-weight: 800; font-family: var(--font-family-mono); font-size: 11px; color: #FFFFFF; letter-spacing: 0.05em; background: rgba(255,255,255,0.08); padding: 2px 6px; border-radius: 4px; white-space: nowrap; flex-shrink: 0;">
+                          <!-- Left Info: Flight Number & Route -->
+                          <div style="display: flex; align-items: center; gap: 6px; overflow: hidden; white-space: nowrap; flex-shrink: 1;">
+                            <span style="font-weight: 800; font-family: var(--font-family-mono); font-size: 10px; color: #FFFFFF; letter-spacing: 0.05em; background: rgba(255,255,255,0.08); padding: 1px 5px; border-radius: 4px; white-space: nowrap; flex-shrink: 0;">
                               ${escapeHtml(flightNo)}
                             </span>
-                            <span style="font-family: var(--font-family-mono); font-size: 12px; font-weight: 800; color: ${personColor}; white-space: nowrap; flex-shrink: 0;">
-                              ${escapeHtml(depCode)} ✈ ${escapeHtml(arrCode)}
+                            <span style="font-family: var(--font-family-mono); font-size: 11px; font-weight: 800; color: ${personColor}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                              ${escapeHtml(depCode)}✈${escapeHtml(arrCode)}
                             </span>
                           </div>
 
-                          <!-- Right: Local Time -->
-                          <div style="font-family: var(--font-family-mono); font-size: 11px; font-weight: 700; color: #94A3B8; white-space: nowrap; flex-shrink: 0; margin-left: 8px;">
-                            ${escapeHtml(flight.departure?.time || '')} - ${escapeHtml(flight.arrival?.time || '')}
+                          <!-- Right Info: Arrival / Local Time -->
+                          <div style="font-family: var(--font-family-mono); font-size: 10px; font-weight: 700; color: #94A3B8; white-space: nowrap; flex-shrink: 0; margin-left: 6px;">
+                            ${escapeHtml(depTime)} - ${escapeHtml(arrTime)}
                           </div>
                         </div>
                       `;
@@ -265,16 +282,35 @@ export function renderTimeline(container, tripOrFlights, participantsOrFilter, f
       });
     });
 
-    // Bar hover & click handlers
+    // Hover & Click Handlers + Interactive Arrival Alignment Guide
+    const guideEl = container.querySelector('#tl-arrival-guide');
+    const guideTag = container.querySelector('#tl-arrival-guide-tag');
+
     container.querySelectorAll('.tl-bar').forEach(bar => {
       bar.addEventListener('mouseenter', () => {
-        bar.style.transform = 'translateY(-2px) scale(1.02)';
+        bar.style.transform = 'translateY(-2px) scale(1.01)';
         bar.style.zIndex = '30';
+
+        const arrPct = bar.getAttribute('data-arr-pct');
+        const arrTime = bar.getAttribute('data-arr-time');
+        const traveler = bar.getAttribute('data-traveler');
+
+        if (guideEl && arrPct) {
+          // Align guide line with left offset (110px label width + percentage of remaining flex width)
+          guideEl.style.left = `calc(110px + (100% - 110px) * ${arrPct / 100})`;
+          guideEl.style.opacity = '1';
+          if (guideTag) {
+            guideTag.textContent = `${traveler} Lands @ ${arrTime}`;
+          }
+        }
       });
+
       bar.addEventListener('mouseleave', () => {
         bar.style.transform = 'none';
         bar.style.zIndex = '10';
+        if (guideEl) guideEl.style.opacity = '0';
       });
+
       bar.addEventListener('click', () => {
         try {
           const flight = JSON.parse(decodeURIComponent(bar.dataset.flight));
