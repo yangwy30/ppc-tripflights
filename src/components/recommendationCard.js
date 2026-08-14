@@ -45,10 +45,10 @@ export function renderRecommendationCard(option, index, currentNickname, searchD
             : ''}
             
             <div style="margin-top: var(--space-md); display: flex; justify-content: flex-end; gap: var(--space-sm);">
-                <button class="btn btn-sm btn-success btn-add-timeline" 
+                <button class="btn btn-sm btn-success btn-add-trip"
                         data-entry="${encodeURIComponent(JSON.stringify(userEntry))}"
                         style="display: inline-flex; align-items: center; gap: 6px;">
-                    <span style="display:flex;">${getIcon('check')}</span> Add to Timeline
+                    <span style="display:flex;">${getIcon('check')}</span> Add to Trip
                 </button>
                 <a href="${_buildGoogleFlightsUrl(userEntry?.outbound, userEntry?.inbound)}" 
                    target="_blank" rel="noopener noreferrer"

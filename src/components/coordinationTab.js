@@ -115,8 +115,8 @@ export async function renderCoordinationTab(container, trip) {
             });
         }
 
-        // Add to Timeline buttons
-        container.querySelectorAll('.btn-add-timeline').forEach(btn => {
+        // Add recommended flights to the trip, then return to the flight board.
+        container.querySelectorAll('.btn-add-trip').forEach(btn => {
             btn.addEventListener('click', async (e) => {
                 e.preventDefault();
                 const entryStr = btn.dataset.entry;
@@ -157,15 +157,14 @@ export async function renderCoordinationTab(container, trip) {
                     emit(EVENTS.FLIGHT_ADDED);
                     showToast(`Flight added for ${targetTraveler}!`, 'success');
 
-                    // Switch to timeline tab automatically
-                    const timelineTabBtn = document.querySelector('.tab-btn[data-tab="timeline"]');
-                    if (timelineTabBtn) timelineTabBtn.click();
+                    const flightBoardTab = document.querySelector('.tab-btn[data-maintab="tracking"]');
+                    if (flightBoardTab) flightBoardTab.click();
 
                 } catch (err) {
-                    console.error('Failed to add flights to timeline', err);
-                    showToast('Failed to add to timeline', 'error');
+                    console.error('Failed to add flights to trip', err);
+                    showToast('Failed to add flights', 'error');
                     btn.disabled = false;
-                    btn.textContent = 'Add to Timeline';
+                    btn.textContent = 'Add to Trip';
                 }
             });
         });

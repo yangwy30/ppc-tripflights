@@ -40,142 +40,6 @@
     padding: var(--space-base);
 }
 
-/* Leaflet Real Dark Map & Hero Component */
-.route-map-hero-card {
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-lg);
-    padding: var(--space-base);
-    margin-bottom: var(--space-lg);
-    backdrop-filter: var(--glass-blur);
-    box-shadow: var(--shadow-md);
-    overflow: hidden !important;
-    position: relative;
-}
-
-/* Ensure Leaflet main container clips to border-radius */
-.leaflet-container {
-    overflow: hidden !important;
-    border-radius: var(--radius-md);
-    position: relative;
-}
-
-.leaflet-container img.leaflet-tile {
-    max-width: none !important;
-    max-height: none !important;
-}
-
-.leaflet-dark-tooltip {
-    background: rgba(15, 23, 42, 0.95) !important;
-    border: 1px solid rgba(255, 255, 255, 0.2) !important;
-    border-radius: var(--radius-md) !important;
-    color: #ffffff !important;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8) !important;
-    padding: 8px 12px !important;
-}
-
-.leaflet-dark-tooltip::before {
-    border-top-color: rgba(15, 23, 42, 0.95) !important;
-}
-
-/* GPU-Accelerated Phase Flow Animation */
-@keyframes flowDash {
-    from {
-        stroke-dashoffset: 32;
-    }
-    to {
-        stroke-dashoffset: 0;
-    }
-}
-
-.gpu-animated-flow-line {
-    animation: flowDash 2.5s linear infinite;
-    will-change: stroke-dashoffset;
-}
-
-/* Single Master Arc Avatar Ring Stack Badge */
-.arc-avatar-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    background: rgba(15, 23, 42, 0.9);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: var(--radius-full);
-    padding: 3px 8px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.6);
-    backdrop-filter: blur(12px);
-    transform: translate(-50%, -50%);
-    cursor: pointer;
-    transition: transform var(--transition-fast);
-}
-
-.arc-avatar-pill:hover {
-    transform: translate(-50%, -50%) scale(1.08);
-    border-color: rgba(255, 255, 255, 0.4);
-}
-
-.avatar-ring-stack {
-    display: flex;
-    align-items: center;
-}
-
-.avatar-ring-mini {
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    border: 1.5px solid #0F172A;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 8px;
-    font-weight: 700;
-    color: #ffffff;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
-}
-
-.avatar-ring-mini.overflow-mini {
-    background: rgba(30, 41, 59, 0.9);
-    border-color: var(--color-border);
-    color: var(--color-text-secondary);
-    font-size: 8px;
-}
-
-.route-map-legend {
-    display: flex;
-    align-items: center;
-    gap: var(--space-sm);
-    flex-wrap: wrap;
-    margin-top: var(--space-sm);
-    padding-top: var(--space-xs);
-    font-size: var(--font-size-xs);
-}
-
-.legend-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 3px 10px;
-    background: rgba(30, 41, 59, 0.5);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-full);
-    cursor: pointer;
-    transition: all var(--transition-fast);
-}
-
-.legend-chip:hover {
-    background: rgba(255, 255, 255, 0.1);
-}
-
-.legend-chip.dimmed {
-    opacity: 0.35;
-}
-
-.legend-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-}
-
 /* Hero Embedded Insights Card */
 .hero-insights-card {
     background: rgba(15, 23, 42, 0.85);
@@ -1353,9 +1217,7 @@
 .dashboard-section-row,
 .dashboard-list-header,
 .dashboard-subnav,
-.section-status,
-.route-map-header,
-.route-map-header-meta {
+.section-status {
   display: flex;
   align-items: center;
 }
@@ -1769,8 +1631,7 @@
 }
 
 .dashboard-section-row h2,
-.dashboard-list-header h2,
-.route-map-header h2 {
+.dashboard-list-header h2 {
   margin-top: 4px;
   color: #ededeb;
   font-family: "Space Grotesk", var(--font-family);
@@ -1905,270 +1766,6 @@
   padding: 0 17px;
   border-radius: 9px;
   font-size: 11px;
-}
-
-/* Map: dark shell, light cartography, soft route colors. */
-.dashboard-screen .route-map-hero-card {
-  padding: 0;
-  margin-bottom: 22px;
-  overflow: hidden;
-  background: #111113;
-  border-color: #29292d;
-  border-radius: 15px;
-  box-shadow: none;
-  backdrop-filter: none;
-}
-
-.route-map-header {
-  justify-content: space-between;
-  gap: 18px;
-  min-height: 78px;
-  padding: 15px 18px;
-}
-
-.route-map-header p {
-  margin-top: 4px;
-  color: #66676d;
-  font-size: 10px;
-}
-
-.route-map-header-meta {
-  justify-content: flex-end;
-  flex-wrap: wrap;
-  gap: 7px;
-}
-
-.destination-map-badge,
-.route-live-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 25px;
-  padding: 0 9px;
-  border: 1px solid #303034;
-  border-radius: 999px;
-  color: #a1a2a7;
-  background: #171719;
-  font-family: var(--font-family-mono);
-  font-size: 9px;
-  font-weight: 750;
-  letter-spacing: 0.06em;
-}
-
-.destination-map-badge i,
-.route-live-label i {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #635bff;
-}
-
-.route-live-label {
-  color: #d9ff43;
-  border-color: rgba(217, 255, 67, 0.22);
-}
-
-.route-live-label i {
-  background: #d9ff43;
-  box-shadow: 0 0 8px rgba(217, 255, 67, 0.68);
-  animation: pulseGlow 1.7s ease-in-out infinite;
-}
-
-.route-map-canvas {
-  width: 100%;
-  height: clamp(270px, 38vw, 390px);
-  overflow: hidden;
-  background:
-    radial-gradient(circle at 72% 58%, rgba(99, 91, 255, 0.08), transparent 23%),
-    #f6f7fa;
-  border-top: 1px solid #29292d;
-  border-bottom: 1px solid #29292d;
-  border-radius: 0;
-  z-index: 1;
-}
-
-.dashboard-screen .leaflet-container {
-  border-radius: 0;
-  cursor: grab;
-}
-
-.dashboard-screen .leaflet-tile-pane {
-  opacity: 0.68;
-  filter: saturate(0.72) contrast(0.94) brightness(1.025);
-}
-
-.dashboard-screen .leaflet-overlay-pane path.map-route-line {
-  filter: drop-shadow(0 1px 2px rgba(60, 62, 76, 0.14));
-}
-
-.airport-map-marker {
-  background: transparent;
-  border: 0;
-}
-
-.airport-marker-shell {
-  position: relative;
-  width: 1px;
-  height: 1px;
-  transform: translate(var(--marker-offset-x, 0), var(--marker-offset-y, 0));
-  transition: opacity 160ms ease;
-}
-
-.airport-marker-dot,
-.airport-marker-pulse {
-  position: absolute;
-  top: 0;
-  left: 0;
-  border-radius: 50%;
-  transform: translate(-50%, -50%);
-}
-
-.airport-marker-pulse {
-  width: 23px;
-  height: 23px;
-  background: color-mix(in srgb, var(--marker-color) 18%, transparent);
-  animation: mapNodePulse 2.3s ease-out infinite;
-}
-
-.airport-marker-dot {
-  width: 9px;
-  height: 9px;
-  background: var(--marker-color);
-  border: 2px solid #fff;
-  box-shadow: 0 1px 6px color-mix(in srgb, var(--marker-color) 52%, transparent);
-}
-
-.airport-marker-shell.is-destination .airport-marker-dot {
-  width: 11px;
-  height: 11px;
-  background: #161719;
-  border-color: #d9ff43;
-}
-
-.airport-marker-label {
-  position: absolute;
-  top: -28px;
-  left: 0;
-  min-height: 22px;
-  padding: 0 7px;
-  color: #34353a;
-  background: rgba(255, 255, 255, 0.94);
-  border: 1px solid rgba(53, 55, 65, 0.14);
-  border-radius: 6px;
-  box-shadow: 0 4px 12px rgba(48, 50, 61, 0.1);
-  font-family: var(--font-family-mono);
-  font-size: 9px;
-  font-weight: 800;
-  line-height: 20px;
-  letter-spacing: 0.06em;
-  transform: translateX(-50%);
-  white-space: nowrap;
-}
-
-.airport-marker-shell.is-destination .airport-marker-label {
-  color: #f7f7f3;
-  background: #18191b;
-  border-color: #18191b;
-}
-
-.airport-traveler-stack {
-  position: absolute;
-  top: 11px;
-  left: 0;
-  display: flex;
-  transform: translateX(-50%);
-}
-
-.airport-traveler-stack i {
-  display: inline-flex;
-  width: 18px;
-  height: 18px;
-  align-items: center;
-  justify-content: center;
-  margin-left: -5px;
-  color: #fff;
-  background: var(--traveler-color, #7c8a9e);
-  border: 1.5px solid #fff;
-  border-radius: 50%;
-  box-shadow: 0 2px 6px rgba(45, 47, 58, 0.17);
-  font-family: var(--font-family);
-  font-size: 7px;
-  font-style: normal;
-  font-weight: 800;
-}
-
-.airport-traveler-stack i:first-child {
-  margin-left: 0;
-}
-
-.airport-traveler-stack .airport-traveler-more {
-  color: #515259;
-  background: #fff;
-}
-
-.leaflet-route-tooltip {
-  padding: 0 !important;
-  color: #25262a !important;
-  background: rgba(255, 255, 255, 0.97) !important;
-  border: 1px solid rgba(46, 47, 55, 0.14) !important;
-  border-radius: 8px !important;
-  box-shadow: 0 10px 28px rgba(40, 42, 52, 0.16) !important;
-}
-
-.leaflet-route-tooltip::before {
-  border-top-color: rgba(255, 255, 255, 0.97) !important;
-}
-
-.map-tooltip-route {
-  display: flex;
-  padding: 7px 9px;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.map-tooltip-route strong {
-  color: #25262a;
-  font-size: 10px;
-  font-weight: 750;
-}
-
-.map-tooltip-route span {
-  color: #777981;
-  font-family: var(--font-family-mono);
-  font-size: 8px;
-}
-
-.dashboard-screen .route-map-legend {
-  min-height: 42px;
-  gap: 6px;
-  margin: 0;
-  padding: 8px 14px;
-  border: 0;
-}
-
-.dashboard-screen .legend-chip {
-  gap: 6px;
-  padding: 3px 8px;
-  color: #797a80;
-  background: transparent;
-  border-color: transparent;
-  border-radius: 6px;
-  font-size: 9px;
-  cursor: default;
-}
-
-.dashboard-screen .legend-chip:hover {
-  background: #19191c;
-}
-
-.route-map-empty-legend {
-  color: #606167;
-  font-size: 9px;
-}
-
-@keyframes mapNodePulse {
-  0% { opacity: 0.5; transform: translate(-50%, -50%) scale(0.62); }
-  70%, 100% { opacity: 0; transform: translate(-50%, -50%) scale(1.35); }
 }
 
 /* Existing flight, timeline and coordination views in the new shell. */
@@ -2320,23 +1917,8 @@
   }
 
   .dashboard-section-row,
-  .dashboard-list-header,
-  .route-map-header {
+  .dashboard-list-header {
     align-items: flex-start;
-  }
-
-  .route-map-header {
-    min-height: 96px;
-    flex-direction: column;
-    gap: 10px;
-  }
-
-  .route-map-header-meta {
-    justify-content: flex-start;
-  }
-
-  .route-map-canvas {
-    height: 285px;
   }
 
   .dashboard-screen .ticket-row-compact {
@@ -2373,5 +1955,424 @@
 
   .dashboard-main-tabs .tab-btn {
     font-size: 10px;
+  }
+}
+
+/* ==========================================================================
+   REFERENCE FLIGHT MAP — direct react-simple-maps module integration
+   ========================================================================== */
+
+.reference-flight-map {
+  --reference-map-primary: #635bff;
+  --reference-map-card: #ffffff;
+  --reference-map-hover: #e7eaf0;
+  overflow: hidden;
+  margin-bottom: 22px;
+  color: #202126;
+  background: #ffffff;
+  border: 1px solid #e0e3e9;
+  border-radius: 16px;
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.16);
+}
+
+.reference-map-loading {
+  display: flex;
+  min-height: 320px;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 22px;
+  color: #717278;
+  background: #111113;
+  border: 1px solid #29292d;
+  border-radius: 15px;
+  font-family: var(--font-family-mono);
+  font-size: 10px;
+}
+
+.reference-flight-map-header {
+  display: flex;
+  min-height: 76px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 15px 20px;
+  border-bottom: 1px solid #e2e5eb;
+}
+
+.reference-flight-map-header h2 {
+  margin: 0;
+  color: #24252a;
+  font-family: var(--font-family);
+  font-size: 16px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.reference-flight-map-header p {
+  margin-top: 2px;
+  color: #747780;
+  font-size: 13px;
+}
+
+.reference-map-destination {
+  display: inline-flex;
+  min-height: 26px;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  color: #635bff;
+  background: #f0eeff;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.reference-map-destination i {
+  width: 6px;
+  height: 6px;
+  background: #635bff;
+  border-radius: 50%;
+}
+
+.reference-flight-map-stage {
+  position: relative;
+  min-height: 250px;
+  background: linear-gradient(to bottom, #f4f6f9, #ffffff);
+}
+
+.reference-map-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.reference-map-geography {
+  fill: #edf0f5;
+  stroke: #d9dee7;
+  transition: fill 150ms ease;
+}
+
+.reference-destination-pulse {
+  fill: rgba(99, 91, 255, 0.2);
+}
+
+.reference-destination-dot {
+  fill: #635bff;
+}
+
+.reference-map-empty {
+  display: flex;
+  min-height: 250px;
+  align-items: center;
+  justify-content: center;
+  color: #8b8e97;
+  font-size: 12px;
+}
+
+.reference-flight-map-legend {
+  display: flex;
+  min-height: 46px;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  align-items: center;
+  padding: 10px 20px;
+  border-top: 1px solid #e2e5eb;
+}
+
+.reference-map-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.reference-map-legend-item > span {
+  width: 10px;
+  height: 10px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+}
+
+.reference-map-legend-item small {
+  color: #767982;
+  font-size: 10px;
+}
+
+.reference-map-legend-item strong {
+  color: #303137;
+  font-weight: 650;
+}
+
+.route-arc {
+  stroke-dasharray: 1000;
+  stroke-dashoffset: 1000px;
+  animation: 2.4s ease-out forwards referenceRouteDraw;
+}
+
+@keyframes referenceRouteDraw {
+  to { stroke-dashoffset: 0; }
+}
+
+.route-plane {
+  filter: drop-shadow(0 0 3px currentColor);
+}
+
+.dest-pulse {
+  animation: 2.4s ease-out infinite referenceDestinationPulse;
+}
+
+@keyframes referenceDestinationPulse {
+  0% { opacity: 0.7; transform: scale(0.6); }
+  70% { opacity: 0; transform: scale(1.8); }
+  100% { opacity: 0; }
+}
+
+/* Arrival timeline now lives inside each direction tab. */
+.arrival-timeline-card {
+  overflow: hidden;
+  margin: 22px 0 26px;
+  background: #111113;
+  border: 1px solid #29292d;
+  border-radius: 15px;
+}
+
+.arrival-timeline-header {
+  display: flex;
+  min-height: 78px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 15px 18px;
+  border-bottom: 1px solid #28282c;
+}
+
+.arrival-timeline-header h2 {
+  margin-top: 4px;
+  color: #efefec;
+  font-family: "Space Grotesk", var(--font-family);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+
+.arrival-timeline-header p {
+  margin-top: 3px;
+  color: #67686e;
+  font-size: 10px;
+}
+
+.arrival-timeline-count {
+  min-height: 25px;
+  padding: 0 9px;
+  color: #8b8c92;
+  background: #18181b;
+  border: 1px solid #303034;
+  border-radius: 999px;
+  font-family: var(--font-family-mono);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 23px;
+  white-space: nowrap;
+}
+
+.arrival-timeline-list {
+  list-style: none;
+}
+
+.arrival-timeline-row {
+  display: grid;
+  grid-template-columns: 62px 34px minmax(0, 1fr) auto;
+  min-height: 68px;
+  align-items: center;
+  padding: 0 18px;
+  border-bottom: 1px solid #232327;
+}
+
+.arrival-timeline-row:last-child {
+  border-bottom: 0;
+}
+
+.arrival-timeline-time {
+  display: flex;
+  flex-direction: column;
+}
+
+.arrival-timeline-time time {
+  color: #f0f0ed;
+  font-family: "Space Grotesk", var(--font-family-mono);
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.arrival-timeline-time small {
+  margin-top: 4px;
+  color: #65666c;
+  font-family: var(--font-family-mono);
+  font-size: 8px;
+}
+
+.arrival-timeline-rail {
+  position: relative;
+  display: flex;
+  align-self: stretch;
+  align-items: center;
+  justify-content: center;
+}
+
+.arrival-timeline-rail::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  background: #2c2c31;
+  transform: translateX(-50%);
+}
+
+.arrival-timeline-row:first-child .arrival-timeline-rail::after {
+  top: 50%;
+}
+
+.arrival-timeline-row:last-child .arrival-timeline-rail::after {
+  bottom: 50%;
+}
+
+.arrival-timeline-rail i {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  width: 24px;
+  height: 24px;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  background: var(--timeline-color);
+  border: 3px solid #111113;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px #34343a;
+  font-size: 8px;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.arrival-timeline-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  padding: 0 12px;
+}
+
+.arrival-timeline-copy strong {
+  overflow: hidden;
+  color: #ecece9;
+  font-size: 12px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.arrival-timeline-copy small {
+  overflow: hidden;
+  margin-top: 3px;
+  color: #717278;
+  font-family: var(--font-family-mono);
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.arrival-status {
+  min-height: 23px;
+  padding: 0 8px;
+  color: #9b9ca2;
+  background: #1b1b1e;
+  border: 1px solid #303034;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 650;
+  line-height: 21px;
+  white-space: nowrap;
+}
+
+.arrival-status-landed,
+.arrival-status-arrived,
+.arrival-status-on-time {
+  color: #7ee3b2;
+  background: rgba(83, 185, 135, 0.09);
+  border-color: rgba(83, 185, 135, 0.22);
+}
+
+.arrival-status-delayed {
+  color: #f3c26d;
+  background: rgba(212, 164, 58, 0.1);
+  border-color: rgba(212, 164, 58, 0.24);
+}
+
+.arrival-status-cancelled {
+  color: #ff858b;
+  background: rgba(255, 123, 130, 0.09);
+  border-color: rgba(255, 123, 130, 0.22);
+}
+
+.arrival-status-in-air,
+.arrival-status-boarding {
+  color: #d9ff43;
+  background: rgba(217, 255, 67, 0.08);
+  border-color: rgba(217, 255, 67, 0.2);
+}
+
+.arrival-timeline-empty {
+  padding: 30px 18px;
+  color: #696a70;
+  font-size: 11px;
+  text-align: center;
+}
+
+@media (max-width: 640px) {
+  .reference-flight-map-header {
+    min-height: 72px;
+    padding: 13px 15px;
+  }
+
+  .reference-flight-map-header p {
+    font-size: 11px;
+  }
+
+  .reference-flight-map-stage {
+    min-height: 205px;
+  }
+
+  .reference-flight-map-legend {
+    gap: 7px 12px;
+    padding: 9px 15px;
+  }
+
+  .arrival-timeline-row {
+    grid-template-columns: 50px 30px minmax(0, 1fr);
+    min-height: 76px;
+    padding: 0 13px;
+  }
+
+  .arrival-timeline-copy {
+    padding-right: 0;
+  }
+
+  .arrival-status {
+    grid-column: 3;
+    width: max-content;
+    margin: -17px 0 7px 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .route-arc,
+  .dest-pulse {
+    animation: none;
+  }
+
+  .route-arc {
+    stroke-dashoffset: 0;
   }
 }

@@ -4,7 +4,6 @@ import { getTrip, updateFlightStatus, getUserNickname, deleteParticipant, delete
 import { subscribe, EVENTS } from '../data/store.js';
 import { navigate } from '../app.js';
 import { showToast } from '../components/toast.js';
-import { renderTimeline } from '../components/timeline.js';
 import { getComputedFlightStatus, renderFlightCard, renderCompactFlightRow } from '../components/flightCard.js';
 import { renderCoordinationTab } from '../components/coordinationTab.js';
 import { renderRouteMap, destroyRouteMap } from '../components/routeMap.js';
@@ -107,10 +106,103 @@ function formatJoinedDate(value) {
   return `Joined ${new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(date)}`;
 }
 
+function getArrivalMoment(flight) {
+  const flightDate = flight.date || flight.departure?.date || flight.arrival?.date;
+  const arrivalTime = flight.arrival?.time?.match(/^\d{1,2}:\d{2}/)?.[0];
+  if (!flightDate || !arrivalTime) return Number.POSITIVE_INFINITY;
+
+  const arrival = new Date(`${flightDate}T${arrivalTime}:00`);
+  if (Number.isNaN(arrival.getTime())) return Number.POSITIVE_INFINITY;
+
+  const departureTime = flight.departure?.time;
+  if (departureTime) {
+    const normalizedDepartureTime = departureTime.match(/^\d{1,2}:\d{2}/)?.[0];
+    if (normalizedDepartureTime) {
+      const departure = new Date(`${flightDate}T${normalizedDepartureTime}:00`);
+      if (!Number.isNaN(departure.getTime()) && arrival < departure) {
+        arrival.setDate(arrival.getDate() + 1);
+      }
+    }
+  }
+
+  return arrival.getTime();
+}
+
+function getStatusPresentation(status) {
+  const normalized = (status || 'scheduled').toLowerCase();
+  const labels = {
+    landed: 'Landed',
+    arrived: 'Arrived',
+    delayed: 'Delayed',
+    cancelled: 'Cancelled',
+    boarding: 'Boarding',
+    'in-air': 'In air',
+    'on-time': 'On time',
+    scheduled: 'Scheduled'
+  };
+  return {
+    key: normalized,
+    label: labels[normalized] || normalized.replace(/(^|-)\w/g, match => match.replace('-', ' ').toUpperCase())
+  };
+}
+
+function formatArrivalDate(flight) {
+  const timestamp = getArrivalMoment(flight);
+  if (!Number.isFinite(timestamp)) return '';
+  return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(new Date(timestamp));
+}
+
+function renderArrivalTimeline(flights, participants, phaseFilter) {
+  const orderedFlights = [...flights].sort((a, b) => getArrivalMoment(a) - getArrivalMoment(b));
+  const participantList = participants.map(person => typeof person === 'string' ? { name: person } : person);
+
+  return `
+    <section class="arrival-timeline-card" aria-labelledby="arrival-timeline-title">
+      <header class="arrival-timeline-header">
+        <div>
+          <span class="section-kicker">${phaseFilter === 'return' ? 'INBOUND' : 'OUTBOUND'}</span>
+          <h2 id="arrival-timeline-title">Arrival timeline</h2>
+          <p>Sorted by landing time</p>
+        </div>
+        <span class="arrival-timeline-count">${orderedFlights.length} ${orderedFlights.length === 1 ? 'arrival' : 'arrivals'}</span>
+      </header>
+
+      ${orderedFlights.length ? `
+        <ol class="arrival-timeline-list">
+          ${orderedFlights.map((flight, index) => {
+            const participantIndex = participantList.findIndex(person => person.name === flight.addedBy);
+            const color = PERSON_COLORS_HEX[(participantIndex >= 0 ? participantIndex : index) % PERSON_COLORS_HEX.length];
+            const status = getStatusPresentation(getComputedFlightStatus(flight));
+            const departureCode = flight.departure?.code || 'DEP';
+            const arrivalCode = flight.arrival?.code || 'ARR';
+            return `
+              <li class="arrival-timeline-row">
+                <span class="arrival-timeline-time">
+                  <time>${escapeHtml(flight.arrival?.time || '--:--')}</time>
+                  <small>${escapeHtml(formatArrivalDate(flight))}</small>
+                </span>
+                <span class="arrival-timeline-rail" style="--timeline-color:${color}">
+                  <i>${escapeHtml((flight.addedBy || '?').charAt(0).toUpperCase())}</i>
+                </span>
+                <span class="arrival-timeline-copy">
+                  <strong>${escapeHtml(flight.addedBy || 'Traveler')}</strong>
+                  <small>${escapeHtml(departureCode)} → ${escapeHtml(arrivalCode)} · ${escapeHtml(flight.flightNumber || 'Flight')}</small>
+                </span>
+                <span class="arrival-status arrival-status-${escapeHtml(status.key)}">${escapeHtml(status.label)}</span>
+              </li>
+            `;
+          }).join('')}
+        </ol>
+      ` : `
+        <div class="arrival-timeline-empty">No arrivals in this view yet.</div>
+      `}
+    </section>
+  `;
+}
+
 export async function renderDashboard(container, tripId) {
   let filterPerson = 'all';
   let phaseFilter = 'outbound'; // Default tab: 'outbound'
-  let activeTab = 'flights'; // 'flights', 'timeline'
   let activeMainTab = 'tracking'; // 'tracking', 'coordination'
   let viewMode = 'compact'; // 'compact' vs 'expanded'
   let expandedFlightIds = new Set(); // Track expanded rows in compact mode
@@ -335,52 +427,43 @@ export async function renderDashboard(container, tripId) {
 
             <div class="dashboard-subnav mb-base">
               <div class="tabs" aria-label="Flight direction">
-                <button class="tab ${activeTab === 'flights' && phaseFilter === 'outbound' ? 'active' : ''}" data-tab="flights" data-phase="outbound">
+                <button class="tab ${phaseFilter === 'outbound' ? 'active' : ''}" data-phase="outbound">
                   Outbound <span>${filteredOutbound}</span>
                 </button>
-                <button class="tab ${activeTab === 'flights' && phaseFilter === 'return' ? 'active' : ''}" data-tab="flights" data-phase="return">
-                  Return <span>${filteredReturn}</span>
-                </button>
-                <button class="tab ${activeTab === 'timeline' ? 'active' : ''}" data-tab="timeline">
-                  Timeline
+                <button class="tab ${phaseFilter === 'return' ? 'active' : ''}" data-phase="return">
+                  Inbound <span>${filteredReturn}</span>
                 </button>
               </div>
             </div>
 
-            <!-- HERO ROUTE MAP CONTAINER -->
-            ${activeTab !== 'timeline' ? `<div id="hero-map-container" class="mb-base"></div>` : ''}
+            <div id="hero-map-container" class="mb-base"></div>
 
-            <!-- Flight List Section Header & Mode Toggles -->
-            ${activeTab !== 'timeline' ? `
-              <div class="dashboard-list-header">
-                <div>
-                  <span class="section-kicker">${phaseFilter.toUpperCase()}</span>
-                  <h2>Traveler details</h2>
-                </div>
-                <div class="tabs dashboard-view-toggle">
-                  <button class="tab ${viewMode === 'compact' ? 'active' : ''}" id="btn-view-compact" title="Compact rows">
-                    ${getIcon('list')} List
-                  </button>
-                  <button class="tab ${viewMode === 'expanded' ? 'active' : ''}" id="btn-view-expanded" title="Expanded cards">
-                    ${getIcon('grid')} Cards
-                  </button>
-                </div>
+            ${renderArrivalTimeline(sortedFlights, currentTrip.participants || [], phaseFilter)}
+
+            <div class="dashboard-list-header">
+              <div>
+                <span class="section-kicker">${phaseFilter === 'return' ? 'INBOUND' : 'OUTBOUND'}</span>
+                <h2>Traveler details</h2>
               </div>
-            ` : ''}
+              <div class="tabs dashboard-view-toggle">
+                <button class="tab ${viewMode === 'compact' ? 'active' : ''}" id="btn-view-compact" title="Compact rows">
+                  ${getIcon('list')} List
+                </button>
+                <button class="tab ${viewMode === 'expanded' ? 'active' : ''}" id="btn-view-expanded" title="Expanded cards">
+                  ${getIcon('grid')} Cards
+                </button>
+              </div>
+            </div>
 
-            <!-- Content Stream -->
             <div id="tab-content">
-              ${activeTab === 'flights' ? renderFlightsList(sortedFlights, currentTrip, viewMode, expandedFlightIds) : ''}
+              ${renderFlightsList(sortedFlights, currentTrip, viewMode, expandedFlightIds)}
             </div>
 
-            <!-- Full-Width Bottom Add Flight Button -->
-            ${activeTab === 'flights' ? `
-              <div class="dashboard-bottom-action">
-                <button class="btn btn-primary" id="btn-add-flight-bottom">
-                  ${getIcon('plus')} Add another flight
-                </button>
-              </div>
-            ` : ''}
+            <div class="dashboard-bottom-action">
+              <button class="btn btn-primary" id="btn-add-flight-bottom">
+                ${getIcon('plus')} Add another flight
+              </button>
+            </div>
           </div>
 
           <!-- Coordination Tab -->
@@ -393,18 +476,9 @@ export async function renderDashboard(container, tripId) {
       </div>
     `;
 
-    // Render Hero Route Map if activeTab !== 'timeline'
-    if (activeTab !== 'timeline') {
-      const heroMapContainer = container.querySelector('#hero-map-container');
-      if (heroMapContainer) {
-        renderRouteMap(heroMapContainer, sortedFlights, currentTrip.participants || [], currentTrip, filterPerson, phaseFilter);
-      }
-    } else {
-      destroyRouteMap(); // Clean teardown of Leaflet map and 60fps animation frame loop!
-      const tabContent = container.querySelector('#tab-content');
-      if (tabContent) {
-        renderTimeline(tabContent, currentTrip, filterPerson);
-      }
+    const heroMapContainer = container.querySelector('#hero-map-container');
+    if (heroMapContainer) {
+      renderRouteMap(heroMapContainer, sortedFlights, currentTrip.participants || [], currentTrip, filterPerson, phaseFilter);
     }
 
     // Lazy render Coordination Engine tab if active
@@ -540,17 +614,11 @@ export async function renderDashboard(container, tripId) {
       });
     });
 
-    // Sub-Tabs Bar: Outbound -> Return -> Timeline
-    container.querySelectorAll('[data-tab]').forEach(tab => {
+    // Direction tabs drive the map, arrival timeline, and traveler details together.
+    container.querySelectorAll('[data-phase]').forEach(tab => {
       tab.addEventListener('click', () => {
-        const targetTab = tab.getAttribute('data-tab');
         const targetPhase = tab.getAttribute('data-phase');
-
-        activeTab = targetTab;
-        if (targetPhase) {
-          phaseFilter = targetPhase;
-        }
-
+        if (targetPhase) phaseFilter = targetPhase;
         render();
       });
     });
