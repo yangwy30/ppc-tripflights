@@ -25,10 +25,10 @@ export function searchAirports(query) {
     const codeMatches = AIRPORT_DATA.filter(item => item.airports.some(a => a.code.toLowerCase() === lowerQuery));
     if (codeMatches.length > 0) return codeMatches;
 
-    // Fuzzy match for city, code, or airport name
+    // Match actual airport codes, cities, and airport names. Synthetic city
+    // codes can look valid while not representing a bookable airport.
     const fuzzyMatches = AIRPORT_DATA.filter(item =>
         item.city.toLowerCase().startsWith(lowerQuery) || // Prefer cities that start with the query
-        item.cityCode.toLowerCase().includes(lowerQuery) ||
         item.airports.some(a => a.code.toLowerCase().includes(lowerQuery) || a.name.toLowerCase().includes(lowerQuery))
     );
 

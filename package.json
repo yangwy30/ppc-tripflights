@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "update-airports": "node scripts/fetch_airports.js"
   },
   "devDependencies": {
     "vite": "^4",

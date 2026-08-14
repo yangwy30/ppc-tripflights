@@ -1,55 +1,109 @@
-import fs from 'fs';
-import https from 'https';
+import fs from 'node:fs/promises';
 
-const URL = 'https://raw.githubusercontent.com/mwgg/Airports/master/airports.json';
-const OUTPUT_FILE = './public/airports.json';
+const SOURCE_URL = 'https://davidmegginson.github.io/ourairports-data/airports.csv';
+const OUTPUT_FILE = new URL('../public/airports.json', import.meta.url);
 
-https.get(URL, (res) => {
-    let rawData = '';
+// An IATA code alone does not mean an airport is bookable. Suggestions should
+// contain only airports with current scheduled passenger service.
+const EXCLUDED_TYPES = new Set(['closed', 'heliport', 'seaplane_base', 'balloonport']);
+const NON_CIVIL_NAME = /\b(?:air\s*base|air force base|army air(?:field| field)|naval air|military air|marine corps air|restricted landing area)\b/i;
 
-    res.on('data', (chunk) => { rawData += chunk; });
+function parseCsv(csv) {
+  const rows = [];
+  let row = [];
+  let field = '';
+  let quoted = false;
 
-    res.on('end', () => {
-        try {
-            const data = JSON.parse(rawData);
+  for (let i = 0; i < csv.length; i += 1) {
+    const char = csv[i];
+    if (quoted) {
+      if (char === '"' && csv[i + 1] === '"') {
+        field += '"';
+        i += 1;
+      } else if (char === '"') {
+        quoted = false;
+      } else {
+        field += char;
+      }
+    } else if (char === '"') {
+      quoted = true;
+    } else if (char === ',') {
+      row.push(field);
+      field = '';
+    } else if (char === '\n') {
+      row.push(field.replace(/\r$/, ''));
+      rows.push(row);
+      row = [];
+      field = '';
+    } else {
+      field += char;
+    }
+  }
 
-            // Filter out small airports without IATA codes
-            const validAirports = Object.values(data).filter(a => a.iata && a.iata !== '\\N' && a.city);
+  if (field || row.length) {
+    row.push(field.replace(/\r$/, ''));
+    rows.push(row);
+  }
+  return rows;
+}
 
-            const cityGroups = {};
-            validAirports.forEach(a => {
-                if (!cityGroups[a.city]) {
-                    // Just using the first 3 letters of city as fallback cityCode
-                    cityGroups[a.city] = {
-                        city: a.city,
-                        cityCode: a.iata, // Some airports share code with city, but we just need a string to search
-                        airports: []
-                    };
-                }
+function shortenName(name) {
+  return name
+    .replace(/\s+(?:International|Regional)?\s*Airport$/i, '')
+    .replace(/\s+Airport$/i, '')
+    .trim() || name;
+}
 
-                // Add airport to city if not already there (dedupe)
-                if (!cityGroups[a.city].airports.find(existing => existing.code === a.iata)) {
-                    // Make name shorter if possible by removing "International Airport" 
-                    const shortName = a.name.replace(/(International |Regional )?Airport/i, '').trim();
-                    cityGroups[a.city].airports.push({ code: a.iata, name: shortName || a.name });
-                }
-            });
+function buildAirportGroups(csv) {
+  const [headers, ...rows] = parseCsv(csv);
+  const column = Object.fromEntries(headers.map((header, index) => [header, index]));
+  const groups = new Map();
+  let excludedNonCivil = 0;
 
-            const finalData = Object.values(cityGroups);
+  for (const row of rows) {
+    const code = row[column.iata_code]?.trim().toUpperCase();
+    const city = row[column.municipality]?.trim();
+    const name = row[column.name]?.trim();
+    const type = row[column.type]?.trim();
+    const scheduledService = row[column.scheduled_service]?.trim();
 
-            // Ensure public directory exists
-            if (!fs.existsSync('./public')) {
-                fs.mkdirSync('./public');
-            }
+    if (!/^[A-Z]{3}$/.test(code || '')) continue;
+    if (!city || !name || scheduledService !== 'yes' || EXCLUDED_TYPES.has(type)) continue;
+    if (NON_CIVIL_NAME.test(name)) {
+      excludedNonCivil += 1;
+      continue;
+    }
 
-            fs.writeFileSync(OUTPUT_FILE, JSON.stringify(finalData));
-            console.log(`Successfully parsed ${validAirports.length} global airports into ${finalData.length} distinct city groups.`);
-            console.log(`Saved to ${OUTPUT_FILE}`);
+    if (!groups.has(city)) groups.set(city, { city, airports: [] });
+    const airports = groups.get(city).airports;
+    if (!airports.some(airport => airport.code === code)) {
+      airports.push({ code, name: shortenName(name) });
+    }
+  }
 
-        } catch (e) {
-            console.error('Error parsing JSON:', e.message);
-        }
-    });
-}).on('error', (e) => {
-    console.error(`Got error: ${e.message}`);
+  const result = [...groups.values()]
+    .map(group => ({ ...group, airports: group.airports.sort((a, b) => a.code.localeCompare(b.code)) }))
+    .sort((a, b) => a.city.localeCompare(b.city));
+
+  return { result, excludedNonCivil };
+}
+
+async function main() {
+  const response = await fetch(SOURCE_URL);
+  if (!response.ok) throw new Error(`Airport download failed: HTTP ${response.status}`);
+
+  const { result, excludedNonCivil } = buildAirportGroups(await response.text());
+  const airportCount = result.reduce((sum, group) => sum + group.airports.length, 0);
+  if (airportCount < 2500) {
+    throw new Error(`Refusing to overwrite airport data: only ${airportCount} airports passed validation`);
+  }
+
+  await fs.writeFile(OUTPUT_FILE, `${JSON.stringify(result)}\n`, 'utf8');
+  console.log(`Saved ${airportCount} scheduled civil airports in ${result.length} city groups.`);
+  console.log(`Excluded ${excludedNonCivil} scheduled airports with explicitly military/restricted names.`);
+}
+
+main().catch(error => {
+  console.error(error.message);
+  process.exitCode = 1;
 });
