@@ -2702,13 +2702,18 @@
 }
 
 .dashboard-tools-trigger > span {
-  color: #6f7075;
-  font-size: 14px;
-  transition: transform 150ms ease;
+  display: inline-flex;
 }
 
-.dashboard-tools-menu[open] .dashboard-tools-trigger > span {
-  transform: rotate(180deg);
+.dashboard-more-dots {
+  color: #8d8e93;
+  font-family: var(--font-family-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+}
+
+.dashboard-more-label {
+  color: inherit;
 }
 
 .dashboard-tools-popover {
@@ -2716,7 +2721,7 @@
   top: calc(100% + 8px);
   right: 0;
   z-index: 500;
-  width: 210px;
+  width: 276px;
   padding: 6px;
   background: #151517;
   border: 1px solid #333337;
@@ -2724,10 +2729,30 @@
   box-shadow: 0 18px 45px rgba(0, 0, 0, 0.42);
 }
 
+.dashboard-tools-popover-header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0 3px 5px;
+  padding: 8px 8px 10px;
+  border-bottom: 1px solid #2a2a2e;
+}
+
+.dashboard-tools-popover-header strong {
+  color: #eeeeeb;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.dashboard-tools-popover-header small {
+  color: #696a70;
+  font-size: 9px;
+}
+
 .dashboard-tools-popover button {
   display: grid;
   width: 100%;
-  min-height: 40px;
+  min-height: 52px;
   grid-template-columns: 18px minmax(0, 1fr) auto;
   align-items: center;
   gap: 9px;
@@ -2752,12 +2777,228 @@
   color: #77787d;
 }
 
-.dashboard-tools-popover strong {
-  color: #d9ff43;
+.dashboard-tools-popover button > span {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.dashboard-tools-popover button strong {
+  color: #dededa;
+  font-size: 10px;
+  font-weight: 650;
+}
+
+.dashboard-tools-popover button small {
+  color: #6f7075;
+  font-size: 8px;
+  line-height: 1.35;
+}
+
+.dashboard-tool-state {
+  padding: 3px 6px;
+  color: #77787d;
+  background: #222225;
+  border-radius: 999px;
   font-family: var(--font-family-mono);
-  font-size: 9px;
+  font-size: 8px;
+  font-style: normal;
   font-weight: 750;
   text-transform: uppercase;
+}
+
+.dashboard-tool-state.is-on {
+  color: #d9ff43;
+  background: rgba(217, 255, 67, 0.08);
+}
+
+.invite-overlay {
+  z-index: 1000000;
+}
+
+.invite-overlay.is-hidden {
+  display: none;
+}
+
+.invite-dialog {
+  max-width: 500px;
+  padding: 22px;
+  color: #f2f2ef;
+  background: #111113;
+  border-color: #343438;
+  border-radius: 20px;
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.72);
+}
+
+.invite-dialog-header {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) 36px;
+  align-items: center;
+  gap: 12px;
+}
+
+.invite-dialog-icon {
+  display: inline-flex;
+  width: 42px;
+  height: 42px;
+  align-items: center;
+  justify-content: center;
+  color: #11120f;
+  background: #d9ff43;
+  border-radius: 12px;
+}
+
+.invite-dialog-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.invite-dialog-header h2 {
+  margin-top: 3px;
+  color: #f3f3f0;
+  font-size: 17px;
+  font-weight: 650;
+  letter-spacing: -0.03em;
+}
+
+.invite-dialog-close {
+  display: inline-flex;
+  width: 36px;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
+  color: #85868b;
+  background: #1c1c1f;
+  border: 1px solid #313135;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.invite-dialog-intro {
+  margin: 18px 0 14px;
+  color: #87888d;
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.invite-link-card,
+.invite-pin-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 13px;
+  background: #18181b;
+  border: 1px solid #303034;
+  border-radius: 12px;
+}
+
+.invite-link-card > span,
+.invite-pin-card > span {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.invite-link-card small,
+.invite-pin-card small {
+  color: #717278;
+  font-family: var(--font-family-mono);
+  font-size: 8px;
+  font-weight: 750;
+  letter-spacing: 0.12em;
+}
+
+.invite-link-card code {
+  overflow: hidden;
+  color: #c1c2be;
+  font-family: var(--font-family-mono);
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.invite-pin-card {
+  margin-top: 8px;
+  background: rgba(217, 255, 67, 0.055);
+  border-color: rgba(217, 255, 67, 0.17);
+}
+
+.invite-pin-card strong {
+  color: #d9ff43;
+  font-family: var(--font-family-mono);
+  font-size: 22px;
+  letter-spacing: 0.14em;
+}
+
+.invite-link-card button,
+.invite-pin-card button,
+.invite-dialog-cancel,
+.invite-dialog-share {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 12px;
+  border-radius: 9px;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.invite-link-card button,
+.invite-pin-card button,
+.invite-dialog-cancel {
+  color: #b4b5b8;
+  background: #222225;
+  border: 1px solid #36363a;
+}
+
+.invite-link-card button:hover,
+.invite-pin-card button:hover,
+.invite-dialog-cancel:hover {
+  color: #f2f2ef;
+  background: #29292d;
+}
+
+.invite-link-card svg,
+.invite-pin-card svg,
+.invite-dialog-share svg {
+  width: 13px;
+  height: 13px;
+}
+
+.invite-privacy-note {
+  margin-top: 10px;
+  color: #626369;
+  font-size: 9px;
+  line-height: 1.45;
+}
+
+.invite-dialog-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid #29292d;
+}
+
+.invite-dialog-share {
+  min-height: 42px;
+  padding: 0 16px;
+  color: #10110e;
+  background: #d9ff43;
+  border: 1px solid #d9ff43;
+}
+
+.invite-dialog-share:hover {
+  background: #e3ff70;
+  border-color: #e3ff70;
 }
 
 .dashboard-add-action {
@@ -3418,12 +3659,27 @@
   }
 
   .dashboard-actions {
+    position: relative;
     flex-wrap: nowrap;
   }
 
+  .dashboard-tools-menu {
+    position: static;
+  }
+
   .dashboard-tools-trigger {
+    width: 42px;
     min-height: 42px;
-    padding: 0 10px;
+    justify-content: center;
+    padding: 0;
+  }
+
+  .dashboard-tools-trigger .dashboard-more-label {
+    display: none;
+  }
+
+  .dashboard-tools-popover {
+    width: min(276px, calc(100vw - 32px));
   }
 
   .dashboard-add-action {
@@ -3446,6 +3702,41 @@
   .dashboard-direction-tabs .tab {
     min-height: 46px !important;
     padding: 0 12px !important;
+  }
+
+  .invite-overlay {
+    align-items: flex-end;
+    padding: 10px;
+  }
+
+  .invite-dialog {
+    max-width: none;
+    padding: 18px;
+    border-radius: 18px;
+  }
+
+  .invite-dialog-header {
+    grid-template-columns: 38px minmax(0, 1fr) 34px;
+    gap: 10px;
+  }
+
+  .invite-dialog-icon {
+    width: 38px;
+    height: 38px;
+  }
+
+  .invite-dialog-header h2 {
+    font-size: 15px;
+  }
+
+  .invite-link-card,
+  .invite-pin-card {
+    padding: 11px;
+  }
+
+  .invite-link-card button,
+  .invite-pin-card button {
+    padding: 0 10px;
   }
 
   .traveler-details-hint {

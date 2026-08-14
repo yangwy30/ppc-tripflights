@@ -7,7 +7,8 @@ import { showToast } from '../components/toast.js';
 import { setupAirportAutocomplete } from '../components/airportSearch.js';
 import { getIcon } from '../components/icons.js';
 
-export function renderJoinTrip(container) {
+export function renderJoinTrip(container, invitePin = '') {
+  const prefilledPin = /^\d{6}$/.test(invitePin) ? invitePin : '';
   container.innerHTML = `
     <div class="screen">
       <div class="topbar">
@@ -18,13 +19,13 @@ export function renderJoinTrip(container) {
 
       <div class="screen-header">
         <h1 style="font-size: 2.2rem; font-weight: 800; letter-spacing: -0.04em;">Join a Trip</h1>
-        <p style="font-size: var(--font-size-sm); color: var(--color-text-secondary);">Enter the PIN code shared by your friend</p>
+        <p style="font-size: var(--font-size-sm); color: var(--color-text-secondary);">${prefilledPin ? 'Your invite code is ready. Add your details to join the trip.' : 'Enter the PIN code shared by your friend'}</p>
       </div>
 
       <form id="join-form" class="flex-col" style="gap: var(--space-sm);">
         <div class="input-group">
           <label for="pin-code">Trip PIN Code</label>
-          <input class="input" type="text" id="pin-code" placeholder="Enter 6-digit PIN" 
+          <input class="input" type="text" id="pin-code" placeholder="Enter 6-digit PIN" value="${prefilledPin}"
             maxlength="6" pattern="[0-9]{6}" inputmode="numeric" required 
             style="font-family: var(--font-family-mono); font-size: 2.2rem; letter-spacing: 8px; text-align: center; font-weight: 800;" />
         </div>
@@ -59,6 +60,10 @@ export function renderJoinTrip(container) {
   `;
 
   container.querySelector('#btn-back').addEventListener('click', () => navigate(''));
+
+  if (prefilledPin) {
+    container.querySelector('#join-name')?.focus();
+  }
 
   const homeAirportContainer = container.querySelector('#home-airport-container');
   const homeAirportInput = setupAirportAutocomplete(homeAirportContainer, 'e.g. JFK or New York');

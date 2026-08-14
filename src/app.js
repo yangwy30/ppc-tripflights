@@ -30,7 +30,7 @@ function getRoute() {
     }
 
     if (parts[0] === 'create') return { renderFn: renderCreateTrip };
-    if (parts[0] === 'join') return { renderFn: renderJoinTrip };
+    if (parts[0] === 'join') return { renderFn: renderJoinTrip, params: parts[1] || '' };
     if (parts[0] === 'add-flight') return { renderFn: renderAddFlight, params: parts[1] };
     if (parts[0] === 'notes') return { renderFn: renderNotes, params: parts[1] };
 

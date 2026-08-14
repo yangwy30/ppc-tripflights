@@ -317,18 +317,25 @@ export async function renderDashboard(container, tripId) {
 
           <div class="dashboard-actions" aria-label="Trip actions">
             <details class="dashboard-tools-menu">
-              <summary class="dashboard-tools-trigger">Trip tools <span aria-hidden="true">⌄</span></summary>
+              <summary class="dashboard-tools-trigger" aria-label="More trip options">
+                <span class="dashboard-more-dots" aria-hidden="true">•••</span>
+                <span class="dashboard-more-label">More</span>
+              </summary>
               <div class="dashboard-tools-popover">
+                <header class="dashboard-tools-popover-header">
+                  <strong>Trip options</strong>
+                  <small>Shared utilities and settings</small>
+                </header>
                 <button id="btn-toggle-refresh" title="${isCurrentlyPolling ? 'Turn off live refresh' : 'Enable live refresh'}">
                   ${getIcon('refresh')}
-                  <span>Live refresh</span>
-                  <strong>${isCurrentlyPolling ? 'On' : 'Off'}</strong>
+                  <span><strong>Live updates</strong><small>Refresh flight status every 30s</small></span>
+                  <em class="dashboard-tool-state ${isCurrentlyPolling ? 'is-on' : ''}">${isCurrentlyPolling ? 'On' : 'Off'}</em>
                 </button>
                 <button id="btn-notes" title="Open trip notes">
-                  ${getIcon('notes')}<span>Trip notes</span>
+                  ${getIcon('notes')}<span><strong>Trip notes</strong><small>Meetups, hotels and shared details</small></span>
                 </button>
                 <button id="btn-calendar" title="Add flights to your calendar">
-                  ${getIcon('calendar')}<span>Add to calendar</span>
+                  ${getIcon('calendar')}<span><strong>Calendar sync</strong><small>Subscribe to live flight updates</small></span>
                 </button>
               </div>
             </details>
@@ -385,12 +392,7 @@ export async function renderDashboard(container, tripId) {
               </div>
             </div>
 
-            <button class="hero-pin-pill" id="hero-pin-copy-trigger" title="Copy trip PIN">
-              <span class="hero-pin-label">PIN</span>
-              <span class="hero-pin-code">${escapeHtml(currentTrip.pin || 'PPC')}</span>
-              <span class="hero-pin-copy">${getIcon('copy')}</span>
-            </button>
-            <button class="btn dashboard-share-action" id="btn-share">${getIcon('share')} Invite crew</button>
+            <button class="btn dashboard-share-action" id="btn-share" type="button">${getIcon('share')} Invite people</button>
           </div>
         </section>
 
@@ -496,6 +498,7 @@ export async function renderDashboard(container, tripId) {
         </div>
 
       </div>
+      ${renderInviteDialog(currentTrip)}
     `;
 
     const heroMapContainer = container.querySelector('#hero-map-container');
@@ -533,23 +536,55 @@ export async function renderDashboard(container, tripId) {
       navigate('');
     });
 
-    // Share PIN Copy
-    const copyPinTrigger = container.querySelector('#hero-pin-copy-trigger');
+    // Invite people with a shareable link; keep the PIN as a secondary option.
     const shareBtn = container.querySelector('#btn-share');
-
-    const handleShare = () => {
-      const pin = trip.pin || '';
-
-      if (navigator.clipboard) {
-        navigator.clipboard.writeText(pin);
-        showToast(`PIN Code ${pin} copied to clipboard!`, 'success');
-      } else {
-        showToast(`PIN Code: ${pin}`, 'info');
-      }
+    const inviteOverlay = container.querySelector('#invite-overlay');
+    const closeInvite = () => inviteOverlay?.classList.add('is-hidden');
+    const openInvite = () => {
+      inviteOverlay?.classList.remove('is-hidden');
+      requestAnimationFrame(() => container.querySelector('#btn-share-invite')?.focus());
     };
 
-    copyPinTrigger?.addEventListener('click', handleShare);
-    shareBtn?.addEventListener('click', handleShare);
+    shareBtn?.addEventListener('click', openInvite);
+    container.querySelectorAll('[data-close-invite]').forEach(button => {
+      button.addEventListener('click', closeInvite);
+    });
+    inviteOverlay?.addEventListener('click', event => {
+      if (event.target === event.currentTarget) closeInvite();
+    });
+    inviteOverlay?.addEventListener('keydown', event => {
+      if (event.key === 'Escape') closeInvite();
+    });
+    container.querySelector('#btn-copy-invite-link')?.addEventListener('click', async () => {
+      const copied = await copyText(buildInviteUrl(latestTrip.pin));
+      showToast(copied ? 'Invite link copied' : 'Could not copy the invite link', copied ? 'success' : 'error');
+    });
+    container.querySelector('#btn-copy-invite-pin')?.addEventListener('click', async () => {
+      const pin = latestTrip.pin || '';
+      const copied = await copyText(pin);
+      showToast(copied ? `Trip PIN ${pin} copied` : `Trip PIN: ${pin}`, copied ? 'success' : 'info');
+    });
+    container.querySelector('#btn-share-invite')?.addEventListener('click', async () => {
+      const pin = latestTrip.pin || '';
+      const inviteUrl = buildInviteUrl(pin);
+      const shareData = {
+        title: `Join ${latestTrip.name}`,
+        text: `Join my trip “${latestTrip.name}” on TripFlights. Your trip PIN is ${pin}.`,
+        url: inviteUrl
+      };
+
+      if (navigator.share) {
+        try {
+          await navigator.share(shareData);
+          return;
+        } catch (error) {
+          if (error?.name === 'AbortError') return;
+        }
+      }
+
+      const copied = await copyText(`${shareData.text}\n${inviteUrl}`);
+      showToast(copied ? 'Invite message copied' : `Share this link: ${inviteUrl}`, copied ? 'success' : 'info');
+    });
 
     // Calendar Sync Export
     container.querySelector('#btn-calendar')?.addEventListener('click', () => {
@@ -720,6 +755,77 @@ function renderFlightsList(sortedFlights, trip, expandedFlightIds) {
     }).join('')}
     </div>
   `;
+}
+
+function renderInviteDialog(trip) {
+  const pin = trip.pin || '';
+  const inviteUrl = buildInviteUrl(pin);
+
+  return `
+    <div class="modal-overlay invite-overlay is-hidden" id="invite-overlay">
+      <section class="modal invite-dialog" role="dialog" aria-modal="true" aria-labelledby="invite-dialog-title">
+        <header class="invite-dialog-header">
+          <span class="invite-dialog-icon" aria-hidden="true">${getIcon('share')}</span>
+          <span>
+            <span class="section-kicker">BRING THE CREW</span>
+            <h2 id="invite-dialog-title">Invite people to ${escapeHtml(trip.name)}</h2>
+          </span>
+          <button type="button" class="invite-dialog-close" data-close-invite aria-label="Close invite dialog">✕</button>
+        </header>
+
+        <p class="invite-dialog-intro">Send the private invite link. The trip PIN is already filled in, so they only need to add their name and home airport.</p>
+
+        <div class="invite-link-card">
+          <span>
+            <small>INVITE LINK</small>
+            <code>${escapeHtml(inviteUrl)}</code>
+          </span>
+          <button type="button" id="btn-copy-invite-link">${getIcon('copy')} Copy link</button>
+        </div>
+
+        <div class="invite-pin-card">
+          <span>
+            <small>JOIN MANUALLY WITH PIN</small>
+            <strong>${escapeHtml(pin)}</strong>
+          </span>
+          <button type="button" id="btn-copy-invite-pin">${getIcon('copy')} Copy PIN</button>
+        </div>
+
+        <p class="invite-privacy-note">Anyone with this link or PIN can join the trip. Share it only with your group.</p>
+
+        <footer class="invite-dialog-footer">
+          <button type="button" class="invite-dialog-cancel" data-close-invite>Cancel</button>
+          <button type="button" class="invite-dialog-share" id="btn-share-invite">${getIcon('share')} Share invite</button>
+        </footer>
+      </section>
+    </div>
+  `;
+}
+
+function buildInviteUrl(pin) {
+  return `${window.location.origin}${window.location.pathname}#join/${encodeURIComponent(pin || '')}`;
+}
+
+async function copyText(text) {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.setAttribute('readonly', '');
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.select();
+    const copied = document.execCommand('copy');
+    textarea.remove();
+    return copied;
+  } catch {
+    return false;
+  }
 }
 
 function escapeHtml(str) {
