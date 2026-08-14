@@ -1,182 +1,193 @@
-/* Calendar Service — iCal / ICS Calendar Export & Sync Engine */
+/* Calendar Service — live iCal subscription UI */
 
 import { showToast } from '../components/toast.js';
 import { getIcon } from '../components/icons.js';
 
+const GOOGLE_CALENDAR_ADD_URL = 'https://calendar.google.com/calendar/render';
+const OUTLOOK_CALENDAR_ADD_URL = 'https://outlook.live.com/calendar/0/addcalendar';
+
+function getCalendarFeedUrl(trip) {
+  const supabaseUrl = import.meta.env?.VITE_SUPABASE_URL?.replace(/\/$/, '');
+  if (!supabaseUrl || !trip?.id || !trip?.pin) return null;
+
+  const url = new URL(`${supabaseUrl}/functions/v1/calendar-feed`);
+  url.searchParams.set('tripId', trip.id);
+  url.searchParams.set('token', trip.pin);
+  return url.toString();
+}
+
+function getSubscriptionUrls(trip) {
+  const feedUrl = getCalendarFeedUrl(trip);
+  if (!feedUrl) return null;
+
+  const webcalUrl = feedUrl.replace(/^https:/i, 'webcal:');
+  const calendarName = `${trip.name || 'Trip'} Flights`;
+
+  const googleUrl = new URL(GOOGLE_CALENDAR_ADD_URL);
+  googleUrl.searchParams.set('cid', feedUrl);
+
+  const outlookUrl = new URL(OUTLOOK_CALENDAR_ADD_URL);
+  outlookUrl.searchParams.set('url', feedUrl);
+  outlookUrl.searchParams.set('name', calendarName);
+
+  return {
+    feedUrl,
+    webcalUrl,
+    googleUrl: googleUrl.toString(),
+    outlookUrl: outlookUrl.toString()
+  };
+}
+
+function openExternal(url) {
+  // Same-tab navigation avoids popup blockers in mobile and in-app browsers.
+  window.location.assign(url);
+}
+
+async function copyText(text) {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {
+    // Some in-app browsers expose Clipboard but block it. Fall through.
+  }
+
+  const input = document.createElement('textarea');
+  input.value = text;
+  input.setAttribute('readonly', '');
+  input.style.position = 'fixed';
+  input.style.opacity = '0';
+  document.body.appendChild(input);
+  input.select();
+
+  let copied = false;
+  try {
+    copied = document.execCommand('copy');
+  } catch {
+    copied = false;
+  }
+  input.remove();
+  return copied;
+}
+
 /**
- * Pops open an interactive modal explaining Calendar sync options
- * and provides 1-click sync for Apple Calendar, Google Calendar, and Outlook.
- * 
- * @param {Object} trip - The current trip object containing flights
+ * Open calendar subscription options for the current trip.
+ * The URL points to a server-generated ICS feed, so subscribers receive the
+ * latest flight data whenever their calendar application refreshes the feed.
  */
 export function exportTripCalendar(trip) {
-  if (!trip || !trip.flights || trip.flights.length === 0) {
+  if (!trip?.flights?.length) {
     showToast('No flights added to this trip yet!', 'warning');
     return;
   }
 
-  const existingModal = document.getElementById('calendar-sync-modal');
-  if (existingModal) existingModal.remove();
+  const subscriptionUrls = getSubscriptionUrls(trip);
+  if (!subscriptionUrls) {
+    showToast('Calendar subscription is not configured yet.', 'error');
+    return;
+  }
 
-  const flightCount = trip.flights.length;
-  const webcalUrl = `${window.location.origin}/api/subscribe-ics?tripId=${trip.id}&pin=${trip.pin}`;
-
-  // Build 1-click Google Calendar Link for the first flight or primary itinerary
-  const firstFlight = trip.flights[0];
-  const gcalTitle = encodeURIComponent(`[${firstFlight.departure?.code || 'DEP'} ✈ ${firstFlight.arrival?.code || 'ARR'}] ${firstFlight.airline || ''} ${firstFlight.flightNumber || ''} (${trip.name})`);
-  const gcalDetails = encodeURIComponent(`Group Trip: ${trip.name}\nFlight: ${firstFlight.flightNumber}\nTraveler: ${firstFlight.addedBy || ''}`);
-  const gcalLocation = encodeURIComponent(`${firstFlight.departure?.code || ''} to ${firstFlight.arrival?.code || ''}`);
-  const gcalUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${gcalTitle}&details=${gcalDetails}&location=${gcalLocation}`;
+  document.getElementById('calendar-sync-modal')?.remove();
 
   const overlay = document.createElement('div');
   overlay.id = 'calendar-sync-modal';
-  overlay.className = 'modal-overlay';
+  overlay.className = 'modal-overlay calendar-sync-overlay';
   overlay.innerHTML = `
-    <div class="modal" style="animation: scaleIn var(--transition-fast) ease-out; max-width: 480px; padding: 1.5rem; background: linear-gradient(145deg, #0F172A 0%, #0B101D 100%); border: 1px solid rgba(56, 189, 248, 0.3); box-shadow: 0 25px 60px rgba(0,0,0,0.85); z-index: 1000000;">
-      
-      <!-- Header -->
-      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 1rem; border-bottom: 1px dashed rgba(255, 255, 255, 0.1); padding-bottom: 0.85rem;">
-        <div style="display:flex; align-items:center; gap: 10px;">
-          <span style="color: #38BDF8; font-size: 1.4rem; display:flex;">${getIcon('calendar')}</span>
-          <div>
-            <h3 style="margin:0; font-size: 1.2rem; font-weight: 800; color: #FFF;">Add to Calendar</h3>
-            <span style="font-size: 11px; color: var(--color-text-secondary);">${flightCount} Flights in Trip "${escapeHtml(trip.name)}"</span>
-          </div>
-        </div>
-        <button id="modal-cal-close-x" style="all:unset; cursor:pointer; color: #94A3B8; font-weight:800; font-size: 1.1rem; padding: 4px;">✕</button>
+    <div class="modal calendar-sync-dialog" role="dialog" aria-modal="true" aria-labelledby="calendar-sync-title">
+      <header class="calendar-sync-header">
+        <span class="calendar-sync-icon" aria-hidden="true">${getIcon('calendar')}</span>
+        <span class="calendar-sync-heading">
+          <span class="calendar-sync-kicker">LIVE CALENDAR</span>
+          <h3 id="calendar-sync-title">Subscribe to trip flights</h3>
+          <small>${trip.flights.length} flights · ${escapeHtml(trip.name || 'Trip')}</small>
+        </span>
+        <button type="button" class="calendar-sync-close" id="modal-cal-close-x" aria-label="Close calendar options">✕</button>
+      </header>
+
+      <div class="calendar-sync-status">
+        <i aria-hidden="true"></i>
+        <span>
+          <strong>Live subscription</strong>
+          <small>New flights and schedule changes sync whenever your calendar refreshes.</small>
+        </span>
       </div>
 
-      <p style="font-size: 13px; color: #94A3B8; margin-bottom: 1.25rem; line-height: 1.5;">
-        Sync all group flights directly to your phone or computer calendar app (Apple Calendar, Google Calendar, or Outlook).
-      </p>
-
-      <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 1.25rem;">
-        
-        <!-- Apple Calendar / iPhone / Mac -->
-        <button id="btn-download-ics-file" class="btn btn-primary" style="width:100%; font-size: 13px; padding: 10px 14px; justify-content: flex-start;">
-          <span>🍎</span>
-          <span style="flex:1; text-align:left; font-weight:700;">Add to Apple Calendar / iPhone (.ics)</span>
+      <div class="calendar-provider-list">
+        <button type="button" class="calendar-provider calendar-provider-primary" id="btn-subscribe-apple">
+          <span class="calendar-provider-mark" aria-hidden="true">${getIcon('calendar')}</span>
+          <span class="calendar-provider-copy"><strong>Apple Calendar</strong><small>Subscribe on iPhone, iPad or Mac</small></span>
+          <span class="calendar-provider-arrow" aria-hidden="true">↗</span>
         </button>
 
-        <!-- Google Calendar Web -->
-        <a href="${gcalUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" style="width:100%; font-size: 13px; padding: 10px 14px; justify-content: flex-start; text-decoration:none;">
-          <span>🌐</span>
-          <span style="flex:1; text-align:left; font-weight:700;">Add to Google Calendar (Web)</span>
-        </a>
-
-        <!-- Copy Calendar Link -->
-        <button id="btn-copy-webcal-link" class="btn btn-ghost" style="width:100%; font-size: 12px; padding: 8px 14px; justify-content: flex-start; color: #94A3B8; border: 1px solid rgba(255,255,255,0.08);">
-          <span>🔗</span>
-          <span style="flex:1; text-align:left;">Copy iCal Subscription Link</span>
+        <button type="button" class="calendar-provider" id="btn-subscribe-google">
+          <span class="calendar-provider-mark calendar-provider-letter" aria-hidden="true">G</span>
+          <span class="calendar-provider-copy"><strong>Google Calendar</strong><small>Open the live feed in Google Calendar</small></span>
+          <span class="calendar-provider-arrow" aria-hidden="true">↗</span>
         </button>
 
+        <button type="button" class="calendar-provider" id="btn-subscribe-outlook">
+          <span class="calendar-provider-mark calendar-provider-letter" aria-hidden="true">O</span>
+          <span class="calendar-provider-copy"><strong>Outlook</strong><small>Subscribe from Outlook on the web</small></span>
+          <span class="calendar-provider-arrow" aria-hidden="true">↗</span>
+        </button>
       </div>
 
-      <button id="modal-cal-close-btn" class="btn btn-ghost" style="width:100%; font-size: 12px; color: #64748B;">Close</button>
+      <button type="button" class="calendar-copy-link" id="btn-copy-calendar-link">
+        <span aria-hidden="true">${getIcon('copy')}</span>
+        <span>Copy subscription URL</span>
+      </button>
+
+      <p class="calendar-sync-privacy">Anyone with this private link can view the trip's flight schedule.</p>
     </div>
   `;
 
   document.body.appendChild(overlay);
 
   const closeModal = () => overlay.remove();
+  const closeButton = overlay.querySelector('#modal-cal-close-x');
 
-  overlay.querySelector('#modal-cal-close-x').addEventListener('click', closeModal);
-  overlay.querySelector('#modal-cal-close-btn').addEventListener('click', closeModal);
-  overlay.addEventListener('click', (e) => {
-    if (e.target === overlay) closeModal();
+  closeButton.addEventListener('click', closeModal);
+  overlay.addEventListener('click', (event) => {
+    if (event.target === overlay) closeModal();
+  });
+  overlay.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') closeModal();
   });
 
-  // Download .ics File Event Handler
-  overlay.querySelector('#btn-download-ics-file').addEventListener('click', () => {
-    triggerIcsDownload(trip);
+  overlay.querySelector('#btn-subscribe-apple').addEventListener('click', () => {
+    closeModal();
+    window.location.assign(subscriptionUrls.webcalUrl);
+  });
+
+  overlay.querySelector('#btn-subscribe-google').addEventListener('click', () => {
+    openExternal(subscriptionUrls.googleUrl);
     closeModal();
   });
 
-  // Copy Webcal Link Event Handler
-  overlay.querySelector('#btn-copy-webcal-link').addEventListener('click', () => {
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(webcalUrl);
-      showToast('🔗 iCal Subscription URL copied to clipboard!', 'success', 5000);
-    } else {
-      showToast(`Subscription URL: ${webcalUrl}`, 'info', 5000);
-    }
+  overlay.querySelector('#btn-subscribe-outlook').addEventListener('click', () => {
+    openExternal(subscriptionUrls.outlookUrl);
     closeModal();
   });
-}
 
-function triggerIcsDownload(trip) {
-  const icsLines = [
-    'BEGIN:VCALENDAR',
-    'VERSION:2.0',
-    'PRODID:-//PPC Trip Tracker//Calendar Feed//EN',
-    'CALSCALE:GREGORIAN',
-    'METHOD:PUBLISH',
-    `X-WR-CALNAME:${escapeIcsText(trip.name)} Flights`,
-    'X-WR-TIMEZONE:UTC',
-    'X-PUBLISHED-TTL:PT1H',
-    'REFRESH-INTERVAL;VALUE=DURATION:PT1H'
-  ];
-
-  const now = new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
-
-  trip.flights.forEach(f => {
-    if (!f.date) return;
-    const uid = `${f.id || Math.random().toString(36).substring(2)}@ppc-trip-tracker.app`;
-    
-    const depTimeStr = f.departure?.time || '12:00';
-    const arrTimeStr = f.arrival?.time || '14:00';
-    
-    const depClean = depTimeStr.replace(/[^0-9]/g, '').padStart(4, '0') + '00';
-    const arrClean = arrTimeStr.replace(/[^0-9]/g, '').padStart(4, '0') + '00';
-    const dateClean = f.date.replace(/[^0-9]/g, '');
-
-    const startStr = `${dateClean}T${depClean}`;
-    const endStr = `${dateClean}T${arrClean}`;
-
-    const depCode = (f.departure?.code || 'DEP').toUpperCase();
-    const arrCode = (f.arrival?.code || 'ARR').toUpperCase();
-    const airline = f.airline || '';
-    const fn = f.flightNumber || '';
-    const traveler = f.addedBy || 'Traveler';
-
-    const summary = `[${depCode} ✈️ ${arrCode}] ${airline} ${fn} (${traveler})`;
-    const location = `${depCode} to ${arrCode}`;
-    const description = `✈️ FLIGHT DETAILS\\n• Airline: ${airline}\\n• Flight: ${fn}\\n• Traveler: ${traveler}\\n• Date: ${f.date}\\n• Times: ${depTimeStr} - ${arrTimeStr}`;
-
-    icsLines.push(
-      'BEGIN:VEVENT',
-      `DTSTAMP:${now}`,
-      `UID:${uid}`,
-      `DTSTART:${startStr}`,
-      `DTEND:${endStr}`,
-      `SUMMARY:${escapeIcsText(summary)}`,
-      `LOCATION:${escapeIcsText(location)}`,
-      `DESCRIPTION:${escapeIcsText(description)}`,
-      'END:VEVENT'
+  overlay.querySelector('#btn-copy-calendar-link').addEventListener('click', async () => {
+    const copied = await copyText(subscriptionUrls.feedUrl);
+    showToast(
+      copied ? 'Calendar subscription URL copied!' : 'Could not copy the calendar URL.',
+      copied ? 'success' : 'error',
+      5000
     );
+    if (copied) closeModal();
   });
 
-  icsLines.push('END:VCALENDAR');
-
-  const icsContent = icsLines.join('\r\n') + '\r\n';
-  const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `${(trip.name || 'Trip').replace(/[^a-zA-Z0-9]/g, '_')}_Flights.ics`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-
-  showToast(`📅 Calendar file downloaded! Tap file to open in Apple Calendar`, 'success', 5000);
+  closeButton.focus();
 }
 
-function escapeIcsText(str) {
-  if (!str) return '';
-  return str
-    .replace(/\\/g, '\\\\')
-    .replace(/;/g, '\\;')
-    .replace(/,/g, '\\,')
-    .replace(/\n/g, '\\n');
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
 }

@@ -519,6 +519,7 @@ export async function renderDashboard(container, tripId) {
 
     // Calendar Sync Export
     container.querySelector('#btn-calendar')?.addEventListener('click', () => {
+      container.querySelector('.dashboard-tools-menu')?.removeAttribute('open');
       exportTripCalendar(latestTrip);
     });
 
