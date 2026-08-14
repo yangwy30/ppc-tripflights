@@ -53,9 +53,16 @@ function formatTime(time) {
   return `${escapeHtml(match[1])}${offset ? `<small>${offset}</small>` : ''}`;
 }
 
+function formatTerminal(value) {
+  if (!value) return 'Terminal TBD';
+  const raw = String(value).trim();
+  const terminal = /^T(?=[A-Z0-9]+$)/i.test(raw) ? raw.slice(1) : raw;
+  return `Terminal ${terminal}`;
+}
+
 function renderAirportDetail(label, endpoint) {
   const terminalAndGate = [
-    endpoint?.terminal ? `Terminal ${endpoint.terminal}` : '',
+    formatTerminal(endpoint?.terminal),
     endpoint?.gate ? `Gate ${endpoint.gate}` : ''
   ].filter(Boolean).join(' · ');
 
@@ -93,7 +100,11 @@ export function renderCompactFlightRow(flight, participants, isExpanded = false)
         <span class="flight-summary-route">
           <span><strong>${escapeHtml(departureCode)}</strong><small>${formatTime(flight.departure?.time)}</small></span>
           <i aria-hidden="true">${getIcon('arrowRight')}</i>
-          <span><strong>${escapeHtml(arrivalCode)}</strong><small>${formatTime(flight.arrival?.time)}</small></span>
+          <span>
+            <strong>${escapeHtml(arrivalCode)}</strong>
+            <small>${formatTime(flight.arrival?.time)}</small>
+            <em class="flight-arrival-terminal">${escapeHtml(formatTerminal(flight.arrival?.terminal))}</em>
+          </span>
         </span>
 
         <span class="flight-summary-traveler">

@@ -120,7 +120,7 @@ export function ReferenceFlightMap({ flights = [], participants = [], trip = {},
 
       <div className="reference-flight-map-stage">
         {routes.length ? (
-          <ComposableMap projection={projection} width={800} height={460} className="reference-map-svg">
+          <ComposableMap projection={projection} width={800} height={460} className="reference-map-svg" shapeRendering="geometricPrecision">
             <defs>
               {routes.map(route => (
                 <linearGradient
@@ -189,7 +189,10 @@ export function ReferenceFlightMap({ flights = [], participants = [], trip = {},
 
             {uniqueEndpoints(routes).map(route => (
               <g key={`destination-${route.toCode}`} transform={`translate(${route.to[0]}, ${route.to[1]})`}>
-                <circle r={14} className="reference-destination-pulse dest-pulse" style={{ transformOrigin: 'center' }} />
+                <circle r={8} opacity={0.7} className="reference-destination-pulse">
+                  <animate attributeName="r" values="8;25;25" keyTimes="0;0.7;1" dur="2.4s" repeatCount="indefinite" />
+                  <animate attributeName="opacity" values="0.7;0;0" keyTimes="0;0.7;1" dur="2.4s" repeatCount="indefinite" />
+                </circle>
                 <circle r={6} className="reference-destination-dot" stroke="var(--reference-map-card)" strokeWidth={2} />
               </g>
             ))}
