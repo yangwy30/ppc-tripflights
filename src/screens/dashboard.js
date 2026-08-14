@@ -1,10 +1,10 @@
 /* Dashboard screen */
 
-import { getTrip, updateFlightStatus, getUserNickname, deleteParticipant, deleteFlight } from '../data/dataAdapter.js';
+import { getTrip, getUserNickname, deleteParticipant, deleteFlight } from '../data/dataAdapter.js';
 import { subscribe, EVENTS } from '../data/store.js';
 import { navigate } from '../app.js';
 import { showToast } from '../components/toast.js';
-import { getComputedFlightStatus, renderFlightCard, renderCompactFlightRow } from '../components/flightCard.js';
+import { getComputedFlightStatus, renderCompactFlightRow } from '../components/flightCard.js';
 import { renderCoordinationTab } from '../components/coordinationTab.js';
 import { renderRouteMap, destroyRouteMap } from '../components/routeMap.js';
 import { startPolling, stopPolling, isPolling, setAutoRefreshPref, getAutoRefreshPref } from '../data/alertService.js';
@@ -204,8 +204,7 @@ export async function renderDashboard(container, tripId) {
   let filterPerson = 'all';
   let phaseFilter = 'outbound'; // Default tab: 'outbound'
   let activeMainTab = 'tracking'; // 'tracking', 'coordination'
-  let viewMode = 'compact'; // 'compact' vs 'expanded'
-  let expandedFlightIds = new Set(); // Track expanded rows in compact mode
+  let expandedFlightIds = new Set();
 
   const trip = await getTrip(tripId);
   if (!trip) {
@@ -293,16 +292,22 @@ export async function renderDashboard(container, tripId) {
           </button>
 
           <div class="dashboard-actions" aria-label="Trip actions">
-            <button class="btn dashboard-icon-action" id="btn-toggle-refresh" title="${isCurrentlyPolling ? 'Live refresh is on' : 'Enable live refresh'}">
-              <span class="live-dot ${isCurrentlyPolling ? 'is-live' : ''}"></span>
-              <span>${isCurrentlyPolling ? 'Live' : 'Refresh'}</span>
-            </button>
-            <button class="btn dashboard-icon-action" id="btn-notes" title="Open trip notes">
-              ${getIcon('list')}<span class="action-label">Notes</span>
-            </button>
-            <button class="btn dashboard-icon-action" id="btn-calendar" title="Add flights to your calendar">
-              ${getIcon('calendar')}<span class="action-label">Calendar</span>
-            </button>
+            <details class="dashboard-tools-menu">
+              <summary class="dashboard-tools-trigger">Trip tools <span aria-hidden="true">⌄</span></summary>
+              <div class="dashboard-tools-popover">
+                <button id="btn-toggle-refresh" title="${isCurrentlyPolling ? 'Turn off live refresh' : 'Enable live refresh'}">
+                  ${getIcon('refresh')}
+                  <span>Live refresh</span>
+                  <strong>${isCurrentlyPolling ? 'On' : 'Off'}</strong>
+                </button>
+                <button id="btn-notes" title="Open trip notes">
+                  ${getIcon('notes')}<span>Trip notes</span>
+                </button>
+                <button id="btn-calendar" title="Add flights to your calendar">
+                  ${getIcon('calendar')}<span>Add to calendar</span>
+                </button>
+              </div>
+            </details>
             <button class="btn btn-primary dashboard-add-action" id="btn-add-flight">
               ${getIcon('plus')}<span>Add flight</span>
             </button>
@@ -426,7 +431,7 @@ export async function renderDashboard(container, tripId) {
             </div>
 
             <div class="dashboard-subnav mb-base">
-              <div class="tabs" aria-label="Flight direction">
+              <div class="tabs dashboard-direction-tabs" aria-label="Flight direction">
                 <button class="tab ${phaseFilter === 'outbound' ? 'active' : ''}" data-phase="outbound">
                   Outbound <span>${filteredOutbound}</span>
                 </button>
@@ -445,18 +450,11 @@ export async function renderDashboard(container, tripId) {
                 <span class="section-kicker">${phaseFilter === 'return' ? 'INBOUND' : 'OUTBOUND'}</span>
                 <h2>Traveler details</h2>
               </div>
-              <div class="tabs dashboard-view-toggle">
-                <button class="tab ${viewMode === 'compact' ? 'active' : ''}" id="btn-view-compact" title="Compact rows">
-                  ${getIcon('list')} List
-                </button>
-                <button class="tab ${viewMode === 'expanded' ? 'active' : ''}" id="btn-view-expanded" title="Expanded cards">
-                  ${getIcon('grid')} Cards
-                </button>
-              </div>
+              <span class="traveler-details-hint">Select a flight for details</span>
             </div>
 
             <div id="tab-content">
-              ${renderFlightsList(sortedFlights, currentTrip, viewMode, expandedFlightIds)}
+              ${renderFlightsList(sortedFlights, currentTrip, expandedFlightIds)}
             </div>
 
             <div class="dashboard-bottom-action">
@@ -623,21 +621,10 @@ export async function renderDashboard(container, tripId) {
       });
     });
 
-    // View Mode Toggles (Compact vs Expanded)
-    container.querySelector('#btn-view-compact')?.addEventListener('click', () => {
-      viewMode = 'compact';
-      render();
-    });
-
-    container.querySelector('#btn-view-expanded')?.addEventListener('click', () => {
-      viewMode = 'expanded';
-      render();
-    });
-
-    // Expandable Compact Row Toggle
+    // One consistent flight card pattern: compact summary with expandable details.
     container.querySelectorAll('[data-expand-flight]').forEach(row => {
       row.addEventListener('click', (e) => {
-        if (e.target.closest('button')) return;
+        if (e.target.closest('[data-delete-flight]')) return;
         const flightId = row.getAttribute('data-expand-flight');
         if (expandedFlightIds.has(flightId)) {
           expandedFlightIds.delete(flightId);
@@ -645,30 +632,6 @@ export async function renderDashboard(container, tripId) {
           expandedFlightIds.add(flightId);
         }
         render();
-      });
-    });
-
-    // Flight Card Actions (Refresh status & Delete)
-    container.querySelectorAll('[data-refresh-flight]').forEach(btn => {
-      btn.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        const flightId = btn.getAttribute('data-refresh-flight');
-
-        btn.disabled = true;
-        btn.innerHTML = `<span style="display:inline-block; animation:spin 1s linear infinite;">⏳</span> Refreshing...`;
-
-        try {
-          const result = await updateFlightStatus(tripId, flightId);
-          if (result.success) {
-            showToast(`Flight status updated: ${result.status}`, 'success');
-          } else {
-            showToast(`Status refresh: ${result.error}`, 'info');
-          }
-        } catch (err) {
-          showToast('Failed to refresh status', 'error');
-        } finally {
-          render();
-        }
       });
     });
 
@@ -690,9 +653,9 @@ export async function renderDashboard(container, tripId) {
 }
 
 /**
- * Render Flight List supporting both Compact (48px) and Expanded (Full Card) views
+ * Render a single, consistent expandable flight card list.
  */
-function renderFlightsList(sortedFlights, trip, viewMode, expandedFlightIds) {
+function renderFlightsList(sortedFlights, trip, expandedFlightIds) {
   if (sortedFlights.length === 0) {
     return `
       <div class="card text-center" style="padding: var(--space-2xl) var(--space-lg);">
@@ -705,18 +668,14 @@ function renderFlightsList(sortedFlights, trip, viewMode, expandedFlightIds) {
     `;
   }
 
-  if (viewMode === 'compact') {
-    return `
-      <div class="compact-flight-list" style="display:flex; flex-direction:column;">
-        ${sortedFlights.map(flight => {
-      const isExpanded = expandedFlightIds.has(flight.id);
+  return `
+    <div class="compact-flight-list">
+      ${sortedFlights.map(flight => {
+      const isExpanded = expandedFlightIds.has(String(flight.id));
       return renderCompactFlightRow(flight, trip.participants || [], isExpanded);
     }).join('')}
-      </div>
-    `;
-  }
-
-  return sortedFlights.map(flight => renderFlightCard(flight, trip.participants || [])).join('');
+    </div>
+  `;
 }
 
 function escapeHtml(str) {

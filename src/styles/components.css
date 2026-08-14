@@ -2376,3 +2376,833 @@
     stroke-dashoffset: 0;
   }
 }
+
+/* ==========================================================================
+   DASHBOARD INTERACTION CLEANUP
+   ========================================================================== */
+
+.dashboard-tools-menu {
+  position: relative;
+}
+
+.dashboard-tools-menu summary {
+  list-style: none;
+}
+
+.dashboard-tools-menu summary::-webkit-details-marker {
+  display: none;
+}
+
+.dashboard-tools-trigger {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 13px;
+  color: #a4a5aa;
+  background: transparent;
+  border: 1px solid #2d2d31;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: color 150ms ease, background 150ms ease, border-color 150ms ease;
+}
+
+.dashboard-tools-trigger:hover,
+.dashboard-tools-menu[open] .dashboard-tools-trigger {
+  color: #f1f1ee;
+  background: #151517;
+  border-color: #3b3b40;
+}
+
+.dashboard-tools-trigger > span {
+  color: #6f7075;
+  font-size: 14px;
+  transition: transform 150ms ease;
+}
+
+.dashboard-tools-menu[open] .dashboard-tools-trigger > span {
+  transform: rotate(180deg);
+}
+
+.dashboard-tools-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 500;
+  width: 210px;
+  padding: 6px;
+  background: #151517;
+  border: 1px solid #333337;
+  border-radius: 12px;
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.42);
+}
+
+.dashboard-tools-popover button {
+  display: grid;
+  width: 100%;
+  min-height: 40px;
+  grid-template-columns: 18px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  padding: 0 10px;
+  color: #c6c6c3;
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  font-size: 11px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.dashboard-tools-popover button:hover {
+  color: #ffffff;
+  background: #202023;
+}
+
+.dashboard-tools-popover svg {
+  width: 14px;
+  height: 14px;
+  color: #77787d;
+}
+
+.dashboard-tools-popover strong {
+  color: #d9ff43;
+  font-family: var(--font-family-mono);
+  font-size: 9px;
+  font-weight: 750;
+  text-transform: uppercase;
+}
+
+.dashboard-add-action {
+  min-height: 38px;
+  padding: 0 16px;
+}
+
+.dashboard-direction-tabs {
+  display: grid !important;
+  width: min(100%, 430px);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px !important;
+  padding: 5px !important;
+  border-radius: 13px !important;
+}
+
+.dashboard-direction-tabs .tab {
+  min-height: 44px !important;
+  justify-content: center;
+  gap: 9px;
+  padding: 0 22px !important;
+  border-radius: 9px !important;
+  font-size: 13px !important;
+}
+
+.dashboard-direction-tabs .tab span {
+  display: inline-flex;
+  min-width: 22px;
+  min-height: 20px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 6px;
+  color: #a5a6ab;
+  background: #303034;
+  border-radius: 999px;
+  font-size: 9px;
+}
+
+.dashboard-direction-tabs .tab.active span {
+  color: #121311;
+  background: #d9ff43;
+}
+
+.traveler-details-hint {
+  color: #65666b;
+  font-size: 10px;
+}
+
+.compact-flight-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.flight-details-card {
+  overflow: hidden;
+  background: #111113;
+  border: 1px solid #29292d;
+  border-left: 3px solid var(--flight-person-color);
+  border-radius: 11px;
+  transition: background 150ms ease, border-color 150ms ease;
+}
+
+.flight-details-card:hover,
+.flight-details-card.is-expanded {
+  background: #151517;
+  border-color: #3a3a3f;
+  border-left-color: var(--flight-person-color);
+}
+
+.flight-summary-trigger {
+  display: grid;
+  width: 100%;
+  min-height: 66px;
+  grid-template-columns: minmax(150px, 0.8fr) minmax(250px, 1.5fr) minmax(90px, 0.5fr) 24px;
+  align-items: center;
+  gap: 18px;
+  padding: 11px 15px;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  text-align: left;
+  cursor: pointer;
+}
+
+.flight-summary-identifiers,
+.flight-summary-route,
+.flight-summary-route > span,
+.flight-summary-traveler {
+  display: flex;
+  align-items: center;
+}
+
+.flight-summary-identifiers {
+  gap: 8px;
+}
+
+.flight-summary-identifiers > strong {
+  color: #a7a8ad;
+  font-family: var(--font-family-mono);
+  font-size: 10px;
+}
+
+.flight-summary-identifiers .badge {
+  min-width: 66px;
+  justify-content: center;
+  padding: 3px 7px;
+  font-size: 9px;
+}
+
+.flight-summary-route {
+  justify-content: center;
+  gap: 12px;
+  font-family: var(--font-family-mono);
+}
+
+.flight-summary-route > span {
+  gap: 7px;
+}
+
+.flight-summary-route strong {
+  color: #f0f0ed;
+  font-size: 13px;
+}
+
+.flight-summary-route small {
+  color: #6f7076;
+  font-size: 10px;
+}
+
+.flight-summary-route small small {
+  margin-left: 2px;
+  color: #d9a847;
+  font-size: 7px;
+}
+
+.flight-summary-route i {
+  display: flex;
+  color: #5d5e63;
+}
+
+.flight-summary-route svg {
+  width: 13px;
+  height: 13px;
+}
+
+.flight-summary-traveler {
+  gap: 7px;
+  overflow: hidden;
+  color: #a4a5aa;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.flight-summary-traveler i {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  background: var(--flight-person-color);
+  border-radius: 50%;
+}
+
+.flight-summary-chevron {
+  color: #74757a;
+  font-size: 17px;
+  text-align: center;
+  transition: transform 150ms ease;
+}
+
+.flight-details-card.is-expanded .flight-summary-chevron {
+  transform: rotate(180deg);
+}
+
+.flight-expanded-panel {
+  padding: 0 15px 14px;
+  border-top: 1px solid #29292d;
+}
+
+.flight-expanded-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  padding: 14px 0;
+}
+
+.flight-expanded-item {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.flight-expanded-item > span {
+  color: #616268;
+  font-family: var(--font-family-mono);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.flight-expanded-item strong {
+  overflow: hidden;
+  color: #d8d8d5;
+  font-size: 11px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.flight-expanded-item small {
+  overflow: hidden;
+  color: #6c6d72;
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.flight-expanded-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #27272b;
+}
+
+.flight-expanded-footer > span {
+  color: #606167;
+  font-size: 9px;
+}
+
+.flight-remove-action {
+  display: inline-flex;
+  min-height: 31px;
+  align-items: center;
+  gap: 7px;
+  padding: 0 10px;
+  color: #e4777e;
+  background: rgba(228, 119, 126, 0.06);
+  border: 1px solid rgba(228, 119, 126, 0.16);
+  border-radius: 8px;
+  font-size: 9px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.flight-remove-action:hover {
+  color: #ff9ba0;
+  background: rgba(228, 119, 126, 0.11);
+  border-color: rgba(228, 119, 126, 0.28);
+}
+
+.flight-remove-action svg {
+  width: 12px;
+  height: 12px;
+}
+
+/* Streamlined coordination setup and result cards. */
+.coordination-panel-simple {
+  padding: 28px 0 8px;
+}
+
+.coordination-setup-card,
+.coordination-option-card,
+.coordination-state-card {
+  background: #111113;
+  border: 1px solid #29292d;
+  border-radius: 14px;
+}
+
+.coordination-setup-card {
+  padding: 22px;
+}
+
+.coordination-simple-header,
+.coordination-setup-footer,
+.coordination-results-header,
+.coordination-option-header,
+.coordination-option-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.coordination-simple-header h2,
+.coordination-results-header h2 {
+  margin-top: 5px;
+  color: #efefec;
+  font-family: "Space Grotesk", var(--font-family);
+  font-size: 20px;
+  font-weight: 650;
+  letter-spacing: -0.035em;
+}
+
+.coordination-simple-header p {
+  margin-top: 5px;
+  color: #74757a;
+  font-size: 11px;
+}
+
+.coordination-ready-count {
+  flex: 0 0 auto;
+  padding: 5px 9px;
+  color: #d9ff43;
+  background: rgba(217, 255, 67, 0.08);
+  border: 1px solid rgba(217, 255, 67, 0.18);
+  border-radius: 999px;
+  font-family: var(--font-family-mono);
+  font-size: 9px;
+  font-weight: 750;
+  text-transform: uppercase;
+}
+
+.coordination-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr 0.72fr;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.coordination-fields label,
+.coordination-destination {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 7px;
+  padding: 12px;
+  background: #171719;
+  border: 1px solid #2b2b2f;
+  border-radius: 10px;
+}
+
+.coordination-fields label > span,
+.coordination-destination > span {
+  color: #68696e;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.coordination-fields select,
+.coordination-fields input {
+  width: 100%;
+  min-height: 34px;
+  padding: 0 9px;
+  color: #eeeeeb !important;
+  background: #101012;
+  border: 1px solid #303034;
+  border-radius: 7px;
+  outline: none;
+  font-family: var(--font-family-mono);
+  font-size: 11px;
+}
+
+.coordination-airport-input {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px;
+}
+
+.coordination-airport-input input {
+  text-transform: uppercase;
+}
+
+.coordination-airport-input button {
+  padding: 0 10px;
+  color: #c9c9c6;
+  background: #252528;
+  border: 1px solid #38383d;
+  border-radius: 7px;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.coordination-destination strong {
+  color: #eeeeeb;
+  font-family: var(--font-family-mono);
+  font-size: 19px;
+}
+
+.coordination-destination small {
+  color: #68696e;
+  font-size: 9px;
+}
+
+.coordination-setup-footer {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #29292d;
+}
+
+.coordination-setup-footer p {
+  color: #74757a;
+  font-size: 10px;
+}
+
+.coordination-setup-footer .btn {
+  width: auto;
+  min-height: 38px;
+  padding: 0 16px;
+  font-size: 11px;
+}
+
+.coordination-idle-hint {
+  padding: 18px 4px 0;
+  color: #5f6065;
+  font-size: 10px;
+  text-align: center;
+}
+
+.coordination-state-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 16px 18px;
+}
+
+.coordination-state-card > div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.coordination-state-card strong {
+  color: #ddddda;
+  font-size: 11px;
+}
+
+.coordination-state-card small {
+  color: #6e6f74;
+  font-size: 9px;
+}
+
+.coordination-state-icon {
+  display: flex;
+  color: #d9ff43;
+  animation: pulse 1.5s infinite;
+}
+
+.coordination-state-error {
+  border-color: rgba(228, 119, 126, 0.22);
+}
+
+.coordination-results {
+  margin-top: 28px;
+}
+
+.coordination-results-header {
+  align-items: flex-end;
+  margin-bottom: 12px;
+}
+
+.coordination-results-header p {
+  max-width: 540px;
+  color: #7a7b80;
+  font-size: 10px;
+  line-height: 1.55;
+  text-align: right;
+}
+
+.recommendations-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.coordination-option-card {
+  overflow: hidden;
+  padding: 18px;
+}
+
+.coordination-option-header {
+  padding-bottom: 14px;
+  border-bottom: 1px solid #29292d;
+}
+
+.coordination-option-rank {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.coordination-option-rank > span {
+  display: inline-flex;
+  width: 30px;
+  height: 30px;
+  align-items: center;
+  justify-content: center;
+  color: #11120f;
+  background: #d9ff43;
+  border-radius: 8px;
+  font-family: var(--font-family-mono);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.coordination-option-rank > div,
+.coordination-option-price {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.coordination-option-rank strong,
+.coordination-option-price strong {
+  color: #e7e7e4;
+  font-size: 12px;
+}
+
+.coordination-option-rank small,
+.coordination-option-price small {
+  color: #68696e;
+  font-size: 9px;
+}
+
+.coordination-option-price {
+  align-items: flex-end;
+}
+
+.coordination-option-price strong {
+  font-family: var(--font-family-mono);
+  font-size: 17px;
+}
+
+.coordination-option-legs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+  padding: 14px 0;
+}
+
+.coordination-leg {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+  padding: 11px;
+  background: #171719;
+  border: 1px solid #29292d;
+  border-radius: 9px;
+}
+
+.coordination-leg > span {
+  color: #68696e;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.coordination-leg strong {
+  color: #ddddda;
+  font-family: var(--font-family-mono);
+  font-size: 12px;
+}
+
+.coordination-leg strong i {
+  color: #696a70;
+  font-style: normal;
+}
+
+.coordination-leg small {
+  color: #707176;
+  font-size: 9px;
+}
+
+.coordination-group-details {
+  border-top: 1px solid #29292d;
+  border-bottom: 1px solid #29292d;
+}
+
+.coordination-group-details summary {
+  padding: 12px 0;
+  color: #88898e;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.coordination-group-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-bottom: 12px;
+}
+
+.coordination-group-row {
+  display: grid;
+  grid-template-columns: 100px minmax(0, 1fr) auto;
+  gap: 10px;
+  padding: 7px 9px;
+  color: #74757a;
+  background: #161618;
+  border-radius: 7px;
+  font-size: 9px;
+}
+
+.coordination-group-row.is-current {
+  color: #cfcfcb;
+  background: rgba(217, 255, 67, 0.06);
+}
+
+.coordination-group-row strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.coordination-group-row small {
+  color: #68696e;
+}
+
+.coordination-option-actions {
+  justify-content: flex-end;
+  padding-top: 14px;
+}
+
+.coordination-option-actions .btn {
+  width: auto;
+  min-height: 34px;
+  gap: 7px;
+  padding: 0 12px;
+  font-size: 10px;
+  text-decoration: none;
+}
+
+.coordination-option-actions .btn-add-trip {
+  color: #bfc0c4;
+  background: transparent;
+  border-color: #343439;
+}
+
+.coordination-option-actions svg {
+  width: 13px;
+  height: 13px;
+}
+
+@media (max-width: 640px) {
+  .dashboard-topbar {
+    align-items: center;
+  }
+
+  .dashboard-actions {
+    flex-wrap: nowrap;
+  }
+
+  .dashboard-tools-trigger {
+    min-height: 36px;
+    padding: 0 10px;
+  }
+
+  .dashboard-add-action {
+    min-height: 36px;
+    padding: 0 12px;
+  }
+
+  .dashboard-direction-tabs {
+    width: 100%;
+  }
+
+  .dashboard-direction-tabs .tab {
+    min-height: 46px !important;
+    padding: 0 12px !important;
+  }
+
+  .traveler-details-hint {
+    display: none;
+  }
+
+  .flight-summary-trigger {
+    min-height: 94px;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .flight-summary-route {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-content: flex-start;
+    padding-top: 10px;
+    border-top: 1px solid #27272b;
+  }
+
+  .flight-summary-traveler {
+    justify-self: end;
+  }
+
+  .flight-expanded-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .coordination-panel-simple {
+    padding-top: 20px;
+  }
+
+  .coordination-setup-card,
+  .coordination-option-card {
+    padding: 16px;
+  }
+
+  .coordination-simple-header,
+  .coordination-setup-footer,
+  .coordination-results-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .coordination-fields,
+  .coordination-option-legs {
+    grid-template-columns: 1fr;
+  }
+
+  .coordination-setup-footer .btn {
+    width: 100%;
+  }
+
+  .coordination-results-header p {
+    text-align: left;
+  }
+
+  .coordination-group-row {
+    grid-template-columns: 80px minmax(0, 1fr);
+  }
+
+  .coordination-group-row small {
+    display: none;
+  }
+}
