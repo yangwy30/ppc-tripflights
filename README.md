@@ -1,56 +1,86 @@
 <div align="center">
-  <img src="public/icons/icon-192.png" width="72" alt="PPC app icon" />
+  <img src="public/icons/icon-192.png" width="76" alt="PPC app icon" />
   <h1>PPC: Delay No More</h1>
-  <p><strong>One shared flight dashboard for the whole trip.</strong></p>
-  <p>Track every traveler, compare arrival times, coordinate missing flights, and keep the group moving without spreadsheets or message-thread chaos.</p>
-  <p><a href="https://ppc-tripflights.vercel.app/">Open the live app →</a></p>
+  <p><strong>One trip. Every traveler. Every flight—finally in sync.</strong></p>
+  <p>A shared flight command center for groups arriving from different cities.</p>
+
+  <a href="https://ppc-tripflights.vercel.app/">
+    <img src="https://img.shields.io/badge/OPEN_LIVE_APP-D7FF3F?style=for-the-badge&logo=vercel&logoColor=050609&labelColor=D7FF3F" alt="Open the live PPC app" />
+  </a>
+
+  <br /><br />
+
+  <img src="https://img.shields.io/badge/PWA-installable-38BDF8?style=flat-square&labelColor=111318" alt="Installable PWA" />
+  <img src="https://img.shields.io/badge/live-flight_tracking-10B981?style=flat-square&labelColor=111318" alt="Live flight tracking" />
+  <img src="https://img.shields.io/badge/group_coordination-built_in-A855F7?style=flat-square&labelColor=111318" alt="Group coordination" />
 </div>
 
-## How it works
+<br />
 
-1. **Create or join a trip** with a six-digit invitation PIN.
-2. **Add each traveler's flights** and keep the shared board up to date.
-3. **Use the map, timeline, and coordination engine** to see when everyone arrives and what still needs attention.
+![Colorful flight routes converging on one destination](docs/readme-hero.png)
 
-## Flight board
+## See the trip move
 
-The main board brings the entire trip into one view:
+![Animated walkthrough of the live flight board, inbound view, invite flow, and coordination engine](docs/readme-demo.webp)
 
-- Filter by traveler or switch between outbound and inbound flights.
-- Follow every route on a shared animated map.
-- See group readiness, landed travelers, arrival spread, and missing bookings at a glance.
-- Refresh live flight status without opening every airline website.
+<p align="center"><sub>Real product UI from the live app—no mock screens.</sub></p>
 
-![PPC flight board with traveler filters, route map, and direction tabs](docs/dashboard-flight-board.jpg)
+## The whole trip, at a glance
 
-## Arrival timeline & traveler details
+PPC replaces scattered confirmations, spreadsheets, and group-chat check-ins with one live view of the journey. See who is flying, where everyone is, when they land, and who still needs a plan.
 
-Flights are sorted by landing time so the group can immediately see who arrives first, who lands next, and how far apart the arrivals are. Each traveler card expands to show route, local times, status, gate, and arrival terminal.
+![Desktop flight dashboard showing trip readiness, traveler filters, direction tabs, and the shared route map](docs/readme-dashboard.jpg)
 
-<p align="center">
-  <img src="docs/mobile-arrival-timeline.jpg" width="390" alt="PPC mobile arrival timeline and traveler details" />
-</p>
+<table>
+  <tr>
+    <td width="50%"><strong>✈️ Shared flight board</strong><br />Every traveler's outbound and inbound flights in one place.</td>
+    <td width="50%"><strong>🗺️ Live route map</strong><br />Animated routes, grouped origins, and traveler names at every airport.</td>
+  </tr>
+  <tr>
+    <td width="50%"><strong>⏱️ Arrival intelligence</strong><br />Landing order, arrival spread, flight status, gates, and terminals.</td>
+    <td width="50%"><strong>🧠 Coordination engine</strong><br />Find options for travelers who have not booked yet.</td>
+  </tr>
+</table>
 
-## Coordination engine
+## Made for the moments that matter
 
-The coordination engine focuses on the people who are not fully booked yet. Choose a traveler and origin airport, then compare round-trip options against the rest of the group's arrival pattern. Matching flights can be reviewed and added back to the shared trip.
+The mobile experience keeps the important information close: overall trip readiness before departure, then routes and arrival order while everyone is in motion.
 
-![PPC coordination engine with group flight options](docs/coordination-engine.jpg)
+<table>
+  <tr>
+    <td width="50%" align="center">
+      <img src="docs/readme-mobile-dashboard.jpg" width="390" alt="Mobile trip overview with crew, trip metrics, and flight filters" />
+    </td>
+    <td width="50%" align="center">
+      <img src="docs/readme-mobile-timeline.jpg" width="390" alt="Mobile route map and arrival timeline" />
+    </td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Know whether the group is ready.</sub></td>
+    <td align="center"><sub>Know exactly who lands next.</sub></td>
+  </tr>
+</table>
 
-## Live calendar subscription
+## Coordination without the group-chat math
 
-Subscribe once from Apple Calendar, Google Calendar, or Outlook. The calendar feed reads the latest shared flight information—including schedule, status, route, traveler, and terminals—whenever the calendar provider refreshes it.
+Pick a traveler, confirm their origin, and compare coordinated round-trip options against the group's arrival pattern. A matching itinerary can be added directly to the shared trip.
 
-<p align="center">
-  <img src="docs/calendar-subscription.jpg" width="720" alt="PPC live calendar subscription options" />
-</p>
+![Coordination engine showing traveler setup and coordinated flight recommendations](docs/readme-coordination.jpg)
 
-## Built for group travel
+## One simple flow
 
-- **Shared by default:** everyone in the trip sees the same flights and traveler list.
-- **Fast on mobile:** compact controls, clear status labels, and expandable cards work well at the airport.
-- **Installable PWA:** add PPC to a phone or desktop for app-like access.
-- **Private trip link:** access stays behind the trip PIN and its private calendar subscription URL.
+1. **Create a trip** and set the destination and dates.
+2. **Invite the crew** with one private link or six-digit PIN.
+3. **Add flights** through guided lookup or manual entry.
+4. **Stay coordinated** through the map, arrival timeline, traveler details, and smart status updates.
+
+## Quietly powerful
+
+- **Smart refresh:** flight statuses update automatically around the active trip window and stop after the trip ends.
+- **Live calendar subscription:** subscribe through Apple Calendar, Google Calendar, or Outlook and receive updated flight details as the feed refreshes.
+- **Traveler-level details:** every flight keeps its traveler, route, local times, status, gate, and arrival terminal together.
+- **Shared trip notes:** keep hotels, meetup points, and ground-transport details beside the itinerary.
+- **Installable PWA:** use PPC like an app on mobile or desktop.
 
 ## Run locally
 
@@ -62,8 +92,8 @@ cp .env.example .env
 npm run dev
 ```
 
-Copy `.env.example` to `.env`, then add the Supabase project values used by your deployment.
+Add your Supabase project values to `.env`. The optional live-flight credential is documented in `.env.example`.
 
-### Stack
-
-Vite · Supabase · React · React Simple Maps · PWA
+<div align="center">
+  <sub>Vite · Supabase · React Simple Maps · Progressive Web App</sub>
+</div>
