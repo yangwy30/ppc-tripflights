@@ -5,7 +5,7 @@ import { subscribe, EVENTS } from '../data/store.js';
 import { navigate } from '../app.js';
 import { showToast } from '../components/toast.js';
 import { renderTimeline } from '../components/timeline.js';
-import { renderFlightCard, renderCompactFlightRow } from '../components/flightCard.js';
+import { getComputedFlightStatus, renderFlightCard, renderCompactFlightRow } from '../components/flightCard.js';
 import { renderCoordinationTab } from '../components/coordinationTab.js';
 import { renderRouteMap, destroyRouteMap } from '../components/routeMap.js';
 import { startPolling, stopPolling, isPolling, setAutoRefreshPref, getAutoRefreshPref } from '../data/alertService.js';
@@ -56,6 +56,57 @@ function getFlightPhase(flight, trip) {
   return 'outbound';
 }
 
+function getDashboardStats(trip) {
+  const participants = (trip.participants || []).map(p => typeof p === 'string' ? { name: p } : p);
+  const flights = trip.flights || [];
+  const outboundFlights = flights.filter(flight => getFlightPhase(flight, trip) === 'outbound');
+  const bookedTravelers = new Set(outboundFlights.map(flight => (flight.addedBy || '').trim().toLowerCase()).filter(Boolean));
+  const landed = outboundFlights.filter(flight => {
+    const status = (getComputedFlightStatus(flight) || '').toLowerCase();
+    return status.includes('landed') || status.includes('arrived');
+  }).length;
+
+  const arrivalTimes = outboundFlights.map(flight => {
+    const date = flight.date || flight.arrival?.date;
+    const time = flight.arrival?.time;
+    if (!date || !time) return null;
+    const timestamp = new Date(`${date}T${time}`).getTime();
+    return Number.isNaN(timestamp) ? null : timestamp;
+  }).filter(Number.isFinite);
+
+  let arrivalSpread = '—';
+  if (arrivalTimes.length === 1) arrivalSpread = '0m';
+  if (arrivalTimes.length > 1) {
+    const spreadMinutes = Math.round((Math.max(...arrivalTimes) - Math.min(...arrivalTimes)) / 60000);
+    const hours = Math.floor(spreadMinutes / 60);
+    const minutes = spreadMinutes % 60;
+    arrivalSpread = hours ? `${hours}h ${minutes ? `${minutes}m` : ''}`.trim() : `${minutes}m`;
+  }
+
+  return {
+    travelers: participants.length,
+    landed,
+    arrivalSpread,
+    stillToBook: participants.filter(person => !bookedTravelers.has((person.name || '').trim().toLowerCase())).length
+  };
+}
+
+function formatTripDates(startDate, endDate) {
+  if (!startDate) return 'Dates to be confirmed';
+  const formatter = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  const start = formatter.format(new Date(`${startDate}T00:00:00`));
+  if (!endDate) return start;
+  const end = formatter.format(new Date(`${endDate}T00:00:00`));
+  return `${start} — ${end}`;
+}
+
+function formatJoinedDate(value) {
+  if (!value) return 'Trip traveler';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Trip traveler';
+  return `Joined ${new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(date)}`;
+}
+
 export async function renderDashboard(container, tripId) {
   let filterPerson = 'all';
   let phaseFilter = 'outbound'; // Default tab: 'outbound'
@@ -71,24 +122,27 @@ export async function renderDashboard(container, tripId) {
     return;
   }
 
-  // Handle trip deleted / changed events with correct event constants
-  const unsubscribe = subscribe((event, data) => {
-    if (event === EVENTS.TRIP_DELETED && data === tripId) {
+  let latestTrip = trip;
+
+  // Keep the dashboard in sync with changes made from flight and coordination views.
+  const unsubscribers = [
+    subscribe(EVENTS.TRIP_DELETED, (deletedTripId) => {
+      if (deletedTripId !== tripId) return;
       stopPolling(tripId);
       destroyRouteMap();
       showToast('Trip was deleted', 'info');
       navigate('');
-    } else if (
-      event === EVENTS.FLIGHT_ADDED ||
-      event === EVENTS.FLIGHT_DELETED ||
-      event === EVENTS.FLIGHT_UPDATED ||
-      event === EVENTS.FLIGHT_STATUS_CHANGED ||
-      event === EVENTS.PARTICIPANT_ADDED ||
-      event === EVENTS.PARTICIPANT_DELETED
-    ) {
-      render();
-    }
-  });
+    }),
+    ...[
+      EVENTS.FLIGHT_ADDED,
+      EVENTS.FLIGHT_DELETED,
+      EVENTS.FLIGHT_UPDATED,
+      EVENTS.FLIGHT_STATUS_CHANGED,
+      EVENTS.PARTICIPANT_ADDED,
+      EVENTS.PARTICIPANT_DELETED
+    ].map(eventName => subscribe(eventName, () => render()))
+  ];
+  const unsubscribe = () => unsubscribers.forEach(fn => fn());
 
   // Start auto-refresh polling if preferred
   if (getAutoRefreshPref(tripId)) {
@@ -98,6 +152,7 @@ export async function renderDashboard(container, tripId) {
   async function render() {
     const currentTrip = await getTrip(tripId);
     if (!currentTrip) return;
+    latestTrip = currentTrip;
 
     const nickname = getUserNickname(tripId);
 
@@ -130,123 +185,126 @@ export async function renderDashboard(container, tripId) {
     const overflowCount = Math.max(0, participantsList.length - 4);
 
     const isCurrentlyPolling = isPolling(tripId);
+    const stats = getDashboardStats(currentTrip);
+    const destinationCodes = (currentTrip.destinationAirport || 'Destination TBD')
+      .split(',')
+      .map(code => code.trim())
+      .filter(Boolean)
+      .join(' / ');
 
     container.innerHTML = `
-      <div class="screen">
-
-        <!-- Compact Top Navigation Bar -->
-        <div class="topbar" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-md);">
+      <div class="screen dashboard-screen">
+        <header class="dashboard-topbar">
           <button class="topbar-back" id="btn-back">
-            <span style="display:flex;">${getIcon('arrowLeft')}</span> All Trips
+            <span aria-hidden="true">${getIcon('arrowLeft')}</span>
+            <span class="action-label">All trips</span>
           </button>
 
-          <div style="display: flex; align-items: center; gap: var(--space-xs);">
-            <!-- Live Auto Refresh Indicator -->
-            <button class="btn btn-ghost btn-sm" id="btn-toggle-refresh" title="${isCurrentlyPolling ? 'Live Refresh Active (Polling 30s)' : 'Click to enable live status refresh'}" style="font-family: var(--font-family-mono); font-size: 11px;">
-              <span class="live-dot" style="background: ${isCurrentlyPolling ? 'var(--color-success)' : 'var(--color-text-tertiary)'};"></span>
-              ${isCurrentlyPolling ? 'LIVE' : 'REFRESH'}
+          <div class="dashboard-actions" aria-label="Trip actions">
+            <button class="btn dashboard-icon-action" id="btn-toggle-refresh" title="${isCurrentlyPolling ? 'Live refresh is on' : 'Enable live refresh'}">
+              <span class="live-dot ${isCurrentlyPolling ? 'is-live' : ''}"></span>
+              <span>${isCurrentlyPolling ? 'Live' : 'Refresh'}</span>
             </button>
-
-            <!-- Add Flight Action -->
-            <button class="btn btn-primary btn-sm" id="btn-add-flight">
-              <span style="display:flex;">${getIcon('plus')}</span> Add Flight
+            <button class="btn dashboard-icon-action" id="btn-notes" title="Open trip notes">
+              ${getIcon('list')}<span class="action-label">Notes</span>
             </button>
-
-            <!-- Calendar Feed / Sync Action -->
-            <button class="btn btn-secondary btn-sm" id="btn-calendar" title="Export & Sync Flights to Apple/Google Calendar">
-              <span style="display:flex;">${getIcon('calendar')}</span> Add to Calendar
+            <button class="btn dashboard-icon-action" id="btn-calendar" title="Add flights to your calendar">
+              ${getIcon('calendar')}<span class="action-label">Calendar</span>
             </button>
-
-            <!-- Share PIN Trigger -->
-            <button class="btn btn-secondary btn-sm" id="btn-share" title="Share Trip Code">
-              <span style="display:flex;">${getIcon('share')}</span> PIN
+            <button class="btn btn-primary dashboard-add-action" id="btn-add-flight">
+              ${getIcon('plus')}<span>Add flight</span>
             </button>
           </div>
-        </div>
+        </header>
 
-        <!-- Command Center Hero Card -->
-        <div class="command-hud-card mb-lg">
-          <div style="display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: var(--space-md);">
-            <div>
-              <div style="display:flex; align-items:center; gap: 10px; flex-wrap: wrap; margin-bottom: 6px;">
-                <h1 style="font-size: 1.75rem; font-weight: 800; letter-spacing: -0.04em; color: #FFFFFF; margin:0;">
-                  ${escapeHtml(currentTrip.name)}
-                </h1>
-                
-                <!-- Shareable PIN Badge Pill -->
-                <div class="hero-pin-pill" id="hero-pin-copy-trigger" title="Click to copy PIN code" style="background: rgba(56, 189, 248, 0.12); border-color: rgba(56, 189, 248, 0.3);">
-                  <span class="hero-pin-label" style="color: #38BDF8;">PIN</span>
-                  <span class="hero-pin-code" style="color: #FFFFFF; font-weight: 800;">${escapeHtml(currentTrip.pin || 'PPC')}</span>
-                  <span class="hero-pin-copy" style="color: #38BDF8;">${getIcon('copy')}</span>
-                </div>
-              </div>
-
-              <div style="font-size: var(--font-size-xs); color: var(--color-text-secondary); display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-weight: 500;">
-                <span class="hud-countdown-pill">
-                  <span class="live-dot" style="background: #38BDF8;"></span>
-                  ${currentTrip.flights?.length || 0} TICKETS TRACKED
-                </span>
-                <span>·</span>
-                <span>Dates: <strong style="color: var(--color-text-primary); font-family: var(--font-family-mono);">${currentTrip.startDate || 'TBD'} ~ ${currentTrip.endDate || 'TBD'}</strong></span>
-                <span>·</span>
-                <span>Dest: <strong style="font-family: var(--font-family-mono); color: #38BDF8;">${currentTrip.destinationAirport || 'Not Set'}</strong></span>
-                ${currentTrip.returnAirport ? ` · Ret: <strong style="font-family: var(--font-family-mono); color: #60A5FA;">${currentTrip.returnAirport}</strong>` : ''}
-              </div>
+        <section class="dashboard-hero" aria-labelledby="trip-title">
+          <div class="dashboard-hero-copy">
+            <div class="dashboard-kicker">PPC: DELAY NO MORE</div>
+            <h1 id="trip-title">${escapeHtml(currentTrip.name)}</h1>
+            <div class="dashboard-trip-meta">
+              <span>${getIcon('plane')} ${escapeHtml(destinationCodes)}</span>
+              <span aria-hidden="true">•</span>
+              <span>${getIcon('calendar')} ${escapeHtml(formatTripDates(currentTrip.startDate, currentTrip.endDate))}</span>
+              ${currentTrip.returnAirport ? `<span aria-hidden="true">•</span><span>Return ${escapeHtml(currentTrip.returnAirport)}</span>` : ''}
             </div>
+          </div>
 
-            <!-- Overlapping Avatar Ring with Interactive Popover -->
+          <div class="dashboard-hero-controls">
             <div class="avatar-group-wrapper" id="avatar-group-wrapper">
-              <div style="display:flex; align-items:center; gap: 8px;">
-                <span style="font-size: var(--font-size-xs); color: var(--color-text-tertiary); font-weight: 600; font-family: var(--font-family-mono);">
-                  ${participantsList.length} TRAVELERS
-                </span>
-                <div class="avatar-group" id="avatar-group-trigger" title="Click to see all members">
-                  ${visibleAvatars.map((p, i) => `
-                    <div class="avatar-ring" style="background:${PERSON_COLORS_HEX[i % 6]}; border-color: #0E1420;">
-                      ${escapeHtml(p.name.charAt(0).toUpperCase())}
-                    </div>
-                  `).join('')}
-                  ${overflowCount > 0 ? `
-                    <div class="avatar-ring avatar-count-ring" style="border-color: #0E1420;">
-                      +${overflowCount}
-                    </div>
-                  ` : ''}
+              <div class="crew-summary">
+                <div>
+                  <span class="crew-label">Trip crew</span>
+                  <span class="crew-viewer">Viewing as ${escapeHtml(nickname || 'traveler')}</span>
                 </div>
+                <button class="avatar-group" id="avatar-group-trigger" title="See everyone in this trip" aria-label="See all ${participantsList.length} travelers">
+                  ${visibleAvatars.map((p, i) => `
+                    <span class="avatar-ring" style="--avatar-color:${PERSON_COLORS_HEX[i % 6]}">${escapeHtml((p.name || '?').charAt(0).toUpperCase())}</span>
+                  `).join('')}
+                  ${overflowCount > 0 ? `<span class="avatar-ring avatar-count-ring">+${overflowCount}</span>` : ''}
+                </button>
               </div>
 
-              <!-- Interactive Popover Panel -->
               <div class="avatar-popover hidden" id="avatar-popover">
-                <div class="avatar-popover-header">
-                  All Group Members (${participantsList.length})
-                </div>
+                <div class="avatar-popover-header">Trip crew · ${participantsList.length}</div>
                 <div class="avatar-popover-list">
                   ${participantsList.map((p, i) => {
                     const flightCount = (currentTrip.flights || []).filter(f => f.addedBy === p.name).length;
                     return `
-                      <div class="avatar-popover-item" data-popover-person="${escapeHtml(p.name)}">
-                        <div class="avatar-ring" style="background:${PERSON_COLORS_HEX[i % 6]}; width:22px; height:22px; font-size:9px; margin-left:0;">
-                          ${escapeHtml(p.name.charAt(0).toUpperCase())}
-                        </div>
-                        <span style="font-size: var(--font-size-sm); font-weight: var(--font-weight-medium); flex:1;">${escapeHtml(p.name)}</span>
-                        <span style="font-size: var(--font-size-xs); color: var(--color-text-tertiary); font-family: var(--font-family-mono);">${flightCount} flights</span>
-                      </div>
+                      <button class="avatar-popover-item" data-popover-person="${escapeHtml(p.name)}">
+                        <span class="avatar-ring" style="--avatar-color:${PERSON_COLORS_HEX[i % 6]}">${escapeHtml((p.name || '?').charAt(0).toUpperCase())}</span>
+                        <span class="crew-person-copy">
+                          <strong>${escapeHtml(p.name)}</strong>
+                          <small>${escapeHtml(formatJoinedDate(p.joinedAt))}</small>
+                        </span>
+                        <span class="crew-flight-count">${flightCount} ${flightCount === 1 ? 'flight' : 'flights'}</span>
+                      </button>
                     `;
                   }).join('')}
                 </div>
               </div>
             </div>
-          </div>
-        </div>
 
-        <!-- Main Workspace Tab Bar: Tracking vs Flight Coordination Engine -->
-        <div class="tab-container mb-lg">
+            <button class="hero-pin-pill" id="hero-pin-copy-trigger" title="Copy trip PIN">
+              <span class="hero-pin-label">PIN</span>
+              <span class="hero-pin-code">${escapeHtml(currentTrip.pin || 'PPC')}</span>
+              <span class="hero-pin-copy">${getIcon('copy')}</span>
+            </button>
+            <button class="btn dashboard-share-action" id="btn-share">${getIcon('share')} Invite crew</button>
+          </div>
+        </section>
+
+        <section class="dashboard-metrics" aria-label="Trip readiness">
+          <article class="metric-card">
+            <span class="metric-label">Travelers</span>
+            <strong>${stats.travelers}</strong>
+            <small>${currentTrip.flights?.length || 0} tickets tracked</small>
+          </article>
+          <article class="metric-card metric-card-accent">
+            <span class="metric-label">Landed</span>
+            <strong>${stats.landed}</strong>
+            <small>at destination</small>
+          </article>
+          <article class="metric-card">
+            <span class="metric-label">Arrival spread</span>
+            <strong>${stats.arrivalSpread}</strong>
+            <small>first to last arrival</small>
+          </article>
+          <article class="metric-card ${stats.stillToBook > 0 ? 'metric-card-alert' : ''}">
+            <span class="metric-label">Still to book</span>
+            <strong>${stats.stillToBook}</strong>
+            <small>${stats.stillToBook > 0 ? 'needs coordination' : 'everyone is covered'}</small>
+          </article>
+        </section>
+
+        <nav class="tab-container dashboard-main-tabs" aria-label="Dashboard sections">
           <button class="tab-btn ${activeMainTab === 'tracking' ? 'active' : ''}" data-maintab="tracking">
-            <span style="display:flex;">${getIcon('plane')}</span> Flights (${currentTrip.flights?.length || 0})
+            <span>${getIcon('plane')}</span> Flight board <span class="tab-count">${currentTrip.flights?.length || 0}</span>
           </button>
           <button class="tab-btn ${activeMainTab === 'coordination' ? 'active' : ''}" data-maintab="coordination">
-            <span style="display:flex;">${getIcon('sparkles')}</span> Group Planning
+            <span>${getIcon('sparkles')}</span> Coordination engine
+            ${stats.stillToBook > 0 ? `<span class="tab-alert">${stats.stillToBook}</span>` : ''}
           </button>
-        </div>
+        </nav>
 
         <!-- Workspace Section -->
         <div id="main-tab-workspace">
@@ -254,31 +312,37 @@ export async function renderDashboard(container, tripId) {
           <!-- Flight Tracking Workspace -->
           <div id="tracking-workspace" class="${activeMainTab === 'tracking' ? '' : 'hidden-tab'}">
             
-            <!-- Person Filter Bar -->
-            <div class="chip-group mb-base">
+            <div class="dashboard-section-row">
+              <div>
+                <span class="section-kicker">LIVE MANIFEST</span>
+                <h2>Flight tracking</h2>
+              </div>
+              <span class="section-status"><span class="live-dot is-live"></span>${isCurrentlyPolling ? 'Auto-updating' : 'Manual refresh'}</span>
+            </div>
+
+            <div class="chip-group dashboard-crew-filter mb-base" aria-label="Filter by traveler">
               <div class="chip ${filterPerson === 'all' ? 'active' : ''}" data-person="all">
-                All Travelers (${currentTrip.participants.length})
+                Everyone <span>${currentTrip.participants.length}</span>
               </div>
               ${currentTrip.participants.map((p, i) => `
                 <div class="chip ${filterPerson === p.name ? 'active' : ''}" data-person="${escapeHtml(p.name)}">
-                  <span style="width:6px; height:6px; border-radius:50%; background:${PERSON_COLORS[i % 6]}; display:inline-block; margin-right:4px;"></span>
+                  <span class="crew-dot" style="background:${PERSON_COLORS[i % 6]};"></span>
                   ${escapeHtml(p.name)}
-                  <button class="chip-delete-btn" data-person-del="${escapeHtml(p.name)}" style="all:unset; cursor:pointer; font-size:12px; opacity:0.4; margin-left:4px;" title="Remove Profile">×</button>
+                  <button class="chip-delete-btn" data-person-del="${escapeHtml(p.name)}" title="Remove ${escapeHtml(p.name)}">×</button>
                 </div>
               `).join('')}
             </div>
 
-            <!-- Three-Segment Sub-Tabs Bar: Outbound -> Return -> Timeline -->
-            <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:var(--space-sm);" class="mb-base">
-              <div class="tabs">
+            <div class="dashboard-subnav mb-base">
+              <div class="tabs" aria-label="Flight direction">
                 <button class="tab ${activeTab === 'flights' && phaseFilter === 'outbound' ? 'active' : ''}" data-tab="flights" data-phase="outbound">
-                  <span style="color: #34D399; display:flex;">${getIcon('plane')}</span> Outbound (${filteredOutbound})
+                  Outbound <span>${filteredOutbound}</span>
                 </button>
                 <button class="tab ${activeTab === 'flights' && phaseFilter === 'return' ? 'active' : ''}" data-tab="flights" data-phase="return">
-                  <span style="color: #60A5FA; display:flex;">${getIcon('plane')}</span> Return (${filteredReturn})
+                  Return <span>${filteredReturn}</span>
                 </button>
                 <button class="tab ${activeTab === 'timeline' ? 'active' : ''}" data-tab="timeline">
-                  <span style="display:flex;">${getIcon('timeline')}</span> Timeline
+                  Timeline
                 </button>
               </div>
             </div>
@@ -288,16 +352,17 @@ export async function renderDashboard(container, tripId) {
 
             <!-- Flight List Section Header & Mode Toggles -->
             ${activeTab !== 'timeline' ? `
-              <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:var(--space-sm);">
-                <div style="font-size:12px; font-weight:700; color:var(--color-text-secondary);">
-                  Flights (${sortedFlights.length})
+              <div class="dashboard-list-header">
+                <div>
+                  <span class="section-kicker">${phaseFilter.toUpperCase()}</span>
+                  <h2>Traveler details</h2>
                 </div>
-                <div class="tabs" style="padding: 2px;">
-                  <button class="tab ${viewMode === 'compact' ? 'active' : ''}" id="btn-view-compact" title="Compact Ticket Rows" style="padding: 4px 10px; font-size: 11px;">
-                    <span style="display:flex;">${getIcon('list')}</span> Compact
+                <div class="tabs dashboard-view-toggle">
+                  <button class="tab ${viewMode === 'compact' ? 'active' : ''}" id="btn-view-compact" title="Compact rows">
+                    ${getIcon('list')} List
                   </button>
-                  <button class="tab ${viewMode === 'expanded' ? 'active' : ''}" id="btn-view-expanded" title="Full Flight Cards" style="padding: 4px 10px; font-size: 11px;">
-                    <span style="display:flex;">${getIcon('grid')}</span> Cards
+                  <button class="tab ${viewMode === 'expanded' ? 'active' : ''}" id="btn-view-expanded" title="Expanded cards">
+                    ${getIcon('grid')} Cards
                   </button>
                 </div>
               </div>
@@ -310,9 +375,9 @@ export async function renderDashboard(container, tripId) {
 
             <!-- Full-Width Bottom Add Flight Button -->
             ${activeTab === 'flights' ? `
-              <div style="margin-top: var(--space-lg);">
-                <button class="btn btn-primary" id="btn-add-flight-bottom" style="padding: 0.85rem var(--space-lg); font-size: var(--font-size-md);">
-                  <span style="display:flex;">${getIcon('plus')}</span> Add Flight
+              <div class="dashboard-bottom-action">
+                <button class="btn btn-primary" id="btn-add-flight-bottom">
+                  ${getIcon('plus')} Add another flight
                 </button>
               </div>
             ` : ''}
@@ -382,7 +447,14 @@ export async function renderDashboard(container, tripId) {
 
     // Calendar Sync Export
     container.querySelector('#btn-calendar')?.addEventListener('click', () => {
-      exportTripCalendar(currentTrip);
+      exportTripCalendar(latestTrip);
+    });
+
+    // Shared trip notes
+    container.querySelector('#btn-notes')?.addEventListener('click', () => {
+      destroyRouteMap();
+      unsubscribe();
+      navigate(`trip/${tripId}/notes`);
     });
 
     // Toggle Live Refresh Polling
