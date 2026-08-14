@@ -12,6 +12,9 @@ import { getIcon } from '../components/icons.js';
 
 import { exportTripCalendar } from '../data/calendarService.js';
 
+const ADD_FLIGHT_CONTEXT_PREFIX = 'ppc-add-flight-context:';
+const DASHBOARD_RETURN_PREFIX = 'ppc-dashboard-return:';
+
 const PERSON_COLORS = [
   'var(--person-1)', 'var(--person-2)', 'var(--person-3)',
   'var(--person-4)', 'var(--person-5)', 'var(--person-6)'
@@ -205,12 +208,33 @@ export async function renderDashboard(container, tripId) {
   let phaseFilter = 'outbound'; // Default tab: 'outbound'
   let activeMainTab = 'tracking'; // 'tracking', 'coordination'
   let expandedFlightIds = new Set();
+  let focusFlightId = null;
 
   const trip = await getTrip(tripId);
   if (!trip) {
     showToast('Trip not found', 'error');
     navigate('');
     return;
+  }
+
+  try {
+    const returnContext = JSON.parse(sessionStorage.getItem(`${DASHBOARD_RETURN_PREFIX}${tripId}`) || 'null');
+    if (returnContext) {
+      if (returnContext.phase === 'return' || returnContext.phase === 'outbound') {
+        phaseFilter = returnContext.phase;
+      }
+      const travelerNames = (trip.participants || []).map(person => person.name);
+      if (returnContext.filterPerson === 'all' || travelerNames.includes(returnContext.filterPerson)) {
+        filterPerson = returnContext.filterPerson;
+      }
+      if (returnContext.flightId) {
+        focusFlightId = String(returnContext.flightId);
+        expandedFlightIds.add(focusFlightId);
+      }
+    }
+    sessionStorage.removeItem(`${DASHBOARD_RETURN_PREFIX}${tripId}`);
+  } catch {
+    sessionStorage.removeItem(`${DASHBOARD_RETURN_PREFIX}${tripId}`);
   }
 
   let latestTrip = trip;
@@ -489,6 +513,16 @@ export async function renderDashboard(container, tripId) {
     }
 
     bindEvents();
+
+    if (focusFlightId) {
+      const focusedRow = [...container.querySelectorAll('[data-expand-flight]')]
+        .find(row => row.getAttribute('data-expand-flight') === focusFlightId);
+      if (focusedRow) {
+        focusedRow.closest('.flight-details-card')?.classList.add('is-newly-added');
+        requestAnimationFrame(() => focusedRow.scrollIntoView({ behavior: 'smooth', block: 'center' }));
+        focusFlightId = null;
+      }
+    }
   }
 
   function bindEvents() {
@@ -548,6 +582,15 @@ export async function renderDashboard(container, tripId) {
 
     // Add Flight
     const handleAddFlight = () => {
+      try {
+        sessionStorage.setItem(`${ADD_FLIGHT_CONTEXT_PREFIX}${tripId}`, JSON.stringify({
+          phase: phaseFilter,
+          traveler: filterPerson === 'all' ? getUserNickname(tripId) : filterPerson,
+          returnFilter: filterPerson
+        }));
+      } catch {
+        // The add flow still works if session storage is unavailable.
+      }
       destroyRouteMap();
       unsubscribe();
       navigate(`trip/${tripId}/add-flight`);

@@ -3512,3 +3512,898 @@
     display: none;
   }
 }
+
+/* Guided Add Flight flow */
+.flight-details-card.is-newly-added {
+  animation: newly-added-flight 1.8s ease-out;
+}
+
+@keyframes newly-added-flight {
+  0%, 35% {
+    border-color: rgba(217, 255, 67, 0.72);
+    box-shadow: 0 0 0 3px rgba(217, 255, 67, 0.12);
+  }
+}
+
+.add-flight-screen {
+  --color-accent: #d9ff43;
+  --color-accent-light: rgba(217, 255, 67, 0.1);
+  --color-border-focus: rgba(217, 255, 67, 0.48);
+  max-width: 860px;
+  padding-top: 18px;
+  isolation: isolate;
+}
+
+.add-flight-screen::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 18% -8%, rgba(217, 255, 67, 0.06), transparent 29rem),
+    linear-gradient(rgba(255, 255, 255, 0.012) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.012) 1px, transparent 1px);
+  background-size: auto, 34px 34px, 34px 34px;
+  mask-image: linear-gradient(to bottom, black, transparent 62%);
+}
+
+.add-flight-topbar {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 42px;
+}
+
+.add-flight-topbar .topbar-back {
+  min-height: 40px;
+  gap: 8px;
+  color: #919298;
+  font-size: 12px;
+}
+
+.add-flight-topbar .topbar-back svg {
+  width: 15px;
+  height: 15px;
+}
+
+.add-flight-trip-direction {
+  padding: 7px 10px;
+  color: #8a8b90;
+  background: #121214;
+  border: 1px solid #29292d;
+  border-radius: 999px;
+  font-family: var(--font-family-mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.add-flight-intro {
+  margin-bottom: 28px;
+}
+
+.add-flight-kicker,
+.add-flight-step-label {
+  display: block;
+  color: #d9ff43;
+  font-family: var(--font-family-mono);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  line-height: 1.4;
+}
+
+.add-flight-intro h1 {
+  margin-top: 6px;
+  color: #f5f5f2;
+  font-family: "Space Grotesk", var(--font-family);
+  font-size: clamp(2.45rem, 7vw, 4rem);
+  font-weight: 650;
+  letter-spacing: -0.065em;
+  line-height: 0.98;
+}
+
+.add-flight-intro p {
+  max-width: 560px;
+  margin-top: 12px;
+  color: #77787e;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.add-flight-flow {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-bottom: 28px;
+}
+
+.add-flight-step {
+  padding: 20px;
+  background: #121214;
+  border: 1px solid #29292d;
+  border-radius: 15px;
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.025);
+}
+
+.add-flight-step.is-complete {
+  border-color: #35363a;
+}
+
+.add-flight-step-header {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) 24px;
+  align-items: center;
+  gap: 11px;
+  margin-bottom: 18px;
+}
+
+.add-flight-step-number {
+  display: inline-flex;
+  width: 32px;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+  color: #c8c9c5;
+  background: #1d1d20;
+  border: 1px solid #343439;
+  border-radius: 10px;
+  font-family: var(--font-family-mono);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.add-flight-step.is-complete .add-flight-step-number {
+  color: #11120f;
+  background: #d9ff43;
+  border-color: #d9ff43;
+}
+
+.add-flight-step-label {
+  margin-bottom: 2px;
+  color: #74757a;
+  font-size: 8px;
+}
+
+.add-flight-step-header h2 {
+  color: #f0f1ed;
+  font-size: 16px;
+  font-weight: 650;
+  letter-spacing: -0.025em;
+}
+
+.add-flight-step-check {
+  display: inline-flex;
+  width: 24px;
+  height: 24px;
+  align-items: center;
+  justify-content: center;
+  justify-self: end;
+  color: #d9ff43;
+  background: rgba(217, 255, 67, 0.07);
+  border-radius: 999px;
+}
+
+.add-flight-step-check svg {
+  width: 12px;
+  height: 12px;
+}
+
+.add-flight-context-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(260px, 0.8fr);
+  gap: 12px;
+}
+
+.add-flight-field,
+.add-flight-direction-field {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 7px;
+  padding: 0;
+  border: 0;
+}
+
+.add-flight-field > span:first-child,
+.add-flight-direction-field legend {
+  color: #74757a;
+  font-family: var(--font-family-mono);
+  font-size: 8px;
+  font-weight: 750;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.add-flight-field input,
+.add-flight-field select {
+  width: 100%;
+  min-height: 46px;
+  padding: 0 12px;
+  color: #f0f1ed;
+  background: #19191c;
+  border: 1px solid #303034;
+  border-radius: 10px;
+  outline: none;
+  font-family: var(--font-family);
+  font-size: 12px;
+  transition: border-color 150ms ease, box-shadow 150ms ease, background 150ms ease;
+}
+
+.add-flight-field input::placeholder {
+  color: #56575c;
+}
+
+.add-flight-field input:focus,
+.add-flight-field select:focus {
+  background: #1c1c1f;
+  border-color: rgba(217, 255, 67, 0.5);
+  box-shadow: 0 0 0 3px rgba(217, 255, 67, 0.07);
+}
+
+.add-flight-field input[data-draft-field="flightNumber"],
+.add-flight-field input[data-draft-field$=".code"],
+#flight-lookup {
+  font-family: var(--font-family-mono);
+  font-weight: 750;
+  text-transform: uppercase;
+}
+
+.add-flight-traveler-control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 46px;
+  gap: 7px;
+}
+
+.add-flight-icon-button {
+  display: inline-flex;
+  width: 46px;
+  min-height: 46px;
+  align-items: center;
+  justify-content: center;
+  color: #d9ff43;
+  background: #1b1b1e;
+  border: 1px solid #343439;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.add-flight-icon-button:hover {
+  background: #232326;
+  border-color: #4a4b4f;
+}
+
+.add-flight-direction-toggle {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  min-height: 46px;
+  padding: 4px;
+  background: #19191c;
+  border: 1px solid #303034;
+  border-radius: 10px;
+}
+
+.add-flight-direction-toggle button {
+  color: #7c7d82;
+  background: transparent;
+  border: 0;
+  border-radius: 7px;
+  font-size: 11px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.add-flight-direction-toggle button.active {
+  color: #0d0e0c;
+  background: #d9ff43;
+}
+
+.add-flight-lookup-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 180px auto;
+  align-items: end;
+  gap: 10px;
+}
+
+.add-flight-lookup-button,
+.add-flight-submit-button,
+.add-traveler-confirm {
+  display: inline-flex;
+  min-height: 46px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 16px;
+  color: #10110e;
+  background: #d9ff43;
+  border: 1px solid #d9ff43;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.add-flight-lookup-button:hover,
+.add-flight-submit-button:hover,
+.add-traveler-confirm:hover {
+  background: #e3ff70;
+  border-color: #e3ff70;
+  box-shadow: 0 0 0 3px rgba(217, 255, 67, 0.09);
+}
+
+.add-flight-lookup-button:disabled,
+.add-flight-submit-button:disabled,
+.add-traveler-confirm:disabled {
+  color: #65665f;
+  background: #252528;
+  border-color: #303034;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+.add-flight-lookup-button svg,
+.add-flight-submit-button svg,
+.add-traveler-confirm svg {
+  width: 14px;
+  height: 14px;
+}
+
+.add-flight-lookup-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.add-flight-lookup-meta > span {
+  color: #65666b;
+  font-size: 10px;
+}
+
+.add-flight-lookup-meta button,
+.add-flight-confirm-card header button,
+.add-flight-feedback button {
+  padding: 0;
+  color: #aebf76;
+  background: transparent;
+  border: 0;
+  font-size: 10px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.add-flight-lookup-meta button:hover,
+.add-flight-confirm-card header button:hover,
+.add-flight-feedback button:hover {
+  color: #d9ff43;
+}
+
+.add-flight-lookup-feedback:not(:empty) {
+  margin-top: 14px;
+}
+
+.add-flight-feedback,
+.add-flight-manual-notice {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  background: #19191c;
+  border: 1px solid #303034;
+  border-radius: 11px;
+}
+
+.add-flight-feedback > span:first-child,
+.add-flight-manual-notice > span:first-child {
+  display: inline-flex;
+  width: 28px;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  color: #d9ff43;
+  background: rgba(217, 255, 67, 0.08);
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.add-flight-feedback > span:nth-child(2),
+.add-flight-manual-notice > span:nth-child(2) {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.add-flight-feedback strong,
+.add-flight-manual-notice strong {
+  color: #dedfda;
+  font-size: 11px;
+}
+
+.add-flight-feedback small,
+.add-flight-manual-notice small {
+  color: #74757a;
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.add-flight-feedback-error {
+  border-color: rgba(255, 123, 130, 0.24);
+}
+
+.add-flight-feedback-error > span:first-child {
+  color: #ff8f95;
+  background: rgba(255, 123, 130, 0.08);
+}
+
+.add-flight-spinner {
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  flex: 0 0 13px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 999px;
+  animation: add-flight-spin 700ms linear infinite;
+}
+
+@keyframes add-flight-spin {
+  to { transform: rotate(360deg); }
+}
+
+.add-flight-route-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.add-flight-route-picker > p,
+.add-flight-found-copy {
+  color: #93949a;
+  font-size: 10px;
+}
+
+.add-flight-route-option {
+  display: grid;
+  width: 100%;
+  min-height: 64px;
+  grid-template-columns: minmax(0, 1fr) auto 20px;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  color: #d8d9d5;
+  background: #19191c;
+  border: 1px solid #303034;
+  border-radius: 11px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.add-flight-route-option:hover {
+  background: #1f1f22;
+  border-color: rgba(217, 255, 67, 0.3);
+}
+
+.add-flight-route-option > span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.add-flight-route-option > span:nth-child(2) {
+  text-align: right;
+}
+
+.add-flight-route-option strong {
+  font-family: var(--font-family-mono);
+  font-size: 11px;
+}
+
+.add-flight-route-option small {
+  color: #696a70;
+  font-size: 9px;
+}
+
+.add-flight-route-option > svg {
+  width: 13px;
+  height: 13px;
+  color: #77787d;
+}
+
+.add-flight-confirm-step {
+  border-color: rgba(217, 255, 67, 0.2);
+}
+
+.add-flight-confirm-card {
+  overflow: hidden;
+  background: linear-gradient(145deg, #1a1a1d, #151517);
+  border: 1px solid #36363a;
+  border-radius: 13px;
+}
+
+.add-flight-confirm-card > header,
+.add-flight-confirm-card > footer,
+.add-flight-submit-row,
+.add-traveler-dialog > header,
+.add-traveler-dialog > footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.add-flight-confirm-card > header {
+  min-height: 40px;
+  padding: 0 14px;
+  border-bottom: 1px solid #2a2a2e;
+}
+
+.add-flight-result-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #a9aaad;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.add-flight-result-status i {
+  width: 6px;
+  height: 6px;
+  background: #d9ff43;
+  border-radius: 999px;
+  box-shadow: 0 0 0 4px rgba(217, 255, 67, 0.07);
+}
+
+.add-flight-confirm-main {
+  display: grid;
+  grid-template-columns: minmax(140px, 0.7fr) minmax(0, 1.3fr);
+  align-items: center;
+  gap: 28px;
+  padding: 22px 18px;
+}
+
+.add-flight-confirm-main > span:first-child,
+.add-flight-confirm-route > span {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.add-flight-confirm-main small {
+  color: #727379;
+  font-size: 10px;
+}
+
+.add-flight-confirm-main > span:first-child strong {
+  color: #f1f2ee;
+  font-family: var(--font-family-mono);
+  font-size: 18px;
+}
+
+.add-flight-confirm-route {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 28px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+}
+
+.add-flight-confirm-route > span:last-child {
+  text-align: right;
+}
+
+.add-flight-confirm-route strong {
+  color: #f1f2ee;
+  font-family: "Space Grotesk", var(--font-family);
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.04em;
+}
+
+.add-flight-confirm-route > i {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #d9ff43;
+}
+
+.add-flight-confirm-route svg {
+  width: 16px;
+  height: 16px;
+}
+
+.add-flight-confirm-card > footer {
+  min-height: 40px;
+  padding: 0 14px;
+  color: #73747a;
+  border-top: 1px solid #2a2a2e;
+  font-size: 9px;
+}
+
+.add-flight-edit-details {
+  margin-top: 9px;
+  background: #171719;
+  border: 1px solid #2e2e32;
+  border-radius: 11px;
+}
+
+.add-flight-edit-details summary {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 13px;
+  color: #bfc0bd;
+  font-size: 10px;
+  font-weight: 650;
+  cursor: pointer;
+  list-style: none;
+}
+
+.add-flight-edit-details summary::-webkit-details-marker {
+  display: none;
+}
+
+.add-flight-edit-details summary small {
+  color: #63646a;
+  font-size: 9px;
+  font-weight: 500;
+}
+
+.add-flight-details-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  border-top: 1px solid #29292d;
+}
+
+.add-flight-manual-notice {
+  grid-template-columns: 28px minmax(0, 1fr);
+  margin-bottom: 10px;
+}
+
+.add-flight-manual-notice svg {
+  width: 13px;
+  height: 13px;
+}
+
+.add-flight-manual-notice + .add-flight-details-form {
+  background: #171719;
+  border: 1px solid #2e2e32;
+  border-radius: 11px;
+}
+
+.add-flight-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.add-flight-form-grid-three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.add-flight-submit-row {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid #2a2a2e;
+}
+
+.add-flight-submit-row > span {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.add-flight-submit-row strong {
+  color: #dfe0dc;
+  font-size: 11px;
+}
+
+.add-flight-submit-row small {
+  color: #6f7075;
+  font-size: 9px;
+}
+
+.add-flight-submit-button {
+  min-width: 220px;
+}
+
+.add-traveler-overlay {
+  z-index: 1000000;
+}
+
+.add-traveler-dialog {
+  max-width: 420px;
+  padding: 20px;
+  color: #f1f2ee;
+  background: #121214;
+  border-color: #353539;
+  border-radius: 17px;
+}
+
+.add-traveler-dialog > header {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) 34px;
+  margin-bottom: 14px;
+}
+
+.add-traveler-icon {
+  display: inline-flex;
+  width: 38px;
+  height: 38px;
+  align-items: center;
+  justify-content: center;
+  color: #11120f;
+  background: #d9ff43;
+  border-radius: 10px;
+}
+
+.add-traveler-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.add-traveler-dialog h2 {
+  margin-top: 2px;
+  color: #f1f2ee;
+  font-size: 16px;
+}
+
+.add-traveler-dialog header button {
+  display: inline-flex;
+  width: 34px;
+  height: 34px;
+  align-items: center;
+  justify-content: center;
+  color: #85868b;
+  background: #1c1c1f;
+  border: 1px solid #313135;
+  border-radius: 9px;
+  cursor: pointer;
+}
+
+.add-traveler-dialog > p {
+  margin-bottom: 14px;
+  color: #77787e;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.add-traveler-dialog > footer {
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+.add-traveler-cancel {
+  min-height: 42px;
+  padding: 0 14px;
+  color: #a1a2a6;
+  background: transparent;
+  border: 1px solid #313135;
+  border-radius: 9px;
+  cursor: pointer;
+}
+
+.add-traveler-confirm {
+  min-height: 42px;
+}
+
+@media (max-width: 720px) {
+  .add-flight-screen {
+    padding-top: 8px;
+  }
+
+  .add-flight-topbar {
+    margin-bottom: 28px;
+  }
+
+  .add-flight-topbar .topbar-back span:last-child {
+    max-width: 210px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .add-flight-intro h1 {
+    font-size: 2.55rem;
+  }
+
+  .add-flight-intro p {
+    font-size: 11px;
+  }
+
+  .add-flight-step {
+    padding: 16px;
+    border-radius: 14px;
+  }
+
+  .add-flight-context-grid,
+  .add-flight-lookup-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .add-flight-lookup-button {
+    width: 100%;
+  }
+
+  .add-flight-lookup-meta {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .add-flight-feedback {
+    grid-template-columns: 28px minmax(0, 1fr);
+  }
+
+  .add-flight-feedback button {
+    grid-column: 2;
+    justify-self: start;
+  }
+
+  .add-flight-confirm-main {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    padding: 17px 14px;
+  }
+
+  .add-flight-confirm-main > span:first-child {
+    flex-direction: row;
+    align-items: baseline;
+    gap: 8px;
+  }
+
+  .add-flight-confirm-route strong {
+    font-size: 23px;
+  }
+
+  .add-flight-confirm-card > footer {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .add-flight-edit-details summary {
+    align-items: flex-start;
+    flex-direction: column;
+    justify-content: center;
+    padding: 9px 12px;
+  }
+
+  .add-flight-form-grid,
+  .add-flight-form-grid-three {
+    grid-template-columns: 1fr;
+  }
+
+  .add-flight-submit-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .add-flight-submit-button {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .add-traveler-overlay {
+    align-items: flex-end;
+    padding: 12px;
+  }
+
+  .add-traveler-dialog {
+    max-width: none;
+    border-radius: 18px;
+  }
+}
