@@ -1,7 +1,6 @@
 /* Create Trip screen */
 
 import { createTrip } from '../data/dataAdapter.js';
-import { emit, EVENTS } from '../data/store.js';
 import { navigate } from '../app.js';
 import { showToast } from '../components/toast.js';
 import { setupAirportAutocomplete } from '../components/airportSearch.js';
@@ -98,6 +97,11 @@ export function renderCreateTrip(container) {
     const homeAirport = homeAirportInput.getValues().join(',');
 
     if (!name || !creatorName) return;
+    if (endDate < startDate) {
+      showToast('End date must be on or after the start date', 'warning');
+      container.querySelector('#trip-end')?.focus();
+      return;
+    }
 
     const submitBtn = container.querySelector('button[type="submit"]');
     submitBtn.disabled = true;
@@ -105,7 +109,6 @@ export function renderCreateTrip(container) {
 
     const trip = await createTrip({ name, startDate, endDate, creatorName, destinationAirport, returnAirport, homeAirport });
     if (trip) {
-      emit(EVENTS.TRIP_CREATED, trip);
       showToast(`Trip "${trip.name}" created! PIN: ${trip.pin}`, 'success');
       navigate(`trip/${trip.id}`);
     } else {

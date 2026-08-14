@@ -1128,6 +1128,16 @@
     animation: toastIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+.toast.toast-out {
+    pointer-events: none;
+    animation: toastOut 0.2s ease-in forwards;
+}
+
+.toast-message {
+    flex: 1;
+    min-width: 0;
+}
+
 /* ==========================================================================
    FLIGHTY BOARDING PASS TICKET CARD & HUD ENGINE
    ========================================================================== */

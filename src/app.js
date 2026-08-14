@@ -10,6 +10,8 @@ import { renderNotes } from './screens/notes.js';
 import { loadAirports } from './data/airports.js';
 
 const app = document.getElementById('app');
+let routeGeneration = 0;
+let cleanupCurrentScreen = null;
 
 function getRoute() {
     const hash = window.location.hash.slice(1) || '';
@@ -41,17 +43,35 @@ export function navigate(path) {
     window.location.hash = path;
 }
 
-function render() {
+async function render() {
+    const generation = ++routeGeneration;
     const { renderFn, params } = getRoute();
 
-    // Clear and render target screen
-    app.innerHTML = '';
-    renderFn(app, params);
+    cleanupCurrentScreen?.();
+    cleanupCurrentScreen = null;
+
+    // Give every route its own mount point. If an older async render finishes
+    // late, it can only update its detached mount instead of replacing the new page.
+    const mount = document.createElement('div');
+    app.replaceChildren(mount);
+
+    try {
+        const cleanup = await renderFn(mount, params);
+        if (generation !== routeGeneration) {
+            if (typeof cleanup === 'function') cleanup();
+            return;
+        }
+        cleanupCurrentScreen = typeof cleanup === 'function' ? cleanup : null;
+    } catch (error) {
+        console.error('Route render failed:', error);
+        if (generation === routeGeneration) {
+            mount.innerHTML = '<div class="empty-state"><h2>Something went wrong</h2><p>Please refresh and try again.</p></div>';
+        }
+    }
 }
 
 export function initRouter() {
     window.addEventListener('hashchange', render);
-    window.addEventListener('load', render);
 
     // Listen for programmatic navigation
     subscribe(EVENTS.NAVIGATE, (path) => navigate(path));

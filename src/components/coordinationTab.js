@@ -5,7 +5,6 @@ import { generateConciergeSummary } from '../data/aiService.js';
 import { renderRecommendationCard } from './recommendationCard.js';
 import { getUserNickname, saveNickname, addFlight, setParticipantHomeAirport } from '../data/dataAdapter.js';
 import { showToast } from './toast.js';
-import { emit, EVENTS } from '../data/store.js';
 import { getIcon } from './icons.js';
 
 const coordinationCache = {};
@@ -53,7 +52,13 @@ export async function renderCoordinationTab(container, trip) {
 
       event.currentTarget.disabled = true;
       event.currentTarget.textContent = 'Saving…';
-      await setParticipantHomeAirport(trip.id, currentNickname, airport);
+      const saved = await setParticipantHomeAirport(trip.id, currentNickname, airport);
+      if (!saved) {
+        event.currentTarget.disabled = false;
+        event.currentTarget.textContent = 'Save';
+        showToast('Could not save the departure airport', 'error');
+        return;
+      }
       currentUser.homeAirport = airport;
       showToast(`${currentNickname} now departs from ${airport}`, 'success');
       render();
@@ -88,16 +93,23 @@ export async function renderCoordinationTab(container, trip) {
           button.textContent = 'Adding…';
           const entry = JSON.parse(decodeURIComponent(encodedEntry));
           const traveler = entry.passengerName || currentNickname;
+          const legs = [entry.outbound, entry.inbound].filter(leg => leg?.airline);
+          const addedFlights = [];
 
-          if (entry.outbound?.airline) {
-            await addRecommendationLeg(trip.id, entry.outbound, traveler, searchDate);
-          }
-          if (entry.inbound?.airline) {
-            await addRecommendationLeg(trip.id, entry.inbound, traveler, searchDate);
+          for (const leg of legs) {
+            const flight = await addRecommendationLeg(trip.id, leg, traveler, searchDate);
+            if (flight) addedFlights.push(flight);
           }
 
-          emit(EVENTS.FLIGHT_ADDED);
-          showToast(`Flights added for ${traveler}`, 'success');
+          if (!addedFlights.length) {
+            throw new Error('No recommendation flights were added');
+          }
+
+          const allAdded = addedFlights.length === legs.length;
+          showToast(
+            allAdded ? `Flights added for ${traveler}` : `Added ${addedFlights.length} of ${legs.length} flights`,
+            allAdded ? 'success' : 'warning'
+          );
           document.querySelector('.tab-btn[data-maintab="tracking"]')?.click();
         } catch (error) {
           console.error('[Coordination] Failed to add flights:', error);
@@ -213,7 +225,7 @@ function renderState(state, options, aiSummary, currentNickname, searchDate) {
 }
 
 async function addRecommendationLeg(tripId, leg, traveler, fallbackDate) {
-  await addFlight(tripId, {
+  return addFlight(tripId, {
     flightNumber: leg.flightNumber,
     airline: leg.airline,
     departure: { code: leg.origin, time: leg.departureTime },

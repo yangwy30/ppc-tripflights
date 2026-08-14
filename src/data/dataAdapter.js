@@ -174,13 +174,17 @@ export async function createTrip({ name, startDate, endDate, creatorName, destin
         return null;
     }
 
-    await supabase.from('participants').insert({
+    const { error: participantError } = await supabase.from('participants').insert({
         trip_id: id,
         name: creatorName,
         color: 0,
         home_airport: homeAirport || null,
         destination_airport: null
     });
+    if (participantError) {
+        console.error('createTrip participant error:', participantError);
+        return null;
+    }
 
     saveNickname(id, creatorName);
     const newTrip = await fetchFullTrip(id);
@@ -209,13 +213,20 @@ export async function joinTrip({ pin, nickname, homeAirport }) {
 
         if (tripError || !trip) return null;
 
-        const { data: existing } = await supabase
+        const { data: existing, error: participantsError } = await supabase
             .from('participants')
             .select('*')
-            .eq('trip_id', authData.trip_id)
-            .ilike('name', nickname);
+            .eq('trip_id', authData.trip_id);
+        if (participantsError) {
+            console.error('joinTrip participants error:', participantsError);
+            return null;
+        }
 
-        if (!existing || existing.length === 0) {
+        const existingParticipant = (existing || []).find(participant =>
+            String(participant.name || '').trim().toLocaleLowerCase() === nickname.trim().toLocaleLowerCase()
+        );
+
+        if (!existingParticipant) {
             const { data: allParts } = await supabase
                 .from('participants')
                 .select('color')
@@ -223,16 +234,20 @@ export async function joinTrip({ pin, nickname, homeAirport }) {
 
             const colorIndex = (allParts || []).length % 6;
 
-            await supabase.from('participants').insert({
+            const { error: participantError } = await supabase.from('participants').insert({
                 trip_id: authData.trip_id,
                 name: nickname,
                 color: colorIndex,
                 home_airport: homeAirport || null,
                 destination_airport: null
             });
+            if (participantError) {
+                console.error('joinTrip participant error:', participantError);
+                return null;
+            }
         }
 
-        saveNickname(authData.trip_id, nickname);
+        saveNickname(authData.trip_id, existingParticipant?.name || nickname);
         const joinedTrip = await fetchFullTrip(authData.trip_id);
         emit(EVENTS.TRIP_JOINED, joinedTrip);
         return joinedTrip;
@@ -293,13 +308,14 @@ export async function setParticipantHomeAirport(tripId, nickname, homeAirport) {
         .from('participants')
         .update({ home_airport: homeAirport || null })
         .eq('trip_id', tripId)
-        .ilike('name', nickname)
+        .eq('name', nickname)
         .select();
 
     if (error) {
         console.error('setParticipantHomeAirport error:', error);
         return false;
     }
+    if (!data?.length) return false;
     emit(EVENTS.PARTICIPANT_ADDED, { tripId, nickname, homeAirport });
     return true;
 }
@@ -310,13 +326,14 @@ export async function setParticipantDestinationAirport(tripId, nickname, destina
         .from('participants')
         .update({ destination_airport: destinationAirport || null })
         .eq('trip_id', tripId)
-        .ilike('name', nickname)
+        .eq('name', nickname)
         .select();
 
     if (error) {
         console.error('setParticipantDestinationAirport error:', error);
         return false;
     }
+    if (!data?.length) return false;
     emit(EVENTS.PARTICIPANT_ADDED, { tripId, nickname, destinationAirport });
     return true;
 }
@@ -368,9 +385,28 @@ export const updateParticipantHome = setParticipantHomeAirport;
 
 export async function deleteParticipant(tripId, participantName) {
     await setAuthForTrip(tripId);
-    await supabase.from('participants').delete().eq('trip_id', tripId).eq('name', participantName);
-    await supabase.from('flights').delete().eq('trip_id', tripId).eq('added_by', participantName);
+    const { error: participantError } = await supabase
+        .from('participants')
+        .delete()
+        .eq('trip_id', tripId)
+        .eq('name', participantName);
+    if (participantError) {
+        console.error('deleteParticipant error:', participantError);
+        return false;
+    }
+
+    const { error: flightsError } = await supabase
+        .from('flights')
+        .delete()
+        .eq('trip_id', tripId)
+        .eq('added_by', participantName);
+    if (flightsError) {
+        console.error('deleteParticipant flights error:', flightsError);
+        return false;
+    }
+
     emit(EVENTS.PARTICIPANT_DELETED, { tripId, participantName });
+    return true;
 }
 
 // --- Flight Operations ---
@@ -445,8 +481,13 @@ export async function updateFlightStatus(tripId, flightId, status) {
 
 export async function deleteFlight(tripId, flightId) {
     await setAuthForTrip(tripId);
-    await supabase.from('flights').delete().eq('id', flightId).eq('trip_id', tripId);
+    const { error } = await supabase.from('flights').delete().eq('id', flightId).eq('trip_id', tripId);
+    if (error) {
+        console.error('deleteFlight error:', error);
+        return false;
+    }
     emit(EVENTS.FLIGHT_DELETED, { tripId, flightId });
+    return true;
 }
 
 export async function restoreFlight(tripId, flight) {
@@ -506,8 +547,13 @@ export async function addNote(tripId, { content, author }) {
 
 export async function deleteNote(tripId, noteId) {
     await setAuthForTrip(tripId);
-    await supabase.from('notes').delete().eq('id', noteId).eq('trip_id', tripId);
+    const { error } = await supabase.from('notes').delete().eq('id', noteId).eq('trip_id', tripId);
+    if (error) {
+        console.error('deleteNote error:', error);
+        return false;
+    }
     emit(EVENTS.NOTE_DELETED, { tripId, noteId });
+    return true;
 }
 
 // --- Export ---

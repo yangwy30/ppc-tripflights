@@ -7,6 +7,8 @@ import { showToast } from '../components/toast.js';
 import { getIcon } from '../components/icons.js';
 
 export async function renderNotes(container, tripId) {
+  let disposed = false;
+  let renderGeneration = 0;
   const trip = await getTrip(tripId);
   if (!trip) {
     navigate('');
@@ -15,18 +17,26 @@ export async function renderNotes(container, tripId) {
 
   const nickname = getUserNickname(tripId);
 
-  // Subscribe to real-time note creation / deletion events
-  const unsubscribe = subscribe((event, data) => {
-    if (event === EVENTS.NOTE_ADDED || event === EVENTS.NOTE_DELETED) {
-      render();
-    }
-  });
+  // Keep the list current when this trip's notes change.
+  const noteUnsubscribers = [EVENTS.NOTE_ADDED, EVENTS.NOTE_DELETED].map(eventName =>
+    subscribe(eventName, payload => {
+      if (payload?.tripId === tripId) render();
+    })
+  );
+  const unsubscribe = () => {
+    if (disposed) return;
+    disposed = true;
+    renderGeneration += 1;
+    noteUnsubscribers.forEach(stop => stop());
+  };
 
   async function render() {
+    if (disposed) return;
+    const generation = ++renderGeneration;
     const currentTrip = await getTrip(tripId);
-    if (!currentTrip) return;
+    if (!currentTrip || disposed || generation !== renderGeneration) return;
 
-    const notes = [...currentTrip.notes].reverse();
+    const notes = [...(currentTrip.notes || [])].reverse();
 
     container.innerHTML = `
       <div class="screen" style="max-width: 680px; margin: 0 auto;">
@@ -85,32 +95,62 @@ export async function renderNotes(container, tripId) {
       const content = input.value.trim();
       if (!content) return;
 
-      await addNote(tripId, { content, author: nickname });
-      showToast('Note added', 'success');
-      render();
+      const added = await addNote(tripId, { content, author: nickname });
+      showToast(added ? 'Note added' : 'Could not add note', added ? 'success' : 'error');
     });
 
     container.querySelector('#btn-export').addEventListener('click', async () => {
       const summary = await exportTripSummary(tripId);
       if (navigator.share) {
-        navigator.share({ title: currentTrip.name, text: summary }).catch(() => { });
-      } else if (navigator.clipboard) {
-        navigator.clipboard.writeText(summary).then(() => {
-          showToast('Itinerary copied to clipboard!', 'success');
-        });
+        try {
+          await navigator.share({ title: currentTrip.name, text: summary });
+          return;
+        } catch (error) {
+          if (error?.name === 'AbortError') return;
+        }
       }
+
+      const copied = await copyText(summary);
+      showToast(copied ? 'Itinerary copied to clipboard!' : 'Could not export the itinerary', copied ? 'success' : 'error');
     });
 
     container.querySelectorAll('.note-delete').forEach(btn => {
       btn.addEventListener('click', async () => {
-        await deleteNote(tripId, btn.dataset.noteId);
-        showToast('Note deleted', 'info');
-        render();
+        const deleted = await deleteNote(tripId, btn.dataset.noteId);
+        showToast(deleted ? 'Note deleted' : 'Could not delete note', deleted ? 'info' : 'error');
       });
     });
   }
 
-  render();
+  await render();
+  return unsubscribe;
+}
+
+async function copyText(text) {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {
+    // Fall back for embedded browsers that expose but block Clipboard.
+  }
+
+  const textarea = document.createElement('textarea');
+  textarea.value = text;
+  textarea.setAttribute('readonly', '');
+  textarea.style.position = 'fixed';
+  textarea.style.opacity = '0';
+  document.body.appendChild(textarea);
+  textarea.select();
+  let copied = false;
+  try {
+    copied = document.execCommand('copy');
+  } catch {
+    copied = false;
+  }
+  textarea.remove();
+  return copied;
 }
 
 function formatTime(isoStr) {

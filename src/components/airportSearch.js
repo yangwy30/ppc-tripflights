@@ -1,5 +1,26 @@
 import { searchAirports } from '../data/airports.js';
 
+const activeAutocompletes = new Set();
+let outsideClickListenerBound = false;
+
+function registerAutocomplete(wrapper, dropdown) {
+    activeAutocompletes.add({ wrapper, dropdown });
+    if (outsideClickListenerBound) return;
+
+    document.addEventListener('click', event => {
+        activeAutocompletes.forEach(instance => {
+            if (!instance.wrapper.isConnected) {
+                activeAutocompletes.delete(instance);
+                return;
+            }
+            if (!instance.wrapper.contains(event.target) && !instance.dropdown.contains(event.target)) {
+                instance.dropdown.style.display = 'none';
+            }
+        });
+    });
+    outsideClickListenerBound = true;
+}
+
 export function setupAirportAutocomplete(container, placeholder, initialValue = '') {
     container.style.position = 'relative';
 
@@ -86,9 +107,14 @@ export function setupAirportAutocomplete(container, placeholder, initialValue = 
                 font-size: var(--font-size-sm);
                 user-select: none;
             `;
-            chip.innerHTML = `✈️ ${code} <span tabindex="0" style="cursor:pointer; opacity:0.6; padding: 0 2px;">&times;</span>`;
+            chip.append(document.createTextNode(`✈️ ${code} `));
+            const removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.setAttribute('aria-label', `Remove ${code}`);
+            removeBtn.textContent = '×';
+            removeBtn.style.cssText = 'cursor:pointer; opacity:0.6; padding:0 2px; border:0; background:transparent; color:inherit; font:inherit;';
+            chip.appendChild(removeBtn);
 
-            const removeBtn = chip.querySelector('span');
             removeBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 selectedAirports.delete(code);
@@ -119,7 +145,10 @@ export function setupAirportAutocomplete(container, placeholder, initialValue = 
         dropdown.innerHTML = '';
 
         if (results.length === 0) {
-            dropdown.innerHTML = `<li style="padding: 12px; color: var(--color-text-secondary); text-align: center;">No airports found for "${query}"</li>`;
+            const emptyItem = document.createElement('li');
+            emptyItem.style.cssText = 'padding: 12px; color: var(--color-text-secondary); text-align: center;';
+            emptyItem.textContent = `No airports found for "${query}"`;
+            dropdown.appendChild(emptyItem);
             dropdown.style.display = 'block';
             return;
         }
@@ -174,11 +203,7 @@ export function setupAirportAutocomplete(container, placeholder, initialValue = 
         dropdown.style.display = 'block';
     });
 
-    document.addEventListener('click', (e) => {
-        if (!wrapper.contains(e.target) && !dropdown.contains(e.target)) {
-            dropdown.style.display = 'none';
-        }
-    });
+    registerAutocomplete(wrapper, dropdown);
 
     input.addEventListener('keydown', (e) => {
         if (e.key === 'Backspace' && input.value === '' && selectedAirports.size > 0) {

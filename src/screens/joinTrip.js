@@ -1,7 +1,6 @@
 /* Join Trip screen */
 
-import { joinTrip, updateParticipantDestination } from '../data/dataAdapter.js';
-import { emit, EVENTS } from '../data/store.js';
+import { joinTrip, updateParticipantDestination, getUserNickname } from '../data/dataAdapter.js';
 import { navigate } from '../app.js';
 import { showToast } from '../components/toast.js';
 import { setupAirportAutocomplete } from '../components/airportSearch.js';
@@ -89,12 +88,19 @@ export function renderJoinTrip(container, invitePin = '') {
     const trip = await joinTrip({ pin, nickname, homeAirport });
     if (trip) {
       // Update per-person destination if set
+      let destinationUpdated = true;
       if (destAirport) {
-        await updateParticipantDestination(trip.id, nickname, destAirport);
+        destinationUpdated = await updateParticipantDestination(
+          trip.id,
+          getUserNickname(trip.id, trip) || nickname,
+          destAirport
+        );
       }
       errorEl.style.display = 'none';
-      emit(EVENTS.TRIP_JOINED, trip);
-      showToast(`Joined "${trip.name}"!`, 'success');
+      showToast(
+        destinationUpdated ? `Joined "${trip.name}"!` : `Joined "${trip.name}", but the preferred airport was not saved`,
+        destinationUpdated ? 'success' : 'warning'
+      );
       navigate(`trip/${trip.id}`);
     } else {
       errorEl.style.display = 'block';

@@ -17,12 +17,34 @@ const STATUS_ICONS = {
  */
 export function showToast(message, type = 'info', duration = 3000, action = null) {
     const container = document.getElementById('toast-container');
+    if (!container) return () => {};
+
     const toast = document.createElement('div');
     toast.className = 'toast';
-    toast.innerHTML = `
-    <span class="toast-icon">${STATUS_ICONS[type] || STATUS_ICONS.info}</span>
-    <span style="flex:1;">${message}</span>
-  `;
+    toast.setAttribute('role', type === 'error' || type === 'warning' ? 'alert' : 'status');
+    toast.setAttribute('aria-live', type === 'error' || type === 'warning' ? 'assertive' : 'polite');
+
+    const icon = document.createElement('span');
+    icon.className = 'toast-icon';
+    icon.textContent = STATUS_ICONS[type] || STATUS_ICONS.info;
+
+    const copy = document.createElement('span');
+    copy.className = 'toast-message';
+    copy.textContent = String(message || '');
+
+    toast.append(icon, copy);
+
+    let timer = null;
+    let dismissed = false;
+    const dismiss = () => {
+        if (dismissed) return;
+        dismissed = true;
+        if (timer) window.clearTimeout(timer);
+        toast.classList.add('toast-out');
+        toast.addEventListener('animationend', () => toast.remove(), { once: true });
+        // Reduced-motion mode and interrupted animations do not emit animationend.
+        window.setTimeout(() => toast.remove(), 260);
+    };
 
     if (action && action.label && action.onClick) {
         const btn = document.createElement('button');
@@ -30,19 +52,25 @@ export function showToast(message, type = 'info', duration = 3000, action = null
         btn.textContent = action.label;
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
-            action.onClick();
-            toast.classList.add('toast-out');
-            toast.addEventListener('animationend', () => toast.remove());
+            try {
+                action.onClick();
+            } finally {
+                dismiss();
+            }
         });
         toast.appendChild(btn);
         // Longer timeout when there's an action
         duration = Math.max(duration, 5000);
     }
 
+    toast.addEventListener('click', dismiss);
+
+    while (container.children.length >= 4) {
+        container.firstElementChild?.remove();
+    }
     container.appendChild(toast);
 
-    const timer = setTimeout(() => {
-        toast.classList.add('toast-out');
-        toast.addEventListener('animationend', () => toast.remove());
-    }, duration);
+    const timeout = Number.isFinite(duration) ? Math.max(750, duration) : 3000;
+    timer = window.setTimeout(dismiss, timeout);
+    return dismiss;
 }

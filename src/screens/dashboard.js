@@ -7,7 +7,7 @@ import { showToast } from '../components/toast.js';
 import { getComputedFlightStatus, renderCompactFlightRow } from '../components/flightCard.js';
 import { renderCoordinationTab } from '../components/coordinationTab.js';
 import { renderRouteMap, destroyRouteMap } from '../components/routeMap.js';
-import { startPolling, stopPolling } from '../data/alertService.js';
+import { startPolling } from '../data/alertService.js';
 import { getIcon } from '../components/icons.js';
 
 import { exportTripCalendar } from '../data/calendarService.js';
@@ -209,6 +209,9 @@ export async function renderDashboard(container, tripId) {
   let activeMainTab = 'tracking'; // 'tracking', 'coordination'
   let expandedFlightIds = new Set();
   let focusFlightId = null;
+  let renderGeneration = 0;
+  let removeDocumentClickListener = () => {};
+  let disposed = false;
 
   const trip = await getTrip(tripId);
   if (!trip) {
@@ -244,7 +247,7 @@ export async function renderDashboard(container, tripId) {
   const unsubscribers = [
     subscribe(EVENTS.TRIP_DELETED, (deletedTripId) => {
       if (deletedTripId !== tripId) return;
-      stopPolling(tripId);
+      unsubscribe();
       destroyRouteMap();
       showToast('Trip was deleted', 'info');
       navigate('');
@@ -259,13 +262,22 @@ export async function renderDashboard(container, tripId) {
     ].map(eventName => subscribe(eventName, () => render()))
   ];
   const unsubscribe = () => {
+    if (disposed) return;
+    disposed = true;
+    renderGeneration += 1;
+    removeDocumentClickListener();
     unsubscribers.forEach(fn => fn());
     stopSmartRefresh();
+    window.removeEventListener('hashchange', handleRouteChange);
   };
+  const handleRouteChange = () => unsubscribe();
+  window.addEventListener('hashchange', handleRouteChange, { once: true });
 
   async function render() {
+    if (disposed) return;
+    const generation = ++renderGeneration;
     const currentTrip = await getTrip(tripId);
-    if (!currentTrip) return;
+    if (!currentTrip || disposed || generation !== renderGeneration) return;
     latestTrip = currentTrip;
 
     const nickname = getUserNickname(tripId);
@@ -287,9 +299,9 @@ export async function renderDashboard(container, tripId) {
 
     // Sort flights chronologically
     const sortedFlights = [...filteredFlights].sort((a, b) => {
-      const dateA = a.departure?.date || '';
+      const dateA = a.date || a.departure?.date || '';
       const timeA = a.departure?.time || '';
-      const dateB = b.departure?.date || '';
+      const dateB = b.date || b.departure?.date || '';
       const timeB = b.departure?.time || '';
       return (dateA + ' ' + timeA).localeCompare(dateB + ' ' + timeB);
     });
@@ -521,6 +533,8 @@ export async function renderDashboard(container, tripId) {
   }
 
   function bindEvents() {
+    removeDocumentClickListener();
+
     // Topbar back
     container.querySelector('#btn-back')?.addEventListener('click', () => {
       destroyRouteMap();
@@ -618,12 +632,18 @@ export async function renderDashboard(container, tripId) {
       avatarPopover?.classList.toggle('hidden');
     });
 
-    // Click outside to close popover
-    document.addEventListener('click', (e) => {
+    // Close floating menus without accumulating document listeners on rerender.
+    const handleDocumentClick = (e) => {
       if (!container.querySelector('#avatar-group-wrapper')?.contains(e.target)) {
         avatarPopover?.classList.add('hidden');
       }
-    });
+      const toolsMenu = container.querySelector('.dashboard-tools-menu');
+      if (toolsMenu?.open && !toolsMenu.contains(e.target)) {
+        toolsMenu.removeAttribute('open');
+      }
+    };
+    document.addEventListener('click', handleDocumentClick);
+    removeDocumentClickListener = () => document.removeEventListener('click', handleDocumentClick);
 
     // Popover member click to filter
     avatarPopover?.querySelectorAll('[data-popover-person]').forEach(item => {
@@ -659,10 +679,12 @@ export async function renderDashboard(container, tripId) {
         const personName = btn.getAttribute('data-person-del');
 
         if (confirm(`Remove profile "${personName}" and all associated flights from this trip?`)) {
-          await deleteParticipant(tripId, personName);
           if (filterPerson === personName) filterPerson = 'all';
-          showToast(`Profile "${personName}" removed`, 'info');
-          render();
+          const deleted = await deleteParticipant(tripId, personName);
+          showToast(
+            deleted ? `Profile "${personName}" removed` : `Could not remove "${personName}"`,
+            deleted ? 'info' : 'error'
+          );
         }
       });
     });
@@ -696,15 +718,15 @@ export async function renderDashboard(container, tripId) {
         const flightId = btn.getAttribute('data-delete-flight');
 
         if (confirm('Are you sure you want to delete this flight?')) {
-          await deleteFlight(tripId, flightId);
-          showToast('Flight removed', 'info');
-          render();
+          const deleted = await deleteFlight(tripId, flightId);
+          showToast(deleted ? 'Flight removed' : 'Could not remove flight', deleted ? 'info' : 'error');
         }
       });
     });
   }
 
-  render();
+  await render();
+  return unsubscribe;
 }
 
 /**
