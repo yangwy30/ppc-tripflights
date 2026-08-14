@@ -2351,7 +2351,12 @@
 .reference-map-legend-item {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
+  min-width: 0;
+  padding: 5px 8px;
+  background: #f7f8fa;
+  border: 1px solid #e8eaf0;
+  border-radius: 9px;
 }
 
 .reference-map-legend-dots {
@@ -2368,14 +2373,26 @@
   border-radius: 50%;
 }
 
-.reference-map-legend-item small {
-  color: #686b74;
-  font-size: 10px;
+.reference-map-legend-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 1px;
 }
 
-.reference-map-legend-item strong {
+.reference-map-legend-copy strong {
   color: #303137;
+  font-size: 9px;
   font-weight: 650;
+}
+
+.reference-map-legend-copy small {
+  overflow: hidden;
+  max-width: 180px;
+  color: #686b74;
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .route-arc {
@@ -2668,6 +2685,7 @@
 
 .dashboard-tools-menu {
   position: relative;
+  z-index: 2001;
 }
 
 .dashboard-tools-menu summary {

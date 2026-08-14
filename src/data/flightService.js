@@ -175,7 +175,7 @@ export async function refreshFlightStatus(flightNumber, date) {
     } catch (error) {
         console.warn('⚠️ Status refresh failed:', error.message);
     }
-    return 'scheduled';
+    return null;
 }
 
 export function getDemoFlightNumbers() {

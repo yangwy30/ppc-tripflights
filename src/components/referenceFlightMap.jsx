@@ -73,6 +73,22 @@ function groupLegendRoutes(routes, isInbound) {
   return Array.from(groups.values());
 }
 
+function getUniqueTravelerRoutes(routes) {
+  const seen = new Set();
+  return routes.filter(route => {
+    const key = route.traveler.trim().toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function formatTravelerNames(routes) {
+  const names = getUniqueTravelerRoutes(routes).map(route => route.traveler);
+  if (names.length <= 3) return names.join(' · ');
+  return `${names.slice(0, 2).join(' · ')} +${names.length - 2}`;
+}
+
 export function ReferenceFlightMap({ flights = [], participants = [], trip = {}, phaseName = 'outbound' }) {
   const participantNames = useMemo(
     () => participants.map(person => (typeof person === 'string' ? person : person.name || '').trim().toLowerCase()),
@@ -216,23 +232,28 @@ export function ReferenceFlightMap({ flights = [], participants = [], trip = {},
       </div>
 
       <footer className="reference-flight-map-legend">
-        {legendGroups.map(group => (
-          <div
-            className="reference-map-legend-item"
-            key={`legend-${group.code}`}
-            title={group.routes.map(route => route.traveler).join(', ')}
-          >
-            <span className="reference-map-legend-dots" aria-hidden="true">
-              {group.routes.slice(0, 4).map(route => (
-                <i key={route.id} style={{ backgroundColor: route.color }} />
-              ))}
-            </span>
-            <small>
-              <strong>{group.code}</strong>{' '}
-              {group.routes.length > 1 ? `${group.routes.length} travelers` : group.city}
-            </small>
-          </div>
-        ))}
+        {legendGroups.map(group => {
+          const travelerRoutes = getUniqueTravelerRoutes(group.routes);
+          const fullNames = travelerRoutes.map(route => route.traveler).join(', ');
+          return (
+            <div
+              className="reference-map-legend-item"
+              key={`legend-${group.code}`}
+              title={fullNames}
+              aria-label={`${group.code}: ${fullNames}`}
+            >
+              <span className="reference-map-legend-dots" aria-hidden="true">
+                {travelerRoutes.slice(0, 4).map(route => (
+                  <i key={route.id} style={{ backgroundColor: route.color }} />
+                ))}
+              </span>
+              <span className="reference-map-legend-copy">
+                <strong>{group.code}</strong>
+                <small>{formatTravelerNames(group.routes)}</small>
+              </span>
+            </div>
+          );
+        })}
       </footer>
     </section>
   );

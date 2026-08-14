@@ -7,7 +7,7 @@ import { showToast } from '../components/toast.js';
 import { getComputedFlightStatus, renderCompactFlightRow } from '../components/flightCard.js';
 import { renderCoordinationTab } from '../components/coordinationTab.js';
 import { renderRouteMap, destroyRouteMap } from '../components/routeMap.js';
-import { startPolling, stopPolling, isPolling, setAutoRefreshPref, getAutoRefreshPref } from '../data/alertService.js';
+import { startPolling, stopPolling } from '../data/alertService.js';
 import { getIcon } from '../components/icons.js';
 
 import { exportTripCalendar } from '../data/calendarService.js';
@@ -238,6 +238,7 @@ export async function renderDashboard(container, tripId) {
   }
 
   let latestTrip = trip;
+  const stopSmartRefresh = startPolling(tripId, trip);
 
   // Keep the dashboard in sync with changes made from flight and coordination views.
   const unsubscribers = [
@@ -257,12 +258,10 @@ export async function renderDashboard(container, tripId) {
       EVENTS.PARTICIPANT_DELETED
     ].map(eventName => subscribe(eventName, () => render()))
   ];
-  const unsubscribe = () => unsubscribers.forEach(fn => fn());
-
-  // Start auto-refresh polling if preferred
-  if (getAutoRefreshPref(tripId)) {
-    startPolling(tripId);
-  }
+  const unsubscribe = () => {
+    unsubscribers.forEach(fn => fn());
+    stopSmartRefresh();
+  };
 
   async function render() {
     const currentTrip = await getTrip(tripId);
@@ -299,7 +298,6 @@ export async function renderDashboard(container, tripId) {
     const visibleAvatars = participantsList.slice(0, 4);
     const overflowCount = Math.max(0, participantsList.length - 4);
 
-    const isCurrentlyPolling = isPolling(tripId);
     const stats = getDashboardStats(currentTrip);
     const destinationCodes = (currentTrip.destinationAirport || 'Destination TBD')
       .split(',')
@@ -324,13 +322,8 @@ export async function renderDashboard(container, tripId) {
               <div class="dashboard-tools-popover">
                 <header class="dashboard-tools-popover-header">
                   <strong>Trip options</strong>
-                  <small>Shared utilities and settings</small>
+                  <small>Notes and calendar</small>
                 </header>
-                <button id="btn-toggle-refresh" title="${isCurrentlyPolling ? 'Turn off live refresh' : 'Enable live refresh'}">
-                  ${getIcon('refresh')}
-                  <span><strong>Live updates</strong><small>Refresh flight status every 30s</small></span>
-                  <em class="dashboard-tool-state ${isCurrentlyPolling ? 'is-on' : ''}">${isCurrentlyPolling ? 'On' : 'Off'}</em>
-                </button>
                 <button id="btn-notes" title="Open trip notes">
                   ${getIcon('notes')}<span><strong>Trip notes</strong><small>Meetups, hotels and shared details</small></span>
                 </button>
@@ -440,7 +433,6 @@ export async function renderDashboard(container, tripId) {
                 <span class="section-kicker">LIVE MANIFEST</span>
                 <h2>Flight tracking</h2>
               </div>
-              <span class="section-status"><span class="live-dot is-live"></span>${isCurrentlyPolling ? 'Auto-updating' : 'Manual refresh'}</span>
             </div>
 
             <div class="chip-group dashboard-crew-filter mb-base" aria-label="Filter by traveler">
@@ -597,22 +589,6 @@ export async function renderDashboard(container, tripId) {
       destroyRouteMap();
       unsubscribe();
       navigate(`trip/${tripId}/notes`);
-    });
-
-    // Toggle Live Refresh Polling
-    container.querySelector('#btn-toggle-refresh')?.addEventListener('click', () => {
-      const currentPref = getAutoRefreshPref(tripId);
-      const newPref = !currentPref;
-      setAutoRefreshPref(tripId, newPref);
-
-      if (newPref) {
-        startPolling(tripId);
-        showToast('Live status refresh enabled (30s polling)', 'success');
-      } else {
-        stopPolling(tripId);
-        showToast('Live status refresh disabled', 'info');
-      }
-      render();
     });
 
     // Add Flight
