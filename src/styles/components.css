@@ -1571,9 +1571,11 @@
   gap: 5px;
   margin-bottom: 30px;
   padding: 4px;
-  background: rgba(12, 12, 14, 0.88);
+  background: rgba(12, 12, 14, 0.96);
   border-color: #252529;
   border-radius: 11px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.24);
+  backdrop-filter: blur(14px);
 }
 
 .dashboard-main-tabs .tab-btn {
@@ -1702,6 +1704,11 @@
 
 .chip-delete-btn {
   all: unset;
+  display: inline-flex;
+  width: 20px;
+  height: 20px;
+  align-items: center;
+  justify-content: center;
   margin-left: 2px;
   color: #65666b;
   cursor: pointer;
@@ -2087,15 +2094,22 @@
   gap: 7px;
 }
 
-.reference-map-legend-item > span {
-  width: 10px;
-  height: 10px;
-  flex: 0 0 auto;
+.reference-map-legend-dots {
+  display: inline-flex;
+  align-items: center;
+  padding-left: 3px;
+}
+
+.reference-map-legend-dots i {
+  width: 11px;
+  height: 11px;
+  margin-left: -3px;
+  border: 1.5px solid #ffffff;
   border-radius: 50%;
 }
 
 .reference-map-legend-item small {
-  color: #767982;
+  color: #686b74;
   font-size: 10px;
 }
 
@@ -2148,7 +2162,7 @@
 
 .arrival-timeline-header p {
   margin-top: 3px;
-  color: #67686e;
+  color: #85868c;
   font-size: 10px;
 }
 
@@ -2198,7 +2212,7 @@
 
 .arrival-timeline-time small {
   margin-top: 4px;
-  color: #65666c;
+  color: #7d7e84;
   font-family: var(--font-family-mono);
   font-size: 8px;
 }
@@ -2267,7 +2281,7 @@
 .arrival-timeline-copy small {
   overflow: hidden;
   margin-top: 3px;
-  color: #717278;
+  color: #898a90;
   font-family: var(--font-family-mono);
   font-size: 9px;
   text-overflow: ellipsis;
@@ -2275,7 +2289,11 @@
 }
 
 .arrival-status {
+  display: inline-flex;
   min-height: 23px;
+  align-items: center;
+  justify-self: end;
+  gap: 5px;
   padding: 0 8px;
   color: #9b9ca2;
   background: #1b1b1e;
@@ -2283,8 +2301,17 @@
   border-radius: 999px;
   font-size: 9px;
   font-weight: 650;
-  line-height: 21px;
+  line-height: 1;
   white-space: nowrap;
+}
+
+.arrival-status::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  background: currentColor;
+  border-radius: 50%;
+  opacity: 0.85;
 }
 
 .arrival-status-landed,
@@ -2345,19 +2372,18 @@
   }
 
   .arrival-timeline-row {
-    grid-template-columns: 50px 30px minmax(0, 1fr);
-    min-height: 76px;
+    grid-template-columns: 50px 30px minmax(0, 1fr) auto;
+    min-height: 70px;
     padding: 0 13px;
   }
 
   .arrival-timeline-copy {
-    padding-right: 0;
+    padding: 0 8px;
   }
 
   .arrival-status {
-    grid-column: 3;
-    width: max-content;
-    margin: -17px 0 7px 12px;
+    grid-column: 4;
+    margin: 0;
   }
 }
 
@@ -2598,7 +2624,7 @@
 }
 
 .flight-summary-route small {
-  color: #6f7076;
+  color: #85868c;
   font-size: 10px;
 }
 
@@ -2610,12 +2636,12 @@
 
 .flight-arrival-terminal {
   padding: 3px 6px;
-  color: #b9ba9d;
+  color: #d0d2ae;
   background: rgba(217, 255, 67, 0.06);
   border: 1px solid rgba(217, 255, 67, 0.14);
   border-radius: 5px;
   font-family: var(--font-family-mono);
-  font-size: 8px;
+  font-size: 9px;
   font-style: normal;
   font-weight: 650;
   white-space: nowrap;
@@ -3136,13 +3162,21 @@
   }
 
   .dashboard-tools-trigger {
-    min-height: 36px;
+    min-height: 42px;
     padding: 0 10px;
   }
 
   .dashboard-add-action {
-    min-height: 36px;
+    min-height: 42px;
     padding: 0 12px;
+  }
+
+  .dashboard-main-tabs .tab-btn {
+    min-height: 44px;
+  }
+
+  .dashboard-screen .chip {
+    min-height: 36px;
   }
 
   .dashboard-direction-tabs {

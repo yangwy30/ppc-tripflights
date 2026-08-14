@@ -60,6 +60,19 @@ function uniqueEndpoints(routes) {
   });
 }
 
+function groupLegendRoutes(routes, isInbound) {
+  const groups = new Map();
+
+  routes.forEach(route => {
+    const code = isInbound ? route.toCode : route.fromCode;
+    const city = isInbound ? route.toCity : route.fromCity;
+    if (!groups.has(code)) groups.set(code, { code, city, routes: [] });
+    groups.get(code).routes.push(route);
+  });
+
+  return Array.from(groups.values());
+}
+
 export function ReferenceFlightMap({ flights = [], participants = [], trip = {}, phaseName = 'outbound' }) {
   const participantNames = useMemo(
     () => participants.map(person => (typeof person === 'string' ? person : person.name || '').trim().toLowerCase()),
@@ -103,7 +116,7 @@ export function ReferenceFlightMap({ flights = [], participants = [], trip = {},
   const subtitle = isInbound
     ? `${routes.length} ${routes.length === 1 ? 'flight' : 'flights'} heading home`
     : `${routes.length} ${routes.length === 1 ? 'flight' : 'flights'} converging on ${destinationLabel}`;
-  const legendRoutes = isInbound ? routes : routes;
+  const legendGroups = groupLegendRoutes(routes, isInbound);
 
   return (
     <section className="reference-flight-map" aria-label={`${title} map`}>
@@ -203,12 +216,20 @@ export function ReferenceFlightMap({ flights = [], participants = [], trip = {},
       </div>
 
       <footer className="reference-flight-map-legend">
-        {legendRoutes.map(route => (
-          <div className="reference-map-legend-item" key={`legend-${route.id}`}>
-            <span style={{ backgroundColor: route.color }} />
+        {legendGroups.map(group => (
+          <div
+            className="reference-map-legend-item"
+            key={`legend-${group.code}`}
+            title={group.routes.map(route => route.traveler).join(', ')}
+          >
+            <span className="reference-map-legend-dots" aria-hidden="true">
+              {group.routes.slice(0, 4).map(route => (
+                <i key={route.id} style={{ backgroundColor: route.color }} />
+              ))}
+            </span>
             <small>
-              <strong>{isInbound ? route.toCode : route.fromCode}</strong>{' '}
-              {isInbound ? route.toCity : route.fromCity}
+              <strong>{group.code}</strong>{' '}
+              {group.routes.length > 1 ? `${group.routes.length} travelers` : group.city}
             </small>
           </div>
         ))}
