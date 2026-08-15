@@ -139,6 +139,7 @@ function getStatusPresentation(status) {
     delayed: 'Delayed',
     cancelled: 'Cancelled',
     boarding: 'Boarding',
+    taxiing: 'Taxiing',
     'in-air': 'In air',
     'on-time': 'On time',
     scheduled: 'Scheduled'
@@ -147,6 +148,13 @@ function getStatusPresentation(status) {
     key: normalized,
     label: labels[normalized] || normalized.replace(/(^|-)\w/g, match => match.replace('-', ' ').toUpperCase())
   };
+}
+
+function formatTimelineTerminal(value) {
+  if (!value) return '';
+  const raw = String(value).trim();
+  const terminal = /^T(?=[A-Z0-9]+$)/i.test(raw) ? raw.slice(1) : raw;
+  return `Terminal ${terminal}`;
 }
 
 function formatArrivalDate(flight) {
@@ -162,12 +170,7 @@ function renderArrivalTimeline(flights, participants, phaseFilter) {
   return `
     <section class="arrival-timeline-card" aria-labelledby="arrival-timeline-title">
       <header class="arrival-timeline-header">
-        <div>
-          <span class="section-kicker">${phaseFilter === 'return' ? 'INBOUND' : 'OUTBOUND'}</span>
-          <h2 id="arrival-timeline-title">Arrival timeline</h2>
-          <p>Sorted by landing time</p>
-        </div>
-        <span class="arrival-timeline-count">${orderedFlights.length} ${orderedFlights.length === 1 ? 'arrival' : 'arrivals'}</span>
+        <h2 id="arrival-timeline-title">${phaseFilter === 'return' ? 'Return timeline' : 'Arrival timeline'}</h2>
       </header>
 
       ${orderedFlights.length ? `
@@ -178,20 +181,24 @@ function renderArrivalTimeline(flights, participants, phaseFilter) {
             const status = getStatusPresentation(getComputedFlightStatus(flight));
             const departureCode = flight.departure?.code || 'DEP';
             const arrivalCode = flight.arrival?.code || 'ARR';
+            const terminal = formatTimelineTerminal(flight.arrival?.terminal);
+            const isSettled = ['landed', 'arrived', 'taxiing'].includes(status.key);
             return `
-              <li class="arrival-timeline-row">
+              <li class="arrival-timeline-row ${isSettled ? 'is-settled' : 'is-pending'} arrival-timeline-${escapeHtml(status.key)}">
+                <span class="arrival-timeline-rail" style="--timeline-color:${color}">
+                  <i></i>
+                </span>
+                <span class="arrival-timeline-copy">
+                  <strong>${escapeHtml(flight.addedBy || 'Traveler')}</strong>
+                  <small>
+                    <span>${escapeHtml(status.label)}</span>
+                    ${terminal ? `<span aria-hidden="true">•</span><span>${escapeHtml(terminal)}</span>` : `<span aria-hidden="true">•</span><span>${escapeHtml(departureCode)} → ${escapeHtml(arrivalCode)}</span>`}
+                  </small>
+                </span>
                 <span class="arrival-timeline-time">
                   <time>${escapeHtml(flight.arrival?.time || '--:--')}</time>
                   <small>${escapeHtml(formatArrivalDate(flight))}</small>
                 </span>
-                <span class="arrival-timeline-rail" style="--timeline-color:${color}">
-                  <i>${escapeHtml((flight.addedBy || '?').charAt(0).toUpperCase())}</i>
-                </span>
-                <span class="arrival-timeline-copy">
-                  <strong>${escapeHtml(flight.addedBy || 'Traveler')}</strong>
-                  <small>${escapeHtml(departureCode)} → ${escapeHtml(arrivalCode)} · ${escapeHtml(flight.flightNumber || 'Flight')}</small>
-                </span>
-                <span class="arrival-status arrival-status-${escapeHtml(status.key)}">${escapeHtml(status.label)}</span>
               </li>
             `;
           }).join('')}
@@ -476,11 +483,7 @@ export async function renderDashboard(container, tripId) {
             ${renderArrivalTimeline(sortedFlights, currentTrip.participants || [], phaseFilter)}
 
             <div class="dashboard-list-header">
-              <div>
-                <span class="section-kicker">${phaseFilter === 'return' ? 'INBOUND' : 'OUTBOUND'}</span>
-                <h2>Traveler details</h2>
-              </div>
-              <span class="traveler-details-hint">Select a flight for details</span>
+              <h2>Traveler details</h2>
             </div>
 
             <div id="tab-content">

@@ -15,6 +15,7 @@ const STATUS_MAP = {
   landed: { label: 'Landed', class: 'badge-success' },
   arrived: { label: 'Arrived', class: 'badge-success' },
   boarding: { label: 'Boarding', class: 'badge-accent' },
+  taxiing: { label: 'Taxiing', class: 'badge-accent' },
   'in-air': { label: 'In Air', class: 'badge-accent' }
 };
 
@@ -60,6 +61,19 @@ function formatTerminal(value) {
   return `Terminal ${terminal}`;
 }
 
+function getInitials(name) {
+  const parts = String(name || 'Traveler').trim().split(/\s+/).filter(Boolean);
+  return parts.slice(0, 2).map(part => part.charAt(0)).join('').toUpperCase() || '?';
+}
+
+function getCardStatus(flight, computedStatus) {
+  const delayMinutes = Number(flight.delayMinutes ?? flight.delay ?? flight.delay_minutes);
+  if (computedStatus === 'delayed' && Number.isFinite(delayMinutes) && delayMinutes > 0) {
+    return `+${Math.round(delayMinutes)}M DELAY`;
+  }
+  return (STATUS_MAP[computedStatus]?.label || computedStatus || 'Scheduled').toUpperCase();
+}
+
 function renderAirportDetail(label, endpoint) {
   const terminalAndGate = [
     formatTerminal(endpoint?.terminal),
@@ -83,33 +97,41 @@ export function renderCompactFlightRow(flight, participants, isExpanded = false)
   const statusInfo = STATUS_MAP[computedStatus] || STATUS_MAP.scheduled;
   const departureCode = flight.departure?.code || 'DEP';
   const arrivalCode = flight.arrival?.code || 'ARR';
+  const cardStatus = getCardStatus(flight, computedStatus);
+  const arrivalTerminal = formatTerminal(flight.arrival?.terminal);
 
   return `
-    <article class="flight-details-card ${isExpanded ? 'is-expanded' : ''}" style="--flight-person-color:${personColor}">
+    <article class="flight-details-card flight-status-${escapeHtml(computedStatus)} ${isExpanded ? 'is-expanded' : ''}" style="--flight-person-color:${personColor}">
       <button
         type="button"
         class="flight-summary-trigger"
         data-expand-flight="${escapeHtml(flight.id)}"
         aria-expanded="${isExpanded}"
       >
+        <span class="flight-traveler-avatar" aria-hidden="true">${escapeHtml(getInitials(flight.addedBy))}</span>
+
         <span class="flight-summary-identifiers">
-          <span class="badge ${statusInfo.class}"><span class="live-dot"></span>${statusInfo.label}</span>
-          <strong>${escapeHtml(flight.flightNumber || 'Flight')}</strong>
+          <strong>${escapeHtml(flight.addedBy || 'Traveler')}</strong>
+          <small>${escapeHtml(flight.airline || 'Airline')} · ${escapeHtml(flight.flightNumber || 'Flight')}</small>
+        </span>
+
+        <span class="flight-summary-status">
+          <strong>${escapeHtml(cardStatus)}</strong>
+          <small>${escapeHtml(arrivalTerminal)}</small>
         </span>
 
         <span class="flight-summary-route">
-          <span><strong>${escapeHtml(departureCode)}</strong><small>${formatTime(flight.departure?.time)}</small></span>
-          <i aria-hidden="true">${getIcon('arrowRight')}</i>
-          <span>
-            <strong>${escapeHtml(arrivalCode)}</strong>
-            <small>${formatTime(flight.arrival?.time)}</small>
-            <em class="flight-arrival-terminal">${escapeHtml(formatTerminal(flight.arrival?.terminal))}</em>
+          <span class="flight-route-endpoint">
+            <small>${escapeHtml(departureCode)}</small>
+            <strong>${formatTime(flight.departure?.time)}</strong>
           </span>
-        </span>
-
-        <span class="flight-summary-traveler">
-          <i></i>
-          ${escapeHtml(flight.addedBy || 'Traveler')}
+          <span class="flight-route-track" aria-hidden="true">
+            <i>${getIcon('plane')}</i>
+          </span>
+          <span class="flight-route-endpoint align-right">
+            <small>${escapeHtml(arrivalCode)}</small>
+            <strong>${formatTime(flight.arrival?.time)}</strong>
+          </span>
         </span>
         <span class="flight-summary-chevron" aria-hidden="true">⌄</span>
       </button>
