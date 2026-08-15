@@ -163,14 +163,14 @@ function formatArrivalDate(flight) {
   return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(new Date(timestamp));
 }
 
-function renderArrivalTimeline(flights, participants, phaseFilter) {
+function renderArrivalTimeline(flights, participants) {
   const orderedFlights = [...flights].sort((a, b) => getArrivalMoment(a) - getArrivalMoment(b));
   const participantList = participants.map(person => typeof person === 'string' ? { name: person } : person);
 
   return `
     <section class="arrival-timeline-card" aria-labelledby="arrival-timeline-title">
       <header class="arrival-timeline-header">
-        <h2 id="arrival-timeline-title">${phaseFilter === 'return' ? 'Return timeline' : 'Arrival timeline'}</h2>
+        <h2 id="arrival-timeline-title">Arrival timeline</h2>
       </header>
 
       ${orderedFlights.length ? `
@@ -480,7 +480,7 @@ export async function renderDashboard(container, tripId) {
 
             <div id="hero-map-container" class="mb-base"></div>
 
-            ${renderArrivalTimeline(sortedFlights, currentTrip.participants || [], phaseFilter)}
+            ${renderArrivalTimeline(sortedFlights, currentTrip.participants || [])}
 
             <div class="dashboard-list-header">
               <h2>Traveler details</h2>
