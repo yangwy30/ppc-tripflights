@@ -372,6 +372,23 @@
   transform: rotate(180deg);
 }
 
+.dashboard-screen .flight-expanded-shell {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition: grid-template-rows 260ms cubic-bezier(0.22, 1, 0.36, 1), opacity 180ms ease;
+}
+
+.dashboard-screen .flight-details-card.is-expanded .flight-expanded-shell {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+
+.dashboard-screen .flight-expanded-clip {
+  min-height: 0;
+  overflow: hidden;
+}
+
 .dashboard-screen .flight-expanded-panel {
   padding: 0 30px 26px;
   border-top: 0;
@@ -481,6 +498,12 @@
 
   .dashboard-screen .flight-expanded-panel {
     padding: 0 20px 20px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-screen .flight-expanded-shell {
+    transition: none;
   }
 }
 

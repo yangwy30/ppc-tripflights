@@ -653,6 +653,7 @@ export async function renderDashboard(container, tripId) {
       item.addEventListener('click', () => {
         const personName = item.getAttribute('data-popover-person');
         filterPerson = filterPerson === personName ? 'all' : personName;
+        expandedFlightIds.clear();
         avatarPopover.classList.add('hidden');
         render();
       });
@@ -662,6 +663,7 @@ export async function renderDashboard(container, tripId) {
     container.querySelectorAll('[data-maintab]').forEach(btn => {
       btn.addEventListener('click', () => {
         activeMainTab = btn.getAttribute('data-maintab');
+        expandedFlightIds.clear();
         render();
       });
     });
@@ -671,6 +673,7 @@ export async function renderDashboard(container, tripId) {
       chip.addEventListener('click', (e) => {
         if (e.target.classList.contains('chip-delete-btn')) return;
         filterPerson = chip.getAttribute('data-person');
+        expandedFlightIds.clear();
         render();
       });
     });
@@ -697,21 +700,32 @@ export async function renderDashboard(container, tripId) {
       tab.addEventListener('click', () => {
         const targetPhase = tab.getAttribute('data-phase');
         if (targetPhase) phaseFilter = targetPhase;
+        expandedFlightIds.clear();
         render();
       });
     });
 
-    // One consistent flight card pattern: compact summary with expandable details.
+    // Keep expansion local to the cards. Re-rendering the whole dashboard here
+    // recreates the map, moves the scroll position, and makes rapid taps race.
     container.querySelectorAll('[data-expand-flight]').forEach(row => {
       row.addEventListener('click', (e) => {
         if (e.target.closest('[data-delete-flight]')) return;
         const flightId = row.getAttribute('data-expand-flight');
-        if (expandedFlightIds.has(flightId)) {
-          expandedFlightIds.delete(flightId);
-        } else {
-          expandedFlightIds.add(flightId);
-        }
-        render();
+        const shouldExpand = row.getAttribute('aria-expanded') !== 'true';
+
+        expandedFlightIds.clear();
+        if (shouldExpand) expandedFlightIds.add(flightId);
+
+        container.querySelectorAll('.flight-details-card').forEach(card => {
+          const trigger = card.querySelector('[data-expand-flight]');
+          const shell = card.querySelector('.flight-expanded-shell');
+          const isTarget = shouldExpand && trigger === row;
+
+          card.classList.toggle('is-expanded', isTarget);
+          trigger?.setAttribute('aria-expanded', String(isTarget));
+          shell?.setAttribute('aria-hidden', String(!isTarget));
+          shell?.toggleAttribute('inert', !isTarget);
+        });
       });
     });
 

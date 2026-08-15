@@ -107,6 +107,7 @@ export function renderCompactFlightRow(flight, participants, isExpanded = false)
         class="flight-summary-trigger"
         data-expand-flight="${escapeHtml(flight.id)}"
         aria-expanded="${isExpanded}"
+        aria-controls="flight-details-${escapeHtml(flight.id)}"
       >
         <span class="flight-traveler-avatar" aria-hidden="true">${escapeHtml(getInitials(flight.addedBy))}</span>
 
@@ -136,30 +137,37 @@ export function renderCompactFlightRow(flight, participants, isExpanded = false)
         <span class="flight-summary-chevron" aria-hidden="true">⌄</span>
       </button>
 
-      ${isExpanded ? `
-        <div class="flight-expanded-panel">
-          <div class="flight-expanded-grid">
-            ${renderAirportDetail('Departure', flight.departure)}
-            ${renderAirportDetail('Arrival', flight.arrival)}
-            <div class="flight-expanded-item">
-              <span>Airline</span>
-              <strong>${escapeHtml(flight.airline || flight.flightNumber || '—')}</strong>
-              <small>${escapeHtml(flight.duration || 'Duration TBD')}</small>
+      <div
+        class="flight-expanded-shell"
+        id="flight-details-${escapeHtml(flight.id)}"
+        aria-hidden="${!isExpanded}"
+        ${isExpanded ? '' : 'inert'}
+      >
+        <div class="flight-expanded-clip">
+          <div class="flight-expanded-panel">
+            <div class="flight-expanded-grid">
+              ${renderAirportDetail('Departure', flight.departure)}
+              ${renderAirportDetail('Arrival', flight.arrival)}
+              <div class="flight-expanded-item">
+                <span>Airline</span>
+                <strong>${escapeHtml(flight.airline || flight.flightNumber || '—')}</strong>
+                <small>${escapeHtml(flight.duration || 'Duration TBD')}</small>
+              </div>
+              <div class="flight-expanded-item">
+                <span>Date</span>
+                <strong>${escapeHtml(flight.date || '—')}</strong>
+                <small>${escapeHtml(statusInfo.label)}</small>
+              </div>
             </div>
-            <div class="flight-expanded-item">
-              <span>Date</span>
-              <strong>${escapeHtml(flight.date || '—')}</strong>
-              <small>${escapeHtml(statusInfo.label)}</small>
+            <div class="flight-expanded-footer">
+              <span>Added by ${escapeHtml(flight.addedBy || 'Traveler')}</span>
+              <button type="button" class="flight-remove-action" data-delete-flight="${escapeHtml(flight.id)}">
+                ${getIcon('trash')} Remove flight
+              </button>
             </div>
-          </div>
-          <div class="flight-expanded-footer">
-            <span>Added by ${escapeHtml(flight.addedBy || 'Traveler')}</span>
-            <button type="button" class="flight-remove-action" data-delete-flight="${escapeHtml(flight.id)}">
-              ${getIcon('trash')} Remove flight
-            </button>
           </div>
         </div>
-      ` : ''}
+      </div>
     </article>
   `;
 }
